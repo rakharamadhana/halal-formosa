@@ -155,8 +155,9 @@ export default defineComponent({
       results.value = allProducts.value;
     };
 
-    const handleInput = (event) => {
-      const query = event.target.value.trim().toLowerCase();
+    const handleInput = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const query = target.value.trim().toLowerCase();
       searchQuery.value = query;
       results.value = allProducts.value.filter(
           (product) =>
@@ -165,7 +166,7 @@ export default defineComponent({
       );
     };
 
-    const openDetails = (product) => {
+    const openDetails = (product: Product) => {
       selectedProduct.value = product;
     };
 
@@ -206,7 +207,7 @@ export default defineComponent({
               qrbox: {width: 250, height: 100},
               formatsToSupport,
             } as any,
-            (decodedText, decodedResult) => {
+            (decodedText) => {
               console.log("Barcode detected:", decodedText);
               searchQuery.value = decodedText;
               results.value = allProducts.value.filter(
