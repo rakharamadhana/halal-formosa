@@ -21,7 +21,7 @@
           </ion-button>
         </ion-item>
 
-        <div v-if="scanning" id="reader" style="width: 100%; height: 250px; margin-top: 16px;"></div>
+        <div v-if="scanning" id="reader"></div>
         <ion-button v-if="scanning" color="danger" @click="stopScan">Stop Scan</ion-button>
 
         <ion-item>
