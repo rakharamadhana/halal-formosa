@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Sign Up</ion-title>
+        <ion-title>Sign Up Now</ion-title>
       </ion-toolbar>
     </ion-header>
 
