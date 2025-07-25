@@ -1,5 +1,5 @@
 {
-  "name": "photo-gallery",
+  "name": "halal-project",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -12,13 +12,24 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^7.2.1",
+    "@capacitor/android": "7.4.2",
     "@capacitor/app": "7.0.1",
+    "@capacitor/barcode-scanner": "^2.0.0",
+    "@capacitor/camera": "^7.0.1",
     "@capacitor/core": "7.4.2",
+    "@capacitor/filesystem": "^7.1.2",
     "@capacitor/haptics": "7.0.1",
     "@capacitor/keyboard": "7.0.1",
+    "@capacitor/preferences": "^7.0.1",
     "@capacitor/status-bar": "7.0.1",
+    "@ionic/pwa-elements": "^3.3.0",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
+    "@supabase/supabase-js": "^2.52.1",
+    "@zxing/library": "^0.21.3",
+    "barcode-detector": "^3.0.5",
+    "html5-qrcode": "^2.3.8",
     "ionicons": "^7.0.0",
     "vue": "^3.3.0",
     "vue-router": "^4.2.0"

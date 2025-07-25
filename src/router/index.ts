@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import TabsPage from '../views/TabsPage.vue'
+import TabsPage from '../views/TabsPage.vue';
+import { supabase } from '@/plugins/supabaseClient'; // your supabase instance
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -28,12 +29,32 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/Tab3Page.vue')
       }
     ]
+  },
+  {
+    path: '/login',
+    component: () => import('@/views/LoginPage.vue')
+  },
+  {
+    path: '/signup',
+    component: () => import('@/views/SignupPage.vue')
   }
-]
+];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
-})
+});
 
-export default router
+router.beforeEach(async (to, from, next) => {
+  const publicPages = ['/login', '/signup']
+  const authRequired = !publicPages.includes(to.path)
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (authRequired && !session) {
+    return next('/login')
+  }
+  next()
+});
+
+export default router;
