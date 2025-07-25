@@ -162,7 +162,7 @@ async function startBarcodeScan() {
           stopScan();
         },
         (errorMessage) => {
-          // optionally handle scan errors here
+          console.log(errorMessage);
         }
     );
   } catch (err) {

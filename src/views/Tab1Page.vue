@@ -109,6 +109,15 @@ import { barcodeOutline, stopCircleOutline } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
+interface Product {
+  barcode: string;
+  name: string;
+  status: string;
+  ingredients?: string;
+  halal_logo_present?: boolean;
+  photo_front_url?: string;
+  photo_back_url?: string;
+}
 export default defineComponent({
   components: {
     IonPage,
@@ -128,10 +137,10 @@ export default defineComponent({
     IonFooter,
   },
   setup() {
-    const allProducts = ref([]);
-    const results = ref([]);
+    const allProducts = ref<Product[]>([]);
+    const results = ref<Product[]>([]);
     const errorMsg = ref('');
-    const selectedProduct = ref(null);
+    const selectedProduct = ref<Product | null>(null);
     const scanning = ref(false);
     const searchQuery = ref('');
     let html5QrcodeScanner: Html5Qrcode | null = null;
