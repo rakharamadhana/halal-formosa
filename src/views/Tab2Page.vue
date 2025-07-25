@@ -289,5 +289,20 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-/* Optional styling */
+#reader {
+  width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 auto; /* center horizontally */
+}
+
+/* For larger screens */
+@media (min-width: 768px) {
+  #reader {
+    width: 400px;       /* fixed width for better control */
+    height: 300px;      /* fixed height */
+    border-radius: 8px; /* maybe larger radius for desktop */
+  }
+}
 </style>
