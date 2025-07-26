@@ -2,6 +2,9 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router';
 
+import { App as CapacitorApp } from '@capacitor/app';
+import { supabase } from '@/plugins/supabaseClient';
+
 import { IonicVue } from '@ionic/vue';
 
 /* Core CSS required for Ionic components to work properly */
@@ -41,6 +44,30 @@ defineCustomElements(window);
 const app = createApp(App)
   .use(IonicVue)
   .use(router);
+
+CapacitorApp.addListener('appUrlOpen', async (data) => {
+  if (data && data.url && data.url.includes('myapp://callback')) {
+    try {
+      const url = new URL(data.url);
+      const hash = url.hash.substring(1); // remove leading '#'
+      const params = new URLSearchParams(hash);
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+
+      if (access_token && refresh_token) {
+        await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+        // Optionally, you can do router navigation or emit events here
+        console.log('User session restored from deep link!');
+      }
+    } catch (err) {
+      console.error('Failed to handle deep link:', err);
+    }
+  }
+});
+
 
 router.isReady().then(() => {
   app.mount('#app');

@@ -24,6 +24,15 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-refresher slot="fixed" @ionRefresh="refreshList">
+        <ion-refresher-content
+            :pulling-icon="chevronDownCircleOutline"
+            pullingText="Pull to refresh"
+            refreshingSpinner="circles"
+            refreshingText="Refreshing...">
+        </ion-refresher-content>
+      </ion-refresher>
+
       <div v-if="scanning" id="reader"></div>
 
       <ion-list v-if="!scanning">
@@ -44,7 +53,7 @@
 
           <ion-label>
             <h2>{{ product.name }}</h2>
-            <p><small>Added {{ dayjs(product.created_at).fromNow() }}</small></p>
+            <p><small>Added {{ fromNowToTaipei(product?.created_at) }}</small></p>
             <ion-chip
                 :color="
                 product.status === 'Halal' ? 'success' :
@@ -166,11 +175,13 @@ import {
   IonChip,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
+  IonRefresher,
+  IonRefresherContent
 } from '@ionic/vue';
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
 import { Pagination, Zoom } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/vue';
-import { barcodeOutline, stopCircleOutline } from 'ionicons/icons';
+import { barcodeOutline, stopCircleOutline, chevronDownCircleOutline } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -179,14 +190,21 @@ import 'swiper/css/pagination';
 import 'swiper/css/zoom';
 
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+// Extend dayjs
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
 import relativeTime from 'dayjs/plugin/relativeTime'
+dayjs.extend(relativeTime)
 
 interface Product {
   barcode: string;
   name: string;
   status: string;
   ingredients?: string;
-  halal_logo_present?: boolean;
   photo_front_url?: string;
   photo_back_url?: string;
   created_at?: string;
@@ -215,6 +233,8 @@ export default defineComponent({
     IonInfiniteScrollContent,
     Swiper,
     SwiperSlide,
+    IonRefresher,
+    IonRefresherContent
   },
   setup() {
     const totalProductsCount = ref(0);
@@ -231,7 +251,33 @@ export default defineComponent({
     const loadingMore = ref(false);
     const allLoaded = ref(false);
 
-    dayjs.extend(relativeTime)
+    async function refreshList(event: CustomEvent) {
+      await fetchAllProducts(); // Reset and reload products (first page)
+
+      event.detail.complete();   // Hide refresher
+    }
+
+    function fromNowToTaipei(dateString?: string) {
+      if (!dateString) return ''
+      return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+    }
+
+    const fetchAllProducts = async () => {
+      const { data, error, count } = await supabase
+          .from('products')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false });
+
+      if (error) {
+        errorMsg.value = error.message;
+      } else {
+        allProducts.value = data || [];
+        results.value = allProducts.value;
+        totalProductsCount.value = count || 0;
+        allLoaded.value = true;
+      }
+    };
+
 
     const fetchTotalCount = async () => {
       const { count, error } = await supabase
@@ -409,10 +455,12 @@ export default defineComponent({
       stopScan,
       barcodeOutline,
       stopCircleOutline,
+      chevronDownCircleOutline,
       modules,
       loadMore,
       totalProductsCount,
-      dayjs
+      fromNowToTaipei,
+      refreshList
     };
   },
 });

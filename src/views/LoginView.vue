@@ -43,6 +43,16 @@
 
         <ion-button
             expand="block"
+            fill="outline"
+            class="ion-margin-top"
+            @click="loginWithGoogle"
+        >
+          Continue with Google
+        </ion-button>
+
+
+        <ion-button
+            expand="block"
             fill="clear"
             class="ion-margin-top"
             @click="goHome"
@@ -90,9 +100,10 @@ export default defineComponent({
 </script>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // adjust path if needed
+import { Capacitor } from '@capacitor/core';  // <-- import Capacitor here
 
 const email = ref('');
 const password = ref('');
@@ -114,11 +125,44 @@ async function login() {
   if (error) {
     errorMsg.value = error.message;
   } else if (data.session) {
-    router.push('/'); // redirect after login
+    router.push('/profile'); // redirect after login
+  }
+}
+
+const redirectUrl = Capacitor.isNativePlatform()
+    ? 'myapp://callback'
+    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:8100/profile'  // adjust port if needed
+        : `${window.location.origin}/profile`;
+
+
+async function loginWithGoogle() {
+  errorMsg.value = '';
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+
+    if (error) {
+      errorMsg.value = error.message;
+    }
+  } catch (err: any) {
+    errorMsg.value = err.message || 'An unexpected error occurred during Google login.';
   }
 }
 
 function goHome() {
   router.push('/');
 }
+
+onMounted(() => {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      router.push('/profile'); // or wherever you want to redirect logged-in users
+    }
+  });
+});
 </script>

@@ -53,11 +53,6 @@
           ></ion-textarea>
         </ion-item>
 
-        <ion-item lines="none">
-          <ion-label>Has Halal Logo</ion-label>
-          <ion-checkbox slot="start" v-model="form.halal_logo_present"></ion-checkbox>
-        </ion-item>
-
         <ion-item>
           <ion-label>Front Image</ion-label>
           <ion-button @click="takeFrontPicture" fill="outline" size="small">Take Picture</ion-button>
@@ -117,7 +112,7 @@ import {
   IonLabel,
   IonToolbar,
   IonTitle,
-  IonButton, IonCheckbox, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon, IonSpinner, IonToast
+  IonButton, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon, IonSpinner, IonToast
 } from '@ionic/vue';
 import { barcodeOutline } from 'ionicons/icons';
 import { nextTick, ref } from 'vue'
@@ -132,7 +127,6 @@ const form = ref({
   name: '',
   status: 'Halal',
   ingredients: '',
-  halal_logo_present: false,
 })
 
 const frontFile = ref<File | null>(null)
@@ -301,7 +295,6 @@ async function handleSubmit() {
       name: '',
       status: 'Halal',
       ingredients: '',
-      halal_logo_present: false,
     }
     frontFile.value = null
     backFile.value = null
