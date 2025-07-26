@@ -14,8 +14,9 @@
               required
               label="Barcode"
               label-placement="floating"
-              placeholder="Enter text"
-          ></ion-input>
+              placeholder="Enter digits only"
+              @input="onBarcodeInput"
+          />
           <ion-button slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
             <ion-icon :icon="barcodeOutline" />
           </ion-button>
@@ -31,6 +32,7 @@
               label="Product Name"
               label-placement="floating"
               placeholder="Enter text"
+              @input="onProductNameInput"
           ></ion-input>
         </ion-item>
 
@@ -50,6 +52,18 @@
               label="Ingredients"
               label-placement="floating"
               placeholder="Enter text"
+              :auto-grow="true"
+              @input="onIngredientsInput"
+          />
+        </ion-item>
+
+        <ion-item>
+          <ion-textarea
+              v-model="form.description"
+              label="Description"
+              label-placement="floating"
+              placeholder="Enter text"
+              :auto-grow="true"
           ></ion-textarea>
         </ion-item>
 
@@ -85,7 +99,7 @@
         <ion-toast
             :is-open="showToast"
             :message="toastMessage"
-            :duration="3000"
+            :duration="1500"
             color="success"
             @did-dismiss="showToast = false"
         ></ion-toast>
@@ -94,7 +108,7 @@
         <ion-toast
             :is-open="showErrorToast"
             :message="errorMsg"
-            :duration="5000"
+            :duration="2500"
             color="danger"
             @did-dismiss="showErrorToast = false"
         ></ion-toast>
@@ -115,42 +129,94 @@ import {
   IonButton, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon, IonSpinner, IonToast
 } from '@ionic/vue';
 import { barcodeOutline } from 'ionicons/icons';
-import { nextTick, ref } from 'vue'
-import { supabase } from '@/plugins/supabaseClient' // adjust path if needed
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import {
+  ref,
+  nextTick
+} from 'vue'
+import {
+  supabase
+} from '@/plugins/supabaseClient' // adjust path if needed
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats
+} from 'html5-qrcode'
 
 // Import Camera plugin and types
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import {
+  Camera,
+  CameraResultType,
+  CameraSource
+} from '@capacitor/camera'
 
-const form = ref({
+interface ProductForm {
+  barcode: string;
+  name: string;
+  status: string;
+  ingredients: string;
+  description: string;
+}
+
+const form = ref<ProductForm>({
   barcode: '',
   name: '',
   status: 'Halal',
   ingredients: '',
-})
+  description: ''
+});
 
-const frontFile = ref<File | null>(null)
-const backFile = ref<File | null>(null)
-const frontPreview = ref<string | null>(null)  // For showing preview
-const backPreview = ref<string | null>(null)
+const frontFile = ref < File | null > (null)
+const backFile = ref < File | null > (null)
+const frontPreview = ref < string | null > (null) // For showing preview
+const backPreview = ref < string | null > (null)
 
 const loading = ref(false)
 const showToast = ref(false)
 const showErrorToast = ref(false)
 const toastMessage = ref('')
 const errorMsg = ref('')
-const success = ref(false)
+const scanning = ref(false)
+let html5QrcodeScanner: Html5Qrcode | null = null
 
-const scanning = ref(false);
-let html5QrcodeScanner: Html5Qrcode | null = null;
+function toProperCase(str: string): string {
+  return str.replace(/\w\S*/g, (txt) => {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+}
+
+function onBarcodeInput(event: Event) {
+  const input = event.target as HTMLInputElement;
+  // Remove non-digit characters
+  let numericValue = input.value.replace(/\D/g, '');
+
+  // Limit to 13 digits max
+  if (numericValue.length > 13) {
+    numericValue = numericValue.slice(0, 13);
+  }
+
+  form.value.barcode = numericValue;
+  input.value = numericValue; // update input field too
+}
+
+function onProductNameInput(event: Event) {
+  const input = event.target as HTMLTextAreaElement;
+  input.value = toProperCase(input.value);
+  form.value.name = input.value;
+}
+
+function onIngredientsInput(event: Event) {
+  const input = event.target as HTMLTextAreaElement;
+  input.value = toProperCase(input.value);
+  form.value.ingredients = input.value;
+}
+
 
 async function startBarcodeScan() {
-  if (scanning.value) return;
-  scanning.value = true;
+  if (scanning.value) return
+  scanning.value = true
 
-  await nextTick();
+  await nextTick()
 
-  html5QrcodeScanner = new Html5Qrcode("reader");
+  html5QrcodeScanner = new Html5Qrcode("reader")
 
   const formatsToSupport = [
     Html5QrcodeSupportedFormats.CODE_128,
@@ -160,38 +226,41 @@ async function startBarcodeScan() {
     Html5QrcodeSupportedFormats.UPC_A,
     Html5QrcodeSupportedFormats.UPC_E,
     Html5QrcodeSupportedFormats.ITF,
-  ];
+  ]
 
   try {
-    await html5QrcodeScanner.start(
-        { facingMode: "environment" },
-        {
+    await html5QrcodeScanner.start({
+          facingMode: "environment"
+        }, {
           fps: 10,
-          qrbox: { width: 250, height: 100 },
+          qrbox: {
+            width: 250,
+            height: 100
+          },
           formatsToSupport,
         } as any,
         (decodedText) => {
-          console.log("Barcode detected:", decodedText);
-          form.value.barcode = decodedText;
-          stopScan();
+          console.log("Barcode detected:", decodedText)
+          form.value.barcode = decodedText
+          stopScan()
         },
         (errorMessage) => {
-          console.log(errorMessage);
+          console.log(errorMessage)
         }
-    );
+    )
   } catch (err) {
-    console.error("Unable to start scanning:", err);
-    scanning.value = false;
+    console.error("Unable to start scanning:", err)
+    scanning.value = false
   }
 }
 
 async function stopScan() {
   if (html5QrcodeScanner) {
-    await html5QrcodeScanner.stop();
-    await html5QrcodeScanner.clear();
-    html5QrcodeScanner = null;
+    await html5QrcodeScanner.stop()
+    await html5QrcodeScanner.clear()
+    html5QrcodeScanner = null
   }
-  scanning.value = false;
+  scanning.value = false
 }
 
 async function takeFrontPicture() {
@@ -208,7 +277,9 @@ async function takeFrontPicture() {
     // Fetch the file blob for upload
     const response = await fetch(image.webPath || '')
     const blob = await response.blob()
-    frontFile.value = new File([blob], 'front.jpg', { type: blob.type })
+    frontFile.value = new File([blob], 'front.jpg', {
+      type: blob.type
+    })
   } catch (error) {
     console.error('Error taking front photo:', error)
   }
@@ -228,65 +299,98 @@ async function takeBackPicture() {
     // Fetch the file blob for upload
     const response = await fetch(image.webPath || '')
     const blob = await response.blob()
-    backFile.value = new File([blob], 'back.jpg', { type: blob.type })
+    backFile.value = new File([blob], 'back.jpg', {
+      type: blob.type
+    })
   } catch (error) {
     console.error('Error taking back photo:', error)
   }
 }
 
-// Your existing handleSubmit function for uploading and inserting the product
 async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
   showErrorToast.value = false
 
   try {
-    const { barcode } = form.value
+    const {
+      barcode
+    } = form.value
+
     if (!barcode) {
-      errorMsg.value = 'Barcode is required.';
-      return; // or handle accordingly without throwing
+      errorMsg.value = 'Barcode is required.'
+      showErrorToast.value = true
+      loading.value = false
+      return
+    }
+
+    if (form.value.barcode.length !== 13) {
+      errorMsg.value = 'Barcode must be exactly 13 digits.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
     }
 
     let frontUrl = ''
     let backUrl = ''
 
     if (frontFile.value) {
-      const { error } = await supabase.storage
+      console.log('Uploading front image...')
+      const {
+        error
+      } = await supabase.storage
           .from('product-images')
-          .upload(`${barcode}/front.jpg`, frontFile.value, { upsert: true })
+          .upload(`${barcode}/front.jpg`, frontFile.value, {
+            upsert: true
+          })
+
       if (error) throw error
 
-      const { data: publicUrl } = supabase.storage
+      const {
+        data: publicUrl
+      } = supabase.storage
           .from('product-images')
           .getPublicUrl(`${barcode}/front.jpg`)
+
       frontUrl = publicUrl.publicUrl
+      console.log('Front image uploaded:', frontUrl)
     }
 
     if (backFile.value) {
-      const { error } = await supabase.storage
+      console.log('Uploading back image...')
+      const {
+        error
+      } = await supabase.storage
           .from('product-images')
-          .upload(`${barcode}/back.jpg`, backFile.value, { upsert: true })
+          .upload(`${barcode}/back.jpg`, backFile.value, {
+            upsert: true
+          })
+
       if (error) throw error
 
-      const { data: publicUrl } = supabase.storage
+      const {
+        data: publicUrl
+      } = supabase.storage
           .from('product-images')
           .getPublicUrl(`${barcode}/back.jpg`)
+
       backUrl = publicUrl.publicUrl
+      console.log('Back image uploaded:', backUrl)
     }
 
-    const { error: insertError } = await supabase.from('products').insert([
-      {
-        ...form.value,
-        photo_front_url: frontUrl,
-        photo_back_url: backUrl,
-        created_at: new Date().toISOString(),
-      },
-    ])
+    console.log('Inserting product into database...')
+    const {
+      error: insertError
+    } = await supabase.from('products').insert([{
+      ...form.value,
+      photo_front_url: frontUrl,
+      photo_back_url: backUrl,
+      created_at: new Date().toISOString(),
+    }])
 
     if (insertError) throw insertError
 
-    success.value = true
-    loading.value = false
+    console.log('Product inserted successfully')
     toastMessage.value = 'Product submitted successfully!'
     showToast.value = true
 
@@ -295,13 +399,14 @@ async function handleSubmit() {
       name: '',
       status: 'Halal',
       ingredients: '',
+      description: ''
     }
     frontFile.value = null
     backFile.value = null
     frontPreview.value = null
     backPreview.value = null
   } catch (err: any) {
-    loading.value = false
+    console.error('Submission error:', err)
     errorMsg.value = err.message || 'An unexpected error occurred.'
     showErrorToast.value = true
   } finally {

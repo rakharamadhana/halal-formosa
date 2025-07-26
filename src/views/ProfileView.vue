@@ -114,6 +114,8 @@ import {
   IonToolbar,
   IonContent,
   IonButton,
+    IonCard,
+    IonText,
 } from '@ionic/vue';
 
 export default defineComponent({
@@ -124,6 +126,8 @@ export default defineComponent({
     IonToolbar,
     IonContent,
     IonButton,
+    IonCard,
+    IonText
   },
   setup() {
     const userEmail = ref('');

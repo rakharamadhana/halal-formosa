@@ -9,7 +9,7 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       { path: '', redirect: '/search' },
       { path: 'search', component: () => import('@/views/SearchView.vue') },
-      { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true } },
+      { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
       { path: 'profile', component: () => import('@/views/ProfileView.vue') },
     ],
   },
@@ -24,15 +24,50 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const publicPages = ['/login', '/signup', '/search', '/profile']
-  const authRequired = !publicPages.includes(to.path)
+  // Public routes accessible without login
+  const publicPages = ['/login', '/signup', '/search'];
 
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (authRequired && !session) {
-    return next('/login')
+  // If route is public, always allow access
+  if (publicPages.includes(to.path)) {
+    return next();
   }
-  next()
+
+  // For protected routes, check session
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    // Not logged in, redirect to login page
+    return next('/login');
+  }
+
+  // Now check if route requires admin role
+  if (to.meta.requiresAdmin) {
+    try {
+      const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+      if (error || !data) {
+        console.error('Failed to fetch user role:', error);
+        return next('/login'); // or unauthorized page
+      }
+
+      if (data.role !== 'admin') {
+        // Not admin: redirect to search or unauthorized page
+        return next('/search');
+      }
+    } catch (err) {
+      console.error('Error during role check:', err);
+      return next('/login');
+    }
+  }
+
+  // All other cases, allow access
+  next();
 });
+
+
 
 export default router;

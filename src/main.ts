@@ -68,7 +68,6 @@ CapacitorApp.addListener('appUrlOpen', async (data) => {
   }
 });
 
-
 router.isReady().then(() => {
   app.mount('#app');
 });

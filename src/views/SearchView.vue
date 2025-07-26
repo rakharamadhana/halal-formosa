@@ -93,13 +93,13 @@
           <div v-if="selectedProduct">
             <!-- Swiper carousel for images -->
             <swiper
+                v-if="selectedProduct.photo_front_url || selectedProduct.photo_back_url"
                 :modules="modules"
                 :scrollbar="true"
                 :zoom="true"
                 :slides-per-view="1"
                 :pagination="{ clickable: true }"
                 style="width: 100%; height: 300px; border-radius: 8px; overflow: hidden;"
-
             >
               <swiper-slide v-if="selectedProduct.photo_front_url">
                 <img
@@ -132,8 +132,20 @@
               >
                 {{ selectedProduct.status }}
               </ion-chip></p>
-              <p class="ion-no-margin"><strong><small>Ingredients</small></strong></p>
-              <h5 class="ion-no-margin" style="margin-top: 2px">{{ selectedProduct.ingredients }}</h5>
+
+              <p class="ion-margin-top"><strong><small>Description</small></strong></p>
+              <h5 class="ion-no-margin" style="margin-top: 2px">{{ selectedProduct.description }}</h5>
+
+              <p class="ion-margin-top"><strong><small>Ingredients</small></strong></p>
+              <h5 class="ion-no-margin" style="margin-top: 2px">
+                <template v-if="selectedProduct.status !== 'Halal'">
+                  <span v-html="highlightedIngredients"></span>
+                </template>
+                <template v-else>
+                  {{ selectedProduct.ingredients }}
+                </template>
+              </h5>
+
 
             </div>
           </div>
@@ -200,11 +212,14 @@ dayjs.extend(timezone)
 import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
+import { computed } from 'vue'
+
 interface Product {
   barcode: string;
   name: string;
   status: string;
   ingredients?: string;
+  description?: string;
   photo_front_url?: string;
   photo_back_url?: string;
   created_at?: string;
@@ -250,6 +265,7 @@ export default defineComponent({
     const currentPage = ref(0);
     const loadingMore = ref(false);
     const allLoaded = ref(false);
+    const ingredientDictionary = ref<Record<string, string>>({});
 
     async function refreshList(event: CustomEvent) {
       await fetchAllProducts(); // Reset and reload products (first page)
@@ -369,6 +385,38 @@ export default defineComponent({
       selectedProduct.value = product;
     };
 
+    // Helper to escape special regex chars
+    function escapeRegExp(string: string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
+    // Computed property to highlight ingredients if product is not Halal
+    const highlightedIngredients = computed(() => {
+      if (!selectedProduct.value || !selectedProduct.value.ingredients) return '';
+
+      // If product is Halal, do not highlight
+      if (selectedProduct.value.status === 'Halal') {
+        return selectedProduct.value.ingredients;
+      }
+
+      let text = selectedProduct.value.ingredients;
+
+      // Sort keywords by length desc to avoid partial matches before longer matches
+      const sortedKeys = Object.keys(ingredientDictionary.value).sort((a, b) => b.length - a.length);
+
+      sortedKeys.forEach(key => {
+        const color = ingredientDictionary.value[key];
+        if (!color) return;
+
+        // Replace with highlighted span, case insensitive
+        const regex = new RegExp(`\\b${escapeRegExp(key)}\\b`, 'gi');
+        text = text.replace(regex, (match) => `<span style="color: ${color}; font-weight: 600;">${match}</span>`);
+      });
+
+      return text;
+    });
+
+
     const closeDetails = () => {
       selectedProduct.value = null;
     };
@@ -381,6 +429,23 @@ export default defineComponent({
     onMounted(() => {
       fetchProducts(true);
       fetchTotalCount();
+    });
+
+    // Fetch ingredient dictionary from DB on mount
+    onMounted(async () => {
+      const { data, error } = await supabase
+          .from('ingredient_highlights')
+          .select('keyword, color');
+
+      if (error) {
+        console.error('Failed to load ingredient highlights:', error);
+      } else if (data) {
+        // Convert array to dictionary { keyword: color }
+        ingredientDictionary.value = data.reduce((acc, item) => {
+          acc[item.keyword] = item.color;
+          return acc;
+        }, {} as Record<string, string>);
+      }
     });
 
     async function startScan() {
@@ -460,7 +525,8 @@ export default defineComponent({
       loadMore,
       totalProductsCount,
       fromNowToTaipei,
-      refreshList
+      refreshList,
+      highlightedIngredients
     };
   },
 });
