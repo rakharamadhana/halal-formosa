@@ -22,7 +22,8 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue')
+        component: () => import('@/views/Tab2Page.vue'),
+        meta: { requiresAuth: true }
       },
       {
         path: 'tab3',
@@ -46,7 +47,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const publicPages = ['/login', '/signup']
+  const publicPages = ['/login', '/signup', '/tabs/tab1', '/tabs/tab3']
   const authRequired = !publicPages.includes(to.path)
 
   const { data: { session } } = await supabase.auth.getSession()

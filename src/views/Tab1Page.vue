@@ -30,16 +30,41 @@
         <ion-item
             v-for="product in results"
             :key="product.barcode"
-            button
+            :button="true"
             @click="openDetails(product)"
         >
+          <ion-thumbnail slot="start" v-if="product.photo_front_url">
+            <img
+                :src="product.photo_front_url"
+                alt="Front Image"
+                style="object-fit: cover; width: 64px; height: 60px; border-radius: 8px;"
+            />
+          </ion-thumbnail>
+
+
           <ion-label>
             <h2>{{ product.name }}</h2>
-            <p>Barcode: {{ product.barcode }}</p>
-            <p>Status: {{ product.status }}</p>
+            <p><small>Added {{ dayjs(product.created_at).fromNow() }}</small></p>
+            <ion-chip
+                :color="
+                product.status === 'Halal' ? 'success' :
+                product.status === 'Muslim-friendly' ? 'primary' :
+                product.status === 'Syubhah' ? 'warning' :
+                product.status === 'Haram' ? 'danger' :
+                'medium'
+              "
+                        >
+              {{ product.status }}
+            </ion-chip>
           </ion-label>
         </ion-item>
       </ion-list>
+
+      <ion-infinite-scroll @ionInfinite="loadMore" threshold="100px">
+        <ion-infinite-scroll-content loading-spinner="bubbles" loading-text="Loading more products...">
+        </ion-infinite-scroll-content>
+      </ion-infinite-scroll>
+
 
       <ion-text color="danger" v-if="errorMsg" class="ion-padding">
         ❌ {{ errorMsg }}
@@ -57,30 +82,64 @@
 
         <ion-content class="ion-padding">
           <div v-if="selectedProduct">
-            <h2>{{ selectedProduct.name }}</h2>
-            <p><strong>Barcode:</strong> {{ selectedProduct.barcode }}</p>
-            <p><strong>Status:</strong> {{ selectedProduct.status }}</p>
-            <p><strong>Ingredients:</strong> {{ selectedProduct.ingredients }}</p>
-            <p><strong>Halal Logo:</strong> {{ selectedProduct.halal_logo_present ? '✅ Yes' : '❌ No' }}</p>
+            <!-- Swiper carousel for images -->
+            <swiper
+                :modules="modules"
+                :scrollbar="true"
+                :zoom="true"
+                :slides-per-view="1"
+                :pagination="{ clickable: true }"
+                style="width: 100%; height: 300px; border-radius: 8px; overflow: hidden;"
 
-            <div v-if="selectedProduct.photo_front_url">
-              <h3>Front Image</h3>
-              <img :src="selectedProduct.photo_front_url" alt="Front Image" style="max-width: 100%; border-radius: 8px;" />
-            </div>
+            >
+              <swiper-slide v-if="selectedProduct.photo_front_url">
+                <img
+                    :src="selectedProduct.photo_front_url"
+                    alt="Front Image"
+                    style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
+                />
+              </swiper-slide>
+              <swiper-slide v-if="selectedProduct.photo_back_url">
+                <img
+                    :src="selectedProduct.photo_back_url"
+                    alt="Back Image"
+                    style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
+                />
+              </swiper-slide>
+            </swiper>
 
-            <div v-if="selectedProduct.photo_back_url" style="margin-top: 1rem;">
-              <h3>Back Image</h3>
-              <img :src="selectedProduct.photo_back_url" alt="Back Image" style="max-width: 100%; border-radius: 8px;" />
+            <!-- Details below the slider -->
+            <div style="margin-top: 1rem;">
+              <h2 style="margin-bottom: 0;">{{ selectedProduct.name }}</h2>
+              <p style="margin-top: 3px; margin-bottom: 0;"><small>{{ selectedProduct.barcode }}</small></p>
+              <p style="margin-top: 10px"><ion-chip
+                  :color="
+                selectedProduct.status === 'Halal' ? 'success' :
+                selectedProduct.status === 'Muslim-friendly' ? 'primary' :
+                selectedProduct.status === 'Syubhah' ? 'warning' :
+                selectedProduct.status === 'Haram' ? 'danger' :
+                'medium'
+              "
+              >
+                {{ selectedProduct.status }}
+              </ion-chip></p>
+              <p class="ion-no-margin"><strong><small>Ingredients</small></strong></p>
+              <h5 class="ion-no-margin" style="margin-top: 2px">{{ selectedProduct.ingredients }}</h5>
+
             </div>
           </div>
         </ion-content>
       </ion-modal>
     </ion-content>
 
-    <ion-footer>
-      <ion-text class="product-count" color="medium">
-        Showing {{ results.length }} of {{ allProducts.length }} registered products
-      </ion-text>
+    <ion-footer :translucent="true" collapse="fade">
+      <ion-toolbar>
+        <ion-text class="product-count" color="medium">
+          <small>
+            Showing {{ results.length }} of {{ totalProductsCount }} registered products
+          </small>
+        </ion-text>
+      </ion-toolbar>
     </ion-footer>
   </ion-page>
 </template>
@@ -103,11 +162,24 @@ import {
   IonIcon,
   IonFooter,
   onIonViewWillEnter,
+  IonThumbnail,
+  IonChip,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
 } from '@ionic/vue';
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
+import { Pagination, Zoom } from 'swiper/modules';
+import { Swiper, SwiperSlide } from 'swiper/vue';
 import { barcodeOutline, stopCircleOutline } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+
+import 'swiper/css';
+import 'swiper/css/pagination';
+import 'swiper/css/zoom';
+
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 interface Product {
   barcode: string;
@@ -117,7 +189,9 @@ interface Product {
   halal_logo_present?: boolean;
   photo_front_url?: string;
   photo_back_url?: string;
+  created_at?: string;
 }
+
 export default defineComponent({
   components: {
     IonPage,
@@ -135,8 +209,15 @@ export default defineComponent({
     IonButton,
     IonIcon,
     IonFooter,
+    IonThumbnail,
+    IonChip,
+    IonInfiniteScroll,
+    IonInfiniteScrollContent,
+    Swiper,
+    SwiperSlide,
   },
   setup() {
+    const totalProductsCount = ref(0);
     const allProducts = ref<Product[]>([]);
     const results = ref<Product[]>([]);
     const errorMsg = ref('');
@@ -144,26 +225,98 @@ export default defineComponent({
     const scanning = ref(false);
     const searchQuery = ref('');
     let html5QrcodeScanner: Html5Qrcode | null = null;
+    const modules = [Pagination, Zoom];
+    const pageSize = 15; // Adjust items per page as needed
+    const currentPage = ref(0);
+    const loadingMore = ref(false);
+    const allLoaded = ref(false);
 
-    const fetchProducts = async () => {
-      const { data, error } = await supabase.from('products').select('*');
+    dayjs.extend(relativeTime)
+
+    const fetchTotalCount = async () => {
+      const { count, error } = await supabase
+          .from('products')
+          .select('barcode', { count: 'exact', head: true });
       if (error) {
         errorMsg.value = error.message;
-        return;
+      } else {
+        totalProductsCount.value = count || 0;
       }
-      allProducts.value = data || [];
-      results.value = allProducts.value;
+    };
+
+    // Fetch paginated products, reset if needed
+    const fetchProducts = async (reset = false) => {
+      if (loadingMore.value || allLoaded.value) return;
+      loadingMore.value = true;
+
+      if (reset) {
+        currentPage.value = 0;
+        allLoaded.value = false;
+        allProducts.value = [];
+        results.value = [];
+      }
+
+      const from = currentPage.value * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .range(from, to)
+          .order('created_at', { ascending: false });
+
+      if (error) {
+        errorMsg.value = error.message;
+      } else {
+        if (!data || data.length < pageSize) {
+          allLoaded.value = true;
+        }
+
+        allProducts.value = [...allProducts.value, ...(data || [])];
+
+        // If no active search, show all loaded
+        if (!searchQuery.value) {
+          results.value = [...allProducts.value];
+        } else {
+          // Keep filtering on searchQuery if active
+          const query = searchQuery.value.toLowerCase();
+          results.value = allProducts.value.filter(
+              (product) =>
+                  (product.name && product.name.toLowerCase().includes(query)) ||
+                  (product.barcode && product.barcode.toString().toLowerCase().includes(query))
+          );
+        }
+
+        currentPage.value++;
+      }
+
+      loadingMore.value = false;
+    };
+
+    const loadMore = async (event: Event) => {
+      await fetchProducts();
+      (event.target as HTMLIonInfiniteScrollElement).complete();
+
+      if (allLoaded.value) {
+        (event.target as HTMLIonInfiniteScrollElement).disabled = true;
+      }
     };
 
     const handleInput = (event: Event) => {
       const target = event.target as HTMLInputElement;
       const query = target.value.trim().toLowerCase();
       searchQuery.value = query;
-      results.value = allProducts.value.filter(
-          (product) =>
-              (product.name && product.name.toLowerCase().includes(query)) ||
-              (product.barcode && product.barcode.toString().toLowerCase().includes(query))
-      );
+
+      if (!query) {
+        // Show all loaded products when search cleared
+        results.value = [...allProducts.value];
+      } else {
+        results.value = allProducts.value.filter(
+            (product) =>
+                (product.name && product.name.toLowerCase().includes(query)) ||
+                (product.barcode && product.barcode.toString().toLowerCase().includes(query))
+        );
+      }
     };
 
     const openDetails = (product: Product) => {
@@ -175,11 +328,13 @@ export default defineComponent({
     };
 
     onIonViewWillEnter(() => {
-      fetchProducts(); // refresh when tab comes to view
+      fetchProducts(true);
+      fetchTotalCount();
     });
 
     onMounted(() => {
-      fetchProducts();
+      fetchProducts(true);
+      fetchTotalCount();
     });
 
     async function startScan() {
@@ -187,7 +342,7 @@ export default defineComponent({
       scanning.value = true;
       await nextTick();
 
-      html5QrcodeScanner = new Html5Qrcode("reader");
+      html5QrcodeScanner = new Html5Qrcode('reader');
 
       const formatsToSupport = [
         Html5QrcodeSupportedFormats.CODE_128,
@@ -201,14 +356,14 @@ export default defineComponent({
 
       try {
         await html5QrcodeScanner.start(
-            {facingMode: "environment"},
+            { facingMode: 'environment' },
             {
               fps: 10,
-              qrbox: {width: 250, height: 100},
+              qrbox: { width: 250, height: 100 },
               formatsToSupport,
             } as any,
             (decodedText) => {
-              console.log("Barcode detected:", decodedText);
+              console.log('Barcode detected:', decodedText);
               searchQuery.value = decodedText;
               results.value = allProducts.value.filter(
                   (product) =>
@@ -218,13 +373,13 @@ export default defineComponent({
               stopScan();
             },
             (errorMessage) => {
-              if (!errorMessage.includes("NotFoundException")) {
-                console.warn("Scan error:", errorMessage);
+              if (!errorMessage.includes('NotFoundException')) {
+                console.warn('Scan error:', errorMessage);
               }
             }
         );
       } catch (err) {
-        console.error("Unable to start scanning:", err);
+        console.error('Unable to start scanning:', err);
         scanning.value = false;
       }
     }
@@ -240,7 +395,6 @@ export default defineComponent({
       scanning.value = false;
     }
 
-
     return {
       allProducts,
       results,
@@ -254,19 +408,21 @@ export default defineComponent({
       startScan,
       stopScan,
       barcodeOutline,
-      stopCircleOutline
+      stopCircleOutline,
+      modules,
+      loadMore,
+      totalProductsCount,
+      dayjs
     };
   },
 });
 </script>
 
+
 <style>
 .product-count {
   display: block;
   text-align: center;
-  padding: 0.5rem;
-  font-weight: 600;
-  margin-top: 1rem;
 }
 
 #reader {
@@ -286,5 +442,10 @@ export default defineComponent({
   }
 }
 
-
+ion-chip {
+  display: block;
+  border-radius: 5px;
+  width: 95%;
+  text-align: center;
+}
 </style>

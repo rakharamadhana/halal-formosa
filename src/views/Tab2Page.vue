@@ -74,17 +74,35 @@
           <img :src="backPreview" alt="Back Preview" style="max-width: 100%; border-radius: 8px;" />
         </div>
 
-        <ion-button expand="block" type="submit" shape="round" class="ion-margin-top">
-          Submit
+        <ion-button
+            expand="block"
+            type="submit"
+            shape="round"
+            class="ion-margin-top"
+            :disabled="loading"
+        >
+          {{ loading ? 'Submitting product...' : 'Submit' }}
         </ion-button>
 
-        <ion-text color="success" v-if="success" class="ion-text-center ion-margin-top">
-          ✅ Product submitted successfully!
-        </ion-text>
+        <ion-spinner name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
 
-        <ion-text color="danger" v-if="errorMsg" class="ion-text-center ion-margin-top">
-          ❌ {{ errorMsg }}
-        </ion-text>
+        <!-- Toast for success -->
+        <ion-toast
+            :is-open="showToast"
+            :message="toastMessage"
+            :duration="3000"
+            color="success"
+            @did-dismiss="showToast = false"
+        ></ion-toast>
+
+        <!-- Toast for error -->
+        <ion-toast
+            :is-open="showErrorToast"
+            :message="errorMsg"
+            :duration="5000"
+            color="danger"
+            @did-dismiss="showErrorToast = false"
+        ></ion-toast>
       </form>
     </ion-content>
   </ion-page>
@@ -97,10 +115,9 @@ import {
   IonItem,
   IonContent,
   IonLabel,
-  IonText,
   IonToolbar,
   IonTitle,
-  IonButton, IonCheckbox, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon
+  IonButton, IonCheckbox, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon, IonSpinner, IonToast
 } from '@ionic/vue';
 import { barcodeOutline } from 'ionicons/icons';
 import { nextTick, ref } from 'vue'
@@ -123,9 +140,12 @@ const backFile = ref<File | null>(null)
 const frontPreview = ref<string | null>(null)  // For showing preview
 const backPreview = ref<string | null>(null)
 
-const success = ref(false)
-const errorMsg = ref('')
 const loading = ref(false)
+const showToast = ref(false)
+const showErrorToast = ref(false)
+const toastMessage = ref('')
+const errorMsg = ref('')
+const success = ref(false)
 
 const scanning = ref(false);
 let html5QrcodeScanner: Html5Qrcode | null = null;
@@ -224,11 +244,14 @@ async function takeBackPicture() {
 async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
-  success.value = false
+  showErrorToast.value = false
 
   try {
     const { barcode } = form.value
-    if (!barcode) throw new Error('Barcode is required.')
+    if (!barcode) {
+      errorMsg.value = 'Barcode is required.';
+      return; // or handle accordingly without throwing
+    }
 
     let frontUrl = ''
     let backUrl = ''
@@ -269,6 +292,10 @@ async function handleSubmit() {
     if (insertError) throw insertError
 
     success.value = true
+    loading.value = false
+    toastMessage.value = 'Product submitted successfully!'
+    showToast.value = true
+
     form.value = {
       barcode: '',
       name: '',
@@ -281,7 +308,9 @@ async function handleSubmit() {
     frontPreview.value = null
     backPreview.value = null
   } catch (err: any) {
+    loading.value = false
     errorMsg.value = err.message || 'An unexpected error occurred.'
+    showErrorToast.value = true
   } finally {
     loading.value = false
   }

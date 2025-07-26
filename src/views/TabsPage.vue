@@ -8,7 +8,8 @@
           <ion-label>Search</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="tab2" href="/tabs/tab2">
+        <!-- Only show Tab 2 if user is authenticated -->
+        <ion-tab-button v-if="isAuthenticated" tab="tab2" href="/tabs/tab2">
           <ion-icon aria-hidden="true" :icon="cameraOutline" />
           <ion-label>Add Products</ion-label>
         </ion-tab-button>
@@ -23,6 +24,25 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
 import { personCircle, cameraOutline, searchOutline } from 'ionicons/icons';
+import { supabase } from '@/plugins/supabaseClient';
+
+const isAuthenticated = ref(false);
+
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  isAuthenticated.value = !!session;
+}
+
+// Check session when component mounts
+onMounted(() => {
+  checkSession();
+
+  // Optional: Listen for auth state changes to update UI dynamically
+  supabase.auth.onAuthStateChange((_event, session) => {
+    isAuthenticated.value = !!session;
+  });
+});
 </script>

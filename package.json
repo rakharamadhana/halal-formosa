@@ -29,8 +29,10 @@
     "@supabase/supabase-js": "^2.52.1",
     "@zxing/library": "^0.21.3",
     "barcode-detector": "^3.0.5",
+    "dayjs": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.0.0",
+    "swiper": "^11.2.10",
     "vue": "^3.3.0",
     "vue-router": "^4.2.0"
   },

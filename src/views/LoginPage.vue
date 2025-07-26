@@ -41,6 +41,15 @@
           {{ loading ? 'Logging in...' : 'Login' }}
         </ion-button>
 
+        <ion-button
+            expand="block"
+            fill="clear"
+            class="ion-margin-top"
+            @click="goHome"
+        >
+          Back to Home
+        </ion-button>
+
         <ion-text color="danger" v-if="errorMsg" class="ion-padding">
           {{ errorMsg }}
         </ion-text>
@@ -56,10 +65,11 @@ import {
   IonTitle,
   IonToolbar,
   IonInput,
-  IonInputPasswordToggle,
   IonButton,
   IonText,
   IonItem,
+  IonInputPasswordToggle,
+    IonContent
 } from '@ionic/vue';
 import { defineComponent } from 'vue';
 
@@ -70,10 +80,11 @@ export default defineComponent({
     IonTitle,
     IonToolbar,
     IonInput,
-    IonInputPasswordToggle,
     IonButton,
     IonText,
     IonItem,
+    IonInputPasswordToggle,
+    IonContent
   },
 });
 </script>
@@ -105,5 +116,9 @@ async function login() {
   } else if (data.session) {
     router.push('/'); // redirect after login
   }
+}
+
+function goHome() {
+  router.push('/');
 }
 </script>

@@ -5,6 +5,7 @@
         <ion-title>Profile</ion-title>
       </ion-toolbar>
     </ion-header>
+
     <ion-content :fullscreen="true" class="ion-padding">
       <ion-header collapse="condense">
         <ion-toolbar>
@@ -18,46 +19,82 @@
           Logout
         </ion-button>
       </div>
+
       <div v-else>
-        <p>Loading user info...</p>
+        <p>No user logged in</p>
+        <ion-button color="primary" @click="goToLogin" expand="block">
+          Login
+        </ion-button>
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script lang="ts">
-import { IonPage, IonHeader, IonTitle, IonToolbar, IonContent, IonButton } from '@ionic/vue';
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { supabase } from '@/plugins/supabaseClient';
+import { onIonViewWillEnter } from '@ionic/vue';
+import {
+  IonPage,
+  IonHeader,
+  IonTitle,
+  IonToolbar,
+  IonContent,
+  IonButton,
+} from '@ionic/vue';
 
 export default defineComponent({
-  components: { IonPage, IonHeader, IonTitle, IonToolbar, IonContent, IonButton },
+  components: {
+    IonPage,
+    IonHeader,
+    IonTitle,
+    IonToolbar,
+    IonContent,
+    IonButton,
+  },
+  setup() {
+    const userEmail = ref('');
+    const router = useRouter();
+
+    async function updateUser() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user?.email) {
+          userEmail.value = data.user.email;
+        } else {
+          userEmail.value = '';
+        }
+      } catch (error) {
+        userEmail.value = '';
+        console.error('Failed to fetch user:', error);
+      }
+    }
+
+    onIonViewWillEnter(() => {
+      updateUser();
+    });
+
+    async function handleLogout() {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        alert('Logout failed: ' + error.message);
+      } else {
+        userEmail.value = '';
+        router.push('/login');
+      }
+    }
+
+    function goToLogin() {
+      router.push('/login');
+    }
+
+    return {
+      userEmail,
+      handleLogout,
+      goToLogin,
+    };
+  },
 });
 </script>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { supabase } from '@/plugins/supabaseClient'  // adjust path if needed
-
-const userEmail = ref('')
-const router = useRouter()
-
-onMounted(async () => {
-  const { data } = await supabase.auth.getUser()
-  if (data?.user?.email) {
-    userEmail.value = data.user.email
-  } else {
-    userEmail.value = 'No user logged in'
-  }
-})
-
-async function handleLogout() {
-  const { error } = await supabase.auth.signOut()
-  if (error) {
-    alert('Logout failed: ' + error.message)
-  } else {
-    // Redirect to login page after logout
-    router.push('/login')
-  }
-}
-</script>
