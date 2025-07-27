@@ -8,34 +8,39 @@
 
     <ion-content class="ion-padding">
       <form @submit.prevent="login">
-        <ion-item>
-          <ion-input
-              label="Email"
-              label-placement="stacked"
-              placeholder="Enter email"
-              type="email"
-              v-model="email"
-              required
-          ></ion-input>
-        </ion-item>
+        <div class="form-container">
+          <ion-item-group>
+            <ion-item>
+              <ion-input
+                  label="Email"
+                  label-placement="stacked"
+                  placeholder="Enter email"
+                  type="email"
+                  v-model="email"
+                  required
+              ></ion-input>
+            </ion-item>
 
-        <ion-item>
-          <ion-input
-              label="Password"
-              label-placement="stacked"
-              placeholder="Enter password"
-              type="password"
-              v-model="password"
-              required
-          >
-            <ion-input-password-toggle slot="end" />
-          </ion-input>
-        </ion-item>
+            <ion-item style="--inner-border-width: 0">
+              <ion-input
+                  label="Password"
+                  label-placement="stacked"
+                  placeholder="Enter password"
+                  type="password"
+                  v-model="password"
+                  required
+              >
+                <ion-input-password-toggle slot="end" />
+              </ion-input>
+            </ion-item>
+          </ion-item-group>
+        </div>
 
         <ion-button
             type="submit"
             expand="block"
             :disabled="loading"
+            color="carrot"
             class="ion-margin-top"
         >
           {{ loading ? 'Logging in...' : 'Login' }}
@@ -45,6 +50,7 @@
             expand="block"
             fill="outline"
             class="ion-margin-top"
+            color="carrot"
             @click="loginWithGoogle"
         >
           Continue with Google
@@ -52,9 +58,11 @@
 
 
         <ion-button
+            id="home"
             expand="block"
             fill="clear"
             class="ion-margin-top"
+            color="medium"
             @click="goHome"
         >
           Back to Home
@@ -104,6 +112,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // adjust path if needed
 import { Capacitor } from '@capacitor/core';
+import {IonItemGroup} from "@ionic/vue";
 
 const email = ref('');
 const password = ref('');
@@ -131,7 +140,7 @@ async function login() {
   if (error) {
     errorMsg.value = error.message;
   } else if (data.session) {
-    router.push('/profile');
+        router.push('/profile');
   }
 }
 
@@ -158,3 +167,15 @@ function goHome() {
 }
 
 </script>
+
+<style>
+ion-item {
+  --background: transparent;
+}
+
+.form-container {
+  border-radius: 10px;
+  background-color: var(--ion-color-light); /* optional background */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* optional elevation */
+}
+</style>

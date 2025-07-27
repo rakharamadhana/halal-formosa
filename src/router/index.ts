@@ -2,19 +2,23 @@ import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // your supabase instance
 
+// Preload SearchView in the background
+import SearchView from '@/views/SearchView.vue';
+
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     component: () => import('@/views/HomeView.vue'),
     children: [
       { path: '', redirect: '/search' },
-      { path: 'search', component: () => import('@/views/SearchView.vue') },
-      { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+      { path: 'search', component: SearchView },
+      { path: 'add', component: () => import('@/views/AddProductView.vue') },
       { path: 'profile', component: () => import('@/views/ProfileView.vue') },
     ],
   },
+  { path: '/settings', component: () => import('@/views/SettingsView.vue') },
+  { path: '/legal', component: () => import('@/views/LegalView.vue') },
   { path: '/login', component: () => import('@/views/LoginView.vue') },
-  { path: '/signup', component: () => import('@/views/SignUpView.vue') },
 ];
 
 

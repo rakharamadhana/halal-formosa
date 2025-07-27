@@ -2,98 +2,124 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Add New Products</ion-title>
+        <ion-title class="title-large">
+          <ion-icon :icon="addOutline" style="vertical-align: middle; "></ion-icon>
+          <ion-buttons slot="start">
+
+          </ion-buttons>
+
+          Add New Product
+        </ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true" class="ion-padding">
+    <ion-content :fullscreen="true" class="ion-padding" >
       <form @submit.prevent="handleSubmit">
-        <ion-item>
-          <ion-input
-              v-model="form.barcode"
-              required
-              label="Barcode"
-              label-placement="floating"
-              placeholder="Enter digits only"
-              @input="onBarcodeInput"
-          />
-          <ion-button slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
-            <ion-icon :icon="barcodeOutline" />
-          </ion-button>
-        </ion-item>
+        <div class="form-container">
+          <ion-item-group>
+            <ion-item>
+              <ion-input
+                  v-model="form.barcode"
+                  required
+                  label="Barcode"
+                  label-placement="floating"
+                  placeholder="Enter digits only"
+                  @input="onBarcodeInput"
+              />
+              <ion-button slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
+                <ion-icon :icon="barcodeOutline" />
+              </ion-button>
+            </ion-item>
 
-        <div v-if="scanning" id="reader"></div>
-        <ion-button v-if="scanning" color="danger" @click="stopScan">Stop Scan</ion-button>
+            <div v-if="scanning" id="reader"></div>
+            <ion-button v-if="scanning" color="danger" @click="stopScan">Stop Scan</ion-button>
 
-        <ion-item>
-          <ion-input
-              v-model="form.name"
-              required
-              label="Product Name"
-              label-placement="floating"
-              placeholder="Enter text"
-              @input="onProductNameInput"
-          ></ion-input>
-        </ion-item>
+            <ion-item>
+              <ion-input
+                  v-model="form.name"
+                  required
+                  label="Product Name"
+                  label-placement="floating"
+                  placeholder="Enter text"
+                  @input="onProductNameInput"
+              ></ion-input>
+            </ion-item>
 
-        <ion-item>
-          <ion-select v-model="form.status" interface="popover" required>
-            <div slot="label">Status</div>
-            <ion-select-option value="Halal">Halal</ion-select-option>
-            <ion-select-option value="Muslim-friendly">Muslim-friendly</ion-select-option>
-            <ion-select-option value="Syubhah">Syubhah</ion-select-option>
-            <ion-select-option value="Haram">Haram</ion-select-option>
-          </ion-select>
-        </ion-item>
+            <ion-item>
+              <ion-select v-model="form.status" interface="popover" required>
+                <div slot="label">Status</div>
+                <ion-select-option value="Halal">Halal</ion-select-option>
+                <ion-select-option value="Muslim-friendly">Muslim-friendly</ion-select-option>
+                <ion-select-option value="Syubhah">Syubhah</ion-select-option>
+                <ion-select-option value="Haram">Haram</ion-select-option>
+              </ion-select>
+            </ion-item>
 
-        <ion-item>
-          <ion-textarea
-              v-model="form.ingredients"
-              label="Ingredients"
-              label-placement="floating"
-              placeholder="Enter text"
-              :auto-grow="true"
-              @input="onIngredientsInput"
-          />
-        </ion-item>
+            <ion-item>
+              <ion-textarea
+                  v-model="form.ingredients"
+                  label="Ingredients"
+                  label-placement="floating"
+                  placeholder="Enter text"
+                  :auto-grow="true"
+                  @input="onIngredientsInput"
+              />
+            </ion-item>
 
-        <ion-item>
-          <ion-textarea
-              v-model="form.description"
-              label="Description"
-              label-placement="floating"
-              placeholder="Enter text"
-              :auto-grow="true"
-          ></ion-textarea>
-        </ion-item>
+            <ion-item>
+              <ion-textarea
+                  v-model="form.description"
+                  label="Description"
+                  label-placement="floating"
+                  placeholder="Enter text"
+                  :auto-grow="true"
+              ></ion-textarea>
+            </ion-item>
 
-        <ion-item>
-          <ion-label>Front Image</ion-label>
-          <ion-button @click="takeFrontPicture" fill="outline" size="small">Take Picture</ion-button>
-        </ion-item>
-        <div v-if="frontPreview" style="padding: 0 16px 16px;">
-          <img :src="frontPreview" alt="Front Preview" style="max-width: 100%; border-radius: 8px;" />
+            <ion-item>
+              <ion-label>Front Image</ion-label>
+              <ion-buttons slot="end">
+                <ion-button @click="takeFrontPicture" fill="clear">
+                  <ion-icon :icon="cameraOutline" />
+                </ion-button>
+                <ion-button @click="uploadFrontFromGallery" fill="clear">
+                  <ion-icon :icon="cloudUploadOutline" />
+                </ion-button>
+              </ion-buttons>
+            </ion-item>
+            <div v-if="frontPreview" style="padding: 0 16px 16px;">
+              <img :src="frontPreview" alt="Front Preview" style="max-width: 100%; border-radius: 8px;" />
+            </div>
+
+            <ion-item style="--inner-border-width: 0">
+              <ion-label>Back Image</ion-label>
+              <ion-buttons slot="end">
+                <ion-button @click="takeBackPicture" fill="clear">
+                  <ion-icon :icon="cameraOutline" />
+                </ion-button>
+                <ion-button @click="uploadBackFromGallery" fill="clear">
+                  <ion-icon :icon="cloudUploadOutline" />
+                </ion-button>
+              </ion-buttons>
+            </ion-item>
+            <div v-if="backPreview" style="padding: 0 16px 16px;">
+              <img :src="backPreview" alt="Back Preview" style="max-width: 100%; border-radius: 8px;" />
+            </div>
+          </ion-item-group>
         </div>
 
-        <ion-item>
-          <ion-label>Back Image</ion-label>
-          <ion-button @click="takeBackPicture" fill="outline" size="small">Take Picture</ion-button>
-        </ion-item>
-        <div v-if="backPreview" style="padding: 0 16px 16px;">
-          <img :src="backPreview" alt="Back Preview" style="max-width: 100%; border-radius: 8px;" />
-        </div>
 
         <ion-button
             expand="block"
             type="submit"
-            shape="round"
             class="ion-margin-top"
+            color="carrot"
             :disabled="loading"
         >
           {{ loading ? 'Submitting product...' : 'Submit' }}
         </ion-button>
 
-        <ion-spinner name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
+        <ion-spinner id="spinner" name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
 
         <!-- Toast for success -->
         <ion-toast
@@ -101,7 +127,10 @@
             :message="toastMessage"
             :duration="1500"
             color="success"
+            position="bottom"
+            position-anchor="spinner"
             @did-dismiss="showToast = false"
+            style="margin-bottom: 100px"
         ></ion-toast>
 
         <!-- Toast for error -->
@@ -110,6 +139,8 @@
             :message="errorMsg"
             :duration="2500"
             color="danger"
+            position="bottom"
+            position-anchor="spinner"
             @did-dismiss="showErrorToast = false"
         ></ion-toast>
       </form>
@@ -126,9 +157,18 @@ import {
   IonLabel,
   IonToolbar,
   IonTitle,
-  IonButton, IonTextarea, IonSelect, IonSelectOption, IonInput, IonIcon, IonSpinner, IonToast
+  IonButton,
+  IonTextarea,
+  IonSelect,
+  IonSelectOption,
+  IonInput,
+  IonIcon,
+  IonSpinner,
+  IonToast,
+    IonButtons,
+    IonItemGroup
 } from '@ionic/vue';
-import { barcodeOutline } from 'ionicons/icons';
+import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
 import {
   ref,
   nextTick,
@@ -277,20 +317,22 @@ async function takeFrontPicture() {
       allowEditing: false,
       resultType: CameraResultType.Uri,
       source: CameraSource.Camera
-    })
+    });
 
     if (isUnmounted) return;
 
-    frontPreview.value = image.webPath || null
+    frontPreview.value = image.webPath || null;
 
-    // Fetch the file blob for upload
-    const response = await fetch(image.webPath || '')
-    const blob = await response.blob()
-    frontFile.value = new File([blob], 'front.jpg', {
+    const response = await fetch(image.webPath || '');
+    const blob = await response.blob();
+
+    // 👇 Create a new File to ensure unique instance
+    frontFile.value = new File([blob], `front-${Date.now()}.jpg`, {
       type: blob.type
-    })
+    });
+
   } catch (error) {
-    console.error('Error taking front photo:', error)
+    console.error('Error taking front photo:', error);
   }
 }
 
@@ -302,21 +344,64 @@ async function takeBackPicture() {
       allowEditing: false,
       resultType: CameraResultType.Uri,
       source: CameraSource.Camera
-    })
+    });
 
     if (isUnmounted) return;
 
-    backPreview.value = image.webPath || null
+    backPreview.value = image.webPath || null;
 
-    // Fetch the file blob for upload
-    const response = await fetch(image.webPath || '')
-    const blob = await response.blob()
-    backFile.value = new File([blob], 'back.jpg', {
+    const response = await fetch(image.webPath || '');
+    const blob = await response.blob();
+
+    // 👇 Create a new File to ensure unique instance
+    backFile.value = new File([blob], `back-${Date.now()}.jpg`, {
       type: blob.type
-    })
+    });
+
   } catch (error) {
-    console.error('Error taking back photo:', error)
+    console.error('Error taking back photo:', error);
   }
+}
+
+
+function uploadFrontFromGallery() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+      const file = target.files[0];
+      frontFile.value = file; // ✅ assign to be uploaded
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        frontPreview.value = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  input.click();
+}
+
+function uploadBackFromGallery() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+      const file = target.files[0];
+      backFile.value = file; // ✅ assign to be uploaded
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        backPreview.value = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  input.click();
 }
 
 async function handleSubmit() {
@@ -433,6 +518,10 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+ion-toast {
+  transform: translateY(-55px);
+}
+
 #reader {
   width: 100%;
   max-height: 100%;
@@ -449,4 +538,15 @@ async function handleSubmit() {
     border-radius: 8px; /* maybe larger radius for desktop */
   }
 }
+
+ion-item {
+  --background: transparent;
+}
+
+.form-container {
+  border-radius: 10px;
+  background-color: var(--ion-color-light); /* optional background */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* optional elevation */
+}
+
 </style>

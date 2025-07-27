@@ -2,7 +2,10 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Profile</ion-title>
+        <ion-title class="title-large">
+          <ion-icon :icon="personCircleOutline" style="vertical-align: middle; "></ion-icon>
+          Profile
+        </ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -43,7 +46,7 @@
         <div v-else class="login-prompt">
           <p>No user logged in</p>
           <ion-button
-              color="primary"
+              color="carrot"
               expand="block"
               @click="goToLogin"
           >
@@ -51,17 +54,28 @@
           </ion-button>
         </div>
       </ion-card>
+
+      <ion-list class="profile-menu" style="border-radius: 10px">
+        <ion-item button @click="goToSettings">
+          <ion-icon :icon="settingsOutline"></ion-icon>&nbsp;
+          <ion-label>Settings</ion-label>
+        </ion-item>
+
+        <ion-item button @click="goToLegal" style="--inner-border-width: 0">
+          <ion-icon :icon="documentTextOutline"></ion-icon>&nbsp;
+          <ion-label>Legal</ion-label>
+        </ion-item>
+      </ion-list>
+
     </ion-content>
   </ion-page>
 </template>
 
 <style scoped>
 .profile-card {
-  max-width: 360px;
   margin: 2rem auto;
   padding: 2rem 1.5rem;
-  border-radius: 12px;
-  background-color: var(--ion-background-color);
+  border-radius: 10px;
 }
 
 .avatar-wrapper {
@@ -75,13 +89,13 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--ion-color-primary);
+  border: 2px solid var(--ion-color-tertiary);
 }
 
 .profile-name h2 {
   margin: 0 0 0.25rem;
   font-weight: 700;
-  color: var(--ion-color-primary);
+  color: var(--ion-color-tertiary);
 }
 
 .profile-email p {
@@ -107,6 +121,7 @@ import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
 import { onIonViewWillEnter } from '@ionic/vue';
+import {settingsOutline, documentTextOutline, personCircleOutline} from 'ionicons/icons';
 import {
   IonPage,
   IonHeader,
@@ -116,6 +131,10 @@ import {
   IonButton,
     IonCard,
     IonText,
+    IonLabel,
+    IonItem,
+    IonList,
+  IonIcon
 } from '@ionic/vue';
 
 export default defineComponent({
@@ -127,7 +146,11 @@ export default defineComponent({
     IonContent,
     IonButton,
     IonCard,
-    IonText
+    IonText,
+    IonLabel,
+    IonItem,
+    IonList,
+    IonIcon
   },
   setup() {
     const userEmail = ref('');
@@ -173,12 +196,26 @@ export default defineComponent({
       router.push('/login');
     }
 
+    function goToSettings() {
+      router.push('/settings');
+    }
+
+    function goToLegal() {
+      router.push('/legal');
+    }
+
+
     return {
       userEmail,
       userDisplayName,
       userAvatar,
       handleLogout,
       goToLogin,
+      goToSettings,
+      goToLegal,
+      settingsOutline,
+      documentTextOutline,
+      personCircleOutline
     }
   },
 });

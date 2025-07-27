@@ -1,3 +1,71 @@
-/* For information on how to create your own theme, please see:
-http://ionicframework.com/docs/theming/ */
+/* Ionic Variables and Theming
+ * ---------------------------------------------------------------
+ * Any overrides to theme variables should be placed in this file.
+ * For more information, please see:
+ * http://ionicframework.com/docs/theming/
+ */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+
+
+/* This sets a different item border color for the default theme on ios and md */
+:root {
+    --ion-font-family: 'Nunito', sans-serif;
+
+    --ion-color-carrot: #e67e22;
+    --ion-color-carrot-rgb: 230,126,34;
+    --ion-color-carrot-contrast: #000000;
+    --ion-color-carrot-contrast-rgb: 0,0,0;
+    --ion-color-carrot-shade: #ca6f1e;
+    --ion-color-carrot-tint: #e98b38;
+
+    /* existing variables */
+    --ion-item-border-color: var(--ion-background-color-step-200);
+}
+
+/* This sets a different background and item background for the default theme on ios */
+:root.ios {
+    --ion-background-color: var(--ion-background-color-step-50, #f2f2f6);
+    --ion-toolbar-background: var(--ion-background-color);
+    --ion-item-background: #fff;
+}
+
+/* This sets a different background and item background for the default theme on md */
+:root.md {
+    --ion-background-color: var(--ion-background-color-step-100, #f9f9f9);
+    --ion-item-background: #fff;
+}
+
+/* This sets a different item background when dark mode is enabled on ios and md */
+.ion-palette-dark.ios,
+.ion-palette-dark.md {
+    --ion-item-background: #1c1c1d;
+}
+
+ion-title.title-brand {
+    font-size: 30px;
+    font-weight: 1000;
+}
+
+ion-title.title-large {
+    font-size: 20px;
+    font-weight: 1000;
+}
+
+.ion-color-carrot {
+    --ion-color-base: var(--ion-color-carrot);
+    --ion-color-base-rgb: var(--ion-color-carrot-rgb);
+    --ion-color-contrast: var(--ion-color-carrot-contrast);
+    --ion-color-contrast-rgb: var(--ion-color-carrot-contrast-rgb);
+    --ion-color-shade: var(--ion-color-carrot-shade);
+    --ion-color-tint: var(--ion-color-carrot-tint);
+}
+
+ion-tab-button {
+    --color: var(--ion-color-medium);
+    --color-focused: var(--ion-color-carrot-shade);
+    --color-selected: var(--ion-color-carrot-shade);
+    --ripple-color: var(--ion-color-carrot-tint)
+}

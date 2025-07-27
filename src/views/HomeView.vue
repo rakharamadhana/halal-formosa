@@ -2,7 +2,7 @@
   <ion-page>
     <ion-tabs>
       <ion-router-outlet />
-      <ion-tab-bar slot="bottom">
+      <ion-tab-bar slot="bottom" id="footer-tabs">
         <ion-tab-button tab="search" href="/search">
           <ion-icon :icon="searchOutline" />
           <ion-label>Search</ion-label>

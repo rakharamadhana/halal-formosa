@@ -2,14 +2,22 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Search Products</ion-title>
+        <ion-title class="title-brand">
+          <img
+              src="/favicon-32x32.png"
+              alt="Halal Formosa"
+              style="height: 32px; vertical-align: middle; margin-right: 3px;"
+          />
+          Halal Formosa
+        </ion-title>
       </ion-toolbar>
-      <ion-toolbar style="display: flex; align-items: center;">
+      <ion-toolbar >
         <ion-searchbar
             :debounce="1000"
             @ionInput="handleInput($event)"
             style="flex-grow: 1;"
             :value="searchQuery"
+            class="rounded"
         ></ion-searchbar>
 
         <ion-buttons slot="end">
@@ -36,37 +44,64 @@
       <div v-if="scanning" id="reader"></div>
 
       <ion-list v-if="!scanning">
-        <ion-item
-            v-for="product in results"
-            :key="product.barcode"
-            :button="true"
-            @click="openDetails(product)"
-        >
-          <ion-thumbnail slot="start" v-if="product.photo_front_url">
-            <img
-                :src="product.photo_front_url"
-                alt="Front Image"
-                style="object-fit: cover; width: 64px; height: 60px; border-radius: 8px;"
-            />
-          </ion-thumbnail>
+        <!-- Skeleton loader -->
+        <template v-if="loading && results.length === 0">
+          <ion-item v-for="n in 10" :key="'skeleton-' + n">
+            <ion-thumbnail slot="start">
+              <ion-skeleton-text animated style="width: 64px; height: 60px; border-radius: 8px;" aria-hidden="true"></ion-skeleton-text>
+            </ion-thumbnail>
+            <ion-label>
+              <h2>
+                <ion-skeleton-text animated style="width: 80%; height: 16px;" aria-hidden="true"></ion-skeleton-text>
+              </h2>
+              <p>
+                <ion-skeleton-text animated style="width: 60%; height: 12px;" aria-hidden="true"></ion-skeleton-text>
+              </p>
+            </ion-label>
+          </ion-item>
+        </template>
 
+        <template v-else-if="results.length === 0">
+          <ion-item>
+            <ion-label>
+              <h2>
+                Sorry, no product found...
+              </h2>
+            </ion-label>
+          </ion-item>
+        </template>
 
-          <ion-label>
-            <h2>{{ product.name }}</h2>
-            <p><small>Added {{ fromNowToTaipei(product?.created_at) }}</small></p>
-            <ion-chip
-                :color="
-                product.status === 'Halal' ? 'success' :
-                product.status === 'Muslim-friendly' ? 'primary' :
-                product.status === 'Syubhah' ? 'warning' :
-                product.status === 'Haram' ? 'danger' :
-                'medium'
-              "
-                        >
-              {{ product.status }}
-            </ion-chip>
-          </ion-label>
-        </ion-item>
+        <!-- Actual product list -->
+        <template v-else>
+          <ion-item
+              v-for="product in results"
+              :key="product.barcode"
+              :button="true"
+              @click="openDetails(product)"
+          >
+            <ion-thumbnail slot="start" v-if="product.photo_front_url">
+              <img
+                  :src="product.photo_front_url"
+                  alt="Front Image"
+                  style="object-fit: cover; width: 64px; height: 60px; border-radius: 8px;"
+              />
+            </ion-thumbnail>
+
+            <ion-label>
+              <h2>{{ product.name }}</h2>
+              <p><small>Added {{ fromNowToTaipei(product?.created_at) }}</small></p>
+              <ion-chip
+                  :color="product.status === 'Halal' ? 'success'
+                  : product.status === 'Muslim-friendly' ? 'primary'
+                  : product.status === 'Syubhah' ? 'warning'
+                  : product.status === 'Haram' ? 'danger'
+                  : 'medium'"
+              >
+                {{ product.status }}
+              </ion-chip>
+            </ion-label>
+          </ion-item>
+        </template>
       </ion-list>
 
       <ion-infinite-scroll @ionInfinite="loadMore" threshold="100px">
@@ -153,7 +188,7 @@
       </ion-modal>
     </ion-content>
 
-    <ion-footer :translucent="true" collapse="fade">
+    <ion-footer >
       <ion-toolbar>
         <ion-text class="product-count" color="medium">
           <small>
@@ -188,7 +223,8 @@ import {
   IonInfiniteScroll,
   IonInfiniteScrollContent,
   IonRefresher,
-  IonRefresherContent
+  IonRefresherContent,
+    IonSkeletonText
 } from '@ionic/vue';
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
 import { Pagination, Zoom } from 'swiper/modules';
@@ -249,7 +285,8 @@ export default defineComponent({
     Swiper,
     SwiperSlide,
     IonRefresher,
-    IonRefresherContent
+    IonRefresherContent,
+    IonSkeletonText
   },
   setup() {
     const totalProductsCount = ref(0);
@@ -266,6 +303,8 @@ export default defineComponent({
     const loadingMore = ref(false);
     const allLoaded = ref(false);
     const ingredientDictionary = ref<Record<string, string>>({});
+    const loading = ref(true);
+
 
     async function refreshList(event: CustomEvent) {
       await fetchAllProducts(); // Reset and reload products (first page)
@@ -309,9 +348,9 @@ export default defineComponent({
     // Fetch paginated products, reset if needed
     const fetchProducts = async (reset = false) => {
       if (loadingMore.value || allLoaded.value) return;
-      loadingMore.value = true;
 
       if (reset) {
+        loading.value = true; // show skeletons while resetting
         currentPage.value = 0;
         allLoaded.value = false;
         allProducts.value = [];
@@ -336,24 +375,24 @@ export default defineComponent({
 
         allProducts.value = [...allProducts.value, ...(data || [])];
 
-        // If no active search, show all loaded
         if (!searchQuery.value) {
           results.value = [...allProducts.value];
         } else {
-          // Keep filtering on searchQuery if active
           const query = searchQuery.value.toLowerCase();
           results.value = allProducts.value.filter(
               (product) =>
                   (product.name && product.name.toLowerCase().includes(query)) ||
-                  (product.barcode && product.barcode.toString().toLowerCase().includes(query))
+                  (product.barcode && product.barcode.toLowerCase().includes(query))
           );
         }
 
         currentPage.value++;
       }
 
+      loading.value = false; // hide skeletons after data fetched
       loadingMore.value = false;
     };
+
 
     const loadMore = async (event: Event) => {
       await fetchProducts();
@@ -410,7 +449,8 @@ export default defineComponent({
 
         // Replace with highlighted span, case insensitive
         const regex = new RegExp(`\\b${escapeRegExp(key)}\\b`, 'gi');
-        text = text.replace(regex, (match) => `<span style="color: ${color}; font-weight: 600;">${match}</span>`);
+        text = text.replace(regex, (match) => `<span style="font-weight: 600; color: var(${color});">${match}</span>`);
+
       });
 
       return text;
@@ -422,11 +462,7 @@ export default defineComponent({
     };
 
     onIonViewWillEnter(() => {
-      fetchProducts(true);
-      fetchTotalCount();
-    });
-
-    onMounted(() => {
+      loading.value = true;
       fetchProducts(true);
       fetchTotalCount();
     });
@@ -526,7 +562,8 @@ export default defineComponent({
       totalProductsCount,
       fromNowToTaipei,
       refreshList,
-      highlightedIngredients
+      highlightedIngredients,
+      loading
     };
   },
 });
@@ -561,5 +598,25 @@ ion-chip {
   border-radius: 5px;
   width: 95%;
   text-align: center;
+}
+
+ion-skeleton-text {
+  --background: linear-gradient(90deg, #e0e0e0 25%, #f2f2f2 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+ion-searchbar.rounded {
+  --border-radius: 8px;
+  --box-shadow: 0 1px 3px rgba(41, 40, 40, 0.1);
 }
 </style>
