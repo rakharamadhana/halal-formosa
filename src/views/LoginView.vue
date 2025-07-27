@@ -117,47 +117,6 @@ const redirectUrl = Capacitor.isNativePlatform()
         ? 'http://localhost:8100/profile'  // adjust port if needed
         : `${window.location.origin}/profile`;
 
-async function assignDefaultRole(userId: string) {
-  try {
-    console.log('Checking existing role for user:', userId);
-    const { data: existingRole, error: getError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-    console.log('Query returned:', { existingRole, getError });
-
-    if (getError) {
-      console.error('Error fetching existing role:', getError);
-      return;  // Stop here if error occurred
-    }
-
-    if (!existingRole) {
-      console.log('No existing role found, assigning default role "user"');
-      const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: 'user' }]);
-
-      if (insertError) {
-        console.error('Error inserting default role:', insertError);
-      } else {
-        console.log('Default role "user" assigned successfully');
-      }
-    } else {
-      console.log('User already has a role assigned:', existingRole.role);
-    }
-  } catch (error) {
-    console.error('Unexpected error in assignDefaultRole:', error);
-  }
-}
-
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (session?.user) {
-    await assignDefaultRole(session.user.id);
-  }
-});
-
 async function login() {
   loading.value = true;
   errorMsg.value = '';
@@ -172,7 +131,6 @@ async function login() {
   if (error) {
     errorMsg.value = error.message;
   } else if (data.session) {
-    await assignDefaultRole(data.user.id);  // assign role here
     router.push('/profile');
   }
 }
