@@ -25,7 +25,7 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   // Public routes accessible without login
-  const publicPages = ['/login', '/signup', '/search'];
+  const publicPages = ['/login', '/signup', '/search', '/profile'];
 
   // If route is public, always allow access
   if (publicPages.includes(to.path)) {

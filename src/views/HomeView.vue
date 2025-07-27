@@ -8,7 +8,11 @@
           <ion-label>Search</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button v-if="userRole === 'admin'" tab="add" href="/add">
+        <ion-tab-button
+            v-if="!isRoleLoading && userRole === 'admin'"
+            tab="add"
+            href="/add"
+        >
           <ion-icon :icon="cameraOutline" />
           <ion-label>Add Products</ion-label>
         </ion-tab-button>
@@ -32,13 +36,20 @@ import { supabase } from '@/plugins/supabaseClient';
 const isAuthenticated = ref(false);
 
 const userRole = ref<string | null>(null);
+const isRoleLoading = ref(true);
 
 async function checkSession() {
   const { data: { session } } = await supabase.auth.getSession();
   isAuthenticated.value = !!session;
+
+  if (!session) {
+    userRole.value = null;
+    isRoleLoading.value = false;
+  }
 }
 
 async function fetchUserRole() {
+  isRoleLoading.value = true;
   try {
     const user = supabase.auth.getUser();
     const userId = (await user).data.user?.id;
@@ -48,6 +59,7 @@ async function fetchUserRole() {
           .select('role')
           .eq('user_id', userId)
           .single();
+
       if (error) {
         console.error('Failed to fetch user role:', error);
         userRole.value = null;
@@ -58,6 +70,8 @@ async function fetchUserRole() {
   } catch (err) {
     console.error('Error fetching user role:', err);
     userRole.value = null;
+  } finally {
+    isRoleLoading.value = false;
   }
 }
 
@@ -69,6 +83,14 @@ onMounted(() => {
   // Optional: Listen for auth state changes to update UI dynamically
   supabase.auth.onAuthStateChange((_event, session) => {
     isAuthenticated.value = !!session;
+
+    if (session) {
+      fetchUserRole(); // re-fetch on login
+    } else {
+      // Reset role info on logout
+      userRole.value = null;
+      isRoleLoading.value = false;
+    }
   });
 });
 </script>
