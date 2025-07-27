@@ -131,7 +131,8 @@ import {
 import { barcodeOutline } from 'ionicons/icons';
 import {
   ref,
-  nextTick
+  nextTick,
+  onUnmounted
 } from 'vue'
 import {
   supabase
@@ -263,7 +264,13 @@ async function stopScan() {
   scanning.value = false
 }
 
+let isUnmounted = false
+onUnmounted(() => {
+  isUnmounted = true
+})
+
 async function takeFrontPicture() {
+  if (isUnmounted) return;
   try {
     const image = await Camera.getPhoto({
       quality: 90,
@@ -271,6 +278,8 @@ async function takeFrontPicture() {
       resultType: CameraResultType.Uri,
       source: CameraSource.Camera
     })
+
+    if (isUnmounted) return;
 
     frontPreview.value = image.webPath || null
 
@@ -286,6 +295,7 @@ async function takeFrontPicture() {
 }
 
 async function takeBackPicture() {
+  if (isUnmounted) return;
   try {
     const image = await Camera.getPhoto({
       quality: 90,
@@ -293,6 +303,8 @@ async function takeBackPicture() {
       resultType: CameraResultType.Uri,
       source: CameraSource.Camera
     })
+
+    if (isUnmounted) return;
 
     backPreview.value = image.webPath || null
 
@@ -344,7 +356,9 @@ async function handleSubmit() {
             upsert: true
           })
 
-      if (error) throw error
+      if(error) {
+        console.log(error)
+      }
 
       const {
         data: publicUrl
@@ -413,6 +427,9 @@ async function handleSubmit() {
     loading.value = false
   }
 }
+
+
+
 </script>
 
 <style scoped>
