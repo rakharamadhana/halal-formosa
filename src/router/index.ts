@@ -4,6 +4,7 @@ import { supabase } from '@/plugins/supabaseClient'; // your supabase instance
 
 // Preload SearchView in the background
 import SearchView from '@/views/SearchView.vue';
+import ExploreView from '@/views/ExploreView.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -12,6 +13,7 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       { path: '', redirect: '/search' },
       { path: 'search', component: SearchView },
+      { path: 'explore', component: ExploreView },
       { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true } },
       { path: 'profile', component: () => import('@/views/ProfileView.vue') },
     ],
@@ -33,7 +35,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const publicPages = ['/login', '/signup', '/search', '/profile', '/settings', '/legal'];
+  const publicPages = ['/login', '/signup', '/search', '/explore', '/profile', '/settings', '/legal'];
 
   const isPublic = publicPages.includes(to.path);
   const requiresAuth = to.meta.requiresAuth || !isPublic;

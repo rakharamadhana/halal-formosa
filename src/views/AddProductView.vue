@@ -4,10 +4,6 @@
       <ion-toolbar>
         <ion-title class="title-large">
           <ion-icon :icon="addOutline" style="vertical-align: middle; "></ion-icon>
-          <ion-buttons slot="start">
-
-          </ion-buttons>
-
           Add New Product
         </ion-title>
       </ion-toolbar>
@@ -47,7 +43,7 @@
 
             <ion-item>
               <ion-select v-model="form.status" interface="popover" required>
-                <div slot="label">Status</div>
+                <div slot="label">Status <ion-text color="danger">*</ion-text></div>
                 <ion-select-option value="Halal">Halal</ion-select-option>
                 <ion-select-option value="Muslim-friendly">Muslim-friendly</ion-select-option>
                 <ion-select-option value="Syubhah">Syubhah</ion-select-option>
@@ -63,6 +59,7 @@
                   placeholder="Enter text"
                   :auto-grow="true"
                   @input="onIngredientsInput"
+                  required
               />
             </ion-item>
 
@@ -73,11 +70,12 @@
                   label-placement="floating"
                   placeholder="Enter text"
                   :auto-grow="true"
+                  required
               ></ion-textarea>
             </ion-item>
 
             <ion-item>
-              <ion-label>Front Image</ion-label>
+              <ion-label>Front Image <ion-text color="danger">*</ion-text></ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeFrontPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -92,7 +90,7 @@
             </div>
 
             <ion-item style="--inner-border-width: 0">
-              <ion-label>Back Image</ion-label>
+              <ion-label>Back Image <ion-text color="danger">*</ion-text></ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeBackPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -438,6 +436,48 @@ async function handleSubmit() {
 
     if (form.value.barcode.length !== 13) {
       errorMsg.value = 'Barcode must be exactly 13 digits.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!form.value.name.trim()) {
+      errorMsg.value = 'Product name is required.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!form.value.status) {
+      errorMsg.value = 'Product status is required.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!form.value.ingredients.trim()) {
+      errorMsg.value = 'Ingredients are required.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!form.value.description.trim()) {
+      errorMsg.value = 'Description is required.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!frontFile.value) {
+      errorMsg.value = 'Front image is required.';
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+
+    if (!backFile.value) {
+      errorMsg.value = 'Back image is required.';
       showErrorToast.value = true;
       loading.value = false;
       return;

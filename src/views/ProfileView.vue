@@ -157,7 +157,11 @@ import {
     IonLabel,
     IonItem,
     IonList,
-  IonIcon
+  IonIcon,
+    IonCardContent,
+    IonNote,
+    IonCardTitle,
+  IonCardHeader,
 } from '@ionic/vue';
 
 export default defineComponent({
@@ -173,7 +177,11 @@ export default defineComponent({
     IonLabel,
     IonItem,
     IonList,
-    IonIcon
+    IonIcon,
+    IonCardContent,
+    IonNote,
+    IonCardTitle,
+    IonCardHeader,
   },
   setup() {
     const userEmail = ref('');

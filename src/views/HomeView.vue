@@ -3,9 +3,15 @@
     <ion-tabs>
       <ion-router-outlet />
       <ion-tab-bar slot="bottom" id="footer-tabs">
+        <!-- Inside your Tabs.vue -->
         <ion-tab-button tab="search" href="/search">
           <ion-icon :icon="searchOutline" />
           <ion-label>Search</ion-label>
+        </ion-tab-button>
+
+        <ion-tab-button tab="explore" href="/explore">
+          <ion-icon :icon="compassOutline" />
+          <ion-label>Explore</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
@@ -30,7 +36,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonRouterOutlet, IonPage } from '@ionic/vue';
-import { personCircle, cameraOutline, searchOutline } from 'ionicons/icons';
+import {personCircle, cameraOutline, searchOutline, compassOutline} from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 
 const isAuthenticated = ref(false);

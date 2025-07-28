@@ -13,6 +13,7 @@
       </ion-toolbar>
       <ion-toolbar >
         <ion-searchbar
+            placeholder="Search product (e.g. Water)"
             :debounce="1000"
             @ionInput="handleInput($event)"
             style="flex-grow: 1;"
