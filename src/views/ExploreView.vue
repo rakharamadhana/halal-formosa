@@ -390,15 +390,18 @@ const searchPlace = () => {
   }
 }
 
-onIonViewWillEnter(() => {
+onIonViewWillEnter(async () => {
   if (!userLocation.value) {
-    centerOnUser()
+    await initMap()
+    await fetchLocations()
+    await centerOnUser()
   }
 })
 
-onMounted(() => {
-  initMap()
-  fetchLocations()
+onMounted(async () => {
+  await initMap()
+  await fetchLocations()
+  await centerOnUser()
   const observer = new MutationObserver(() => {
 
     // Always reapply on change
