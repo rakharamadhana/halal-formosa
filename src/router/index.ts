@@ -4,7 +4,7 @@ import { supabase } from '@/plugins/supabaseClient'; // your supabase instance
 
 // Preload SearchView in the background
 import SearchView from '@/views/SearchView.vue';
-import ExploreView from '@/views/ExploreView.vue.vue';
+import ExploreView from '@/views/ExploreView.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
