@@ -295,15 +295,20 @@ const initMap = async () => {
 }
 
 import { Geolocation } from '@capacitor/geolocation'
+import { Capacitor } from '@capacitor/core'
 
 const centerOnUser = async () => {
   try {
-    const permission = await Geolocation.checkPermissions()
-    if (permission.location !== 'granted') {
-      const result = await Geolocation.requestPermissions()
-      if (result.location !== 'granted') {
-        alert('Location permission is required.')
-        return
+    const isNative = Capacitor.isNativePlatform()
+
+    if (isNative) {
+      const permission = await Geolocation.checkPermissions()
+      if (permission.location !== 'granted') {
+        const result = await Geolocation.requestPermissions()
+        if (result.location !== 'granted') {
+          alert('Location permission is required.')
+          return
+        }
       }
     }
 
@@ -317,7 +322,6 @@ const centerOnUser = async () => {
     }
 
     userLocation.value = userLoc
-
     mapInstance.panTo(userLoc)
 
     const dot = document.createElement('div')
