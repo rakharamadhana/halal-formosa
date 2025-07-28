@@ -33,6 +33,7 @@
     "date-fns-tz": "^3.2.0",
     "dayjs": "^1.11.13",
     "dayjs-plugin-utc": "^0.1.2",
+    "exif-js": "^2.3.0",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.0.0",
     "swiper": "^11.2.10",

@@ -407,31 +407,15 @@ export default defineComponent({
       if (loadingMore.value || allLoaded.value) return;
 
       if (reset) {
-        loading.value = true;
+        loading.value = true; // show skeletons while resetting
         currentPage.value = 0;
         allLoaded.value = false;
         allProducts.value = [];
         results.value = [];
-        // Clear cache on reset
-        localStorage.removeItem('products_pages');
       }
 
       const from = currentPage.value * pageSize;
       const to = from + pageSize - 1;
-      const pageKey = `page_${currentPage.value}`;
-
-      // Try get from cache first
-      const pagesCacheRaw = localStorage.getItem('products_pages');
-      const pagesCache = pagesCacheRaw ? JSON.parse(pagesCacheRaw) : {};
-
-      if (pagesCache[pageKey]) {
-        console.log(`✅ Loaded page ${currentPage.value} from cache`);
-        const cachedPage = pagesCache[pageKey];
-        allProducts.value = [...allProducts.value, ...cachedPage];
-        updateSearchResults();
-        currentPage.value++;
-        return;
-      }
 
       const { data, error } = await supabase
           .from('products')
@@ -441,37 +425,30 @@ export default defineComponent({
 
       if (error) {
         errorMsg.value = error.message;
-        return;
+      } else {
+        if (!data || data.length < pageSize) {
+          allLoaded.value = true;
+        }
+
+        allProducts.value = [...allProducts.value, ...(data || [])];
+
+        if (!searchQuery.value) {
+          results.value = [...allProducts.value];
+        } else {
+          const query = searchQuery.value.toLowerCase();
+          results.value = allProducts.value.filter(
+              (product) =>
+                  (product.name && product.name.toLowerCase().includes(query)) ||
+                  (product.barcode && product.barcode.toLowerCase().includes(query))
+          );
+        }
+
+        currentPage.value++;
       }
 
-      if (!data || data.length < pageSize) {
-        allLoaded.value = true;
-      }
-
-      allProducts.value = [...allProducts.value, ...(data || [])];
-
-      // Update cache
-      pagesCache[pageKey] = data || [];
-      localStorage.setItem('products_pages', JSON.stringify(pagesCache));
-
-      updateSearchResults();
-      currentPage.value++;
-      loading.value = false;
+      loading.value = false; // hide skeletons after data fetched
       loadingMore.value = false;
     };
-
-    function updateSearchResults() {
-      const query = searchQuery.value.toLowerCase();
-      if (!query) {
-        results.value = [...allProducts.value];
-      } else {
-        results.value = allProducts.value.filter(
-            (product) =>
-                (product.name && product.name.toLowerCase().includes(query)) ||
-                (product.barcode && product.barcode.toLowerCase().includes(query))
-        );
-      }
-    }
 
     function goToReport(barcode: string) {
       closeDetails(); // Close modal
