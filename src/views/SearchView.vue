@@ -111,7 +111,7 @@
                 <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <h5 style="margin: 0;">{{ product.name }}</h5>
-                    <p style="margin: 4px 0 8px 0; font-size: 13px; color: gray;">
+                    <p style="margin: 4px 0 8px 0; font-size: 13px;">
                       Added {{ fromNowToTaipei(product.created_at) }}
                     </p>
                   </div>

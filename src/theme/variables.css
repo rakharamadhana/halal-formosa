@@ -71,6 +71,7 @@ ion-tab-button {
 }
 
 ion-card {
+    --color: var(--ion-color-dark);
     box-shadow: rgba(149, 157, 165, 0.2) 0 8px 24px;
     border-radius: 20px;
     padding: 8px;
