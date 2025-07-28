@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
 import {supabase} from "@/plugins/supabaseClient";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/vue"
 import { SpeedInsights } from '@vercel/speed-insights/vue'
 
 async function assignDefaultRole(userId: string) {
