@@ -101,7 +101,7 @@ let infoWindow = null
 const selectedPlace = ref(null)
 
 const loader = new Loader({
-  apiKey: 'AIzaSyAybaf-KM_K6oiRu9pX02Ol-eZYUW1_cZs',
+  apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   version: 'weekly',
   libraries: ['marker']
 })
