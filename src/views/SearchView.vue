@@ -98,11 +98,13 @@
             >
               <div style="display: flex; align-items: center;">
                 <!-- Image -->
-                <img
-                    :src="product.photo_front_url || 'https://via.placeholder.com/80'"
-                    alt="Product"
-                    style="width: 115px; height: 115px; border-radius: 10px; object-fit: cover;"
-                />
+                <ion-thumbnail slot="start" style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;">
+                  <img
+                      :src="product.photo_front_url || 'https://via.placeholder.com/80'"
+                      alt="Product"
+                      style="object-fit: cover; width: 100%; height: 100%;"
+                  />
+                </ion-thumbnail>
 
                 <!-- Info block -->
                 <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
@@ -127,7 +129,6 @@
                 </div>
               </div>
             </ion-card>
-
           </template>
         </div>
       </ion-content>
@@ -214,6 +215,7 @@
           </div>
 
           <ion-button
+              v-if="selectedProduct"
               class="ion-margin-top"
               expand="block"
               color="medium"
@@ -258,7 +260,10 @@ import {
   IonInfiniteScrollContent,
   IonRefresher,
   IonRefresherContent,
-    IonSkeletonText
+    IonSkeletonText,
+    IonThumbnail,
+    IonCard,
+  IonCardContent
 } from '@ionic/vue';
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
 import { Pagination, Zoom } from 'swiper/modules';
@@ -316,7 +321,10 @@ export default defineComponent({
     SwiperSlide,
     IonRefresher,
     IonRefresherContent,
-    IonSkeletonText
+    IonSkeletonText,
+    IonThumbnail,
+    IonCard,
+    IonCardContent
   },
   setup() {
 
