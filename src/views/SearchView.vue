@@ -100,9 +100,10 @@
                 <!-- Image -->
                 <ion-thumbnail slot="start" style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;">
                   <img
-                      :src="product.photo_front_url || 'https://via.placeholder.com/80'"
-                      alt="Product"
-                      style="object-fit: cover; width: 100%; height: 100%;"
+                      loading="lazy"
+                      :src="product.photo_front_url || 'https://via.placeholder.com/80.webp'"
+                      :alt="product.name"
+                      style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
                   />
                 </ion-thumbnail>
 
@@ -348,9 +349,13 @@ export default defineComponent({
     const showReportForm = ref(false);
 
     async function refreshList(event: CustomEvent) {
-      await fetchAllProducts(); // Reset and reload products (first page)
+      // Clear cache
+      localStorage.removeItem('products_cache');
+      localStorage.removeItem('products_cache_timestamp');
+      localStorage.removeItem('products_pages');
 
-      event.detail.complete();   // Hide refresher
+      await fetchProductsCount(); // Force fresh fetch
+      event.detail.complete();    // End refresh animation
     }
 
     function fromNowToTaipei(dateString?: string) {
@@ -358,7 +363,26 @@ export default defineComponent({
       return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
     }
 
-    const fetchAllProducts = async () => {
+    const fetchProductsCount = async () => {
+      const cacheKey = 'products_cache';
+      const cacheTimeKey = 'products_cache_timestamp';
+      const cacheTimeLimit = 1000 * 60 * 5; // 5 minutes
+
+      const cachedData = localStorage.getItem(cacheKey);
+      const cachedTime = localStorage.getItem(cacheTimeKey);
+      const isCacheFresh = cachedData && cachedTime && (Date.now() - parseInt(cachedTime) < cacheTimeLimit);
+
+      if (isCacheFresh) {
+        const data = JSON.parse(cachedData);
+        allProducts.value = data;
+        results.value = [...data];
+        totalProductsCount.value = data.length;
+        allLoaded.value = true;
+        console.log('✅ Loaded from cache');
+        return;
+      }
+
+      // If no valid cache, fetch from Supabase
       const { data, error, count } = await supabase
           .from('products')
           .select('*', { count: 'exact' })
@@ -371,8 +395,83 @@ export default defineComponent({
         results.value = allProducts.value;
         totalProductsCount.value = count || 0;
         allLoaded.value = true;
+
+        // ✅ Save to cache
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem(cacheTimeKey, Date.now().toString());
+        console.log('📦 Fetched and cached');
       }
     };
+
+    const fetchProducts = async (reset = false) => {
+      if (loadingMore.value || allLoaded.value) return;
+
+      if (reset) {
+        loading.value = true;
+        currentPage.value = 0;
+        allLoaded.value = false;
+        allProducts.value = [];
+        results.value = [];
+        // Clear cache on reset
+        localStorage.removeItem('products_pages');
+      }
+
+      const from = currentPage.value * pageSize;
+      const to = from + pageSize - 1;
+      const pageKey = `page_${currentPage.value}`;
+
+      // Try get from cache first
+      const pagesCacheRaw = localStorage.getItem('products_pages');
+      const pagesCache = pagesCacheRaw ? JSON.parse(pagesCacheRaw) : {};
+
+      if (pagesCache[pageKey]) {
+        console.log(`✅ Loaded page ${currentPage.value} from cache`);
+        const cachedPage = pagesCache[pageKey];
+        allProducts.value = [...allProducts.value, ...cachedPage];
+        updateSearchResults();
+        currentPage.value++;
+        return;
+      }
+
+      const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .range(from, to)
+          .order('created_at', { ascending: false });
+
+      if (error) {
+        errorMsg.value = error.message;
+        return;
+      }
+
+      if (!data || data.length < pageSize) {
+        allLoaded.value = true;
+      }
+
+      allProducts.value = [...allProducts.value, ...(data || [])];
+
+      // Update cache
+      pagesCache[pageKey] = data || [];
+      localStorage.setItem('products_pages', JSON.stringify(pagesCache));
+
+      updateSearchResults();
+      currentPage.value++;
+      loading.value = false;
+      loadingMore.value = false;
+    };
+
+    function updateSearchResults() {
+      const query = searchQuery.value.toLowerCase();
+      if (!query) {
+        results.value = [...allProducts.value];
+      } else {
+        results.value = allProducts.value.filter(
+            (product) =>
+                (product.name && product.name.toLowerCase().includes(query)) ||
+                (product.barcode && product.barcode.toLowerCase().includes(query))
+        );
+      }
+    }
 
     function goToReport(barcode: string) {
       closeDetails(); // Close modal
@@ -391,54 +490,6 @@ export default defineComponent({
       } else {
         totalProductsCount.value = count || 0;
       }
-    };
-
-    // Fetch paginated products, reset if needed
-    const fetchProducts = async (reset = false) => {
-      if (loadingMore.value || allLoaded.value) return;
-
-      if (reset) {
-        loading.value = true; // show skeletons while resetting
-        currentPage.value = 0;
-        allLoaded.value = false;
-        allProducts.value = [];
-        results.value = [];
-      }
-
-      const from = currentPage.value * pageSize;
-      const to = from + pageSize - 1;
-
-      const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .range(from, to)
-          .order('created_at', { ascending: false });
-
-      if (error) {
-        errorMsg.value = error.message;
-      } else {
-        if (!data || data.length < pageSize) {
-          allLoaded.value = true;
-        }
-
-        allProducts.value = [...allProducts.value, ...(data || [])];
-
-        if (!searchQuery.value) {
-          results.value = [...allProducts.value];
-        } else {
-          const query = searchQuery.value.toLowerCase();
-          results.value = allProducts.value.filter(
-              (product) =>
-                  (product.name && product.name.toLowerCase().includes(query)) ||
-                  (product.barcode && product.barcode.toLowerCase().includes(query))
-          );
-        }
-
-        currentPage.value++;
-      }
-
-      loading.value = false; // hide skeletons after data fetched
-      loadingMore.value = false;
     };
 
 

@@ -320,16 +320,8 @@ async function takeFrontPicture() {
     });
 
     if (isUnmounted) return;
-
     frontPreview.value = image.webPath || null;
-
-    const response = await fetch(image.webPath || '');
-    const blob = await response.blob();
-
-    // 👇 Create a new File to ensure unique instance
-    frontFile.value = new File([blob], `front-${Date.now()}.jpg`, {
-      type: blob.type
-    });
+    frontFile.value = await resizeImage(image.webPath || '');
 
   } catch (error) {
     console.error('Error taking front photo:', error);
@@ -349,14 +341,7 @@ async function takeBackPicture() {
     if (isUnmounted) return;
 
     backPreview.value = image.webPath || null;
-
-    const response = await fetch(image.webPath || '');
-    const blob = await response.blob();
-
-    // 👇 Create a new File to ensure unique instance
-    backFile.value = new File([blob], `back-${Date.now()}.jpg`, {
-      type: blob.type
-    });
+    backFile.value = await resizeImage(image.webPath || '');
 
   } catch (error) {
     console.error('Error taking back photo:', error);
@@ -372,11 +357,11 @@ function uploadFrontFromGallery() {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
       const file = target.files[0];
-      frontFile.value = file; // ✅ assign to be uploaded
 
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         frontPreview.value = reader.result as string;
+        frontFile.value = await resizeImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -392,17 +377,47 @@ function uploadBackFromGallery() {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
       const file = target.files[0];
-      backFile.value = file; // ✅ assign to be uploaded
 
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         backPreview.value = reader.result as string;
+        backFile.value = await resizeImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
   input.click();
 }
+
+async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Promise<File> {
+  const response = await fetch(webPath)
+  const blob = await response.blob()
+  const img = await createImageBitmap(blob)
+
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+
+  const ratio = img.width / img.height
+  canvas.width = Math.min(img.width, maxWidth)
+  canvas.height = canvas.width / ratio
+
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+  return new Promise((resolve) => {
+    canvas.toBlob(
+        (compressedBlob) => {
+          if (compressedBlob) {
+            resolve(new File([compressedBlob], `img-${Date.now()}.jpg`, {
+              type: 'image/jpeg'
+            }))
+          }
+        },
+        'image/jpeg',
+        quality
+    )
+  })
+}
+
 
 async function handleSubmit() {
   loading.value = true
@@ -512,9 +527,6 @@ async function handleSubmit() {
     loading.value = false
   }
 }
-
-
-
 </script>
 
 <style scoped>
