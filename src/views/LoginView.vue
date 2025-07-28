@@ -109,7 +109,7 @@ export default defineComponent({
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // adjust path if needed
 import { Capacitor } from '@capacitor/core';
 import {IonItemGroup} from "@ionic/vue";
@@ -119,6 +119,9 @@ const password = ref('');
 const errorMsg = ref('');
 const loading = ref(false);
 const router = useRouter();
+const route = useRoute(); // ✅ This is what was missing
+
+const redirectTo = route.query.redirect || '/';
 
 const redirectUrl = Capacitor.isNativePlatform()
     ? 'myapp://callback'
@@ -140,7 +143,7 @@ async function login() {
   if (error) {
     errorMsg.value = error.message;
   } else if (data.session) {
-        router.push('/profile');
+    router.push(redirectTo as string);
   }
 }
 

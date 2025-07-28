@@ -69,3 +69,10 @@ ion-tab-button {
     --color-selected: var(--ion-color-carrot-shade);
     --ripple-color: var(--ion-color-carrot-tint)
 }
+
+ion-card {
+    box-shadow: rgba(149, 157, 165, 0.2) 0 8px 24px;
+    border-radius: 20px;
+    padding: 8px;
+    cursor: pointer;
+}

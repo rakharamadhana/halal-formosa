@@ -67,6 +67,24 @@
         </ion-item>
       </ion-list>
 
+      <ion-card class="app-info-card ion-text-center">
+        <ion-card-header>
+          <ion-card-title>App Info</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-list lines="none">
+            <ion-item>
+              <ion-label>App Name</ion-label>
+              <ion-note slot="end">Halal Formosa</ion-note>
+            </ion-item>
+            <ion-item>
+              <ion-label>Version</ion-label>
+              <ion-note slot="end">1.0.0</ion-note> <!-- Replace with actual version if dynamic -->
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
     </ion-content>
   </ion-page>
 </template>
@@ -75,6 +93,11 @@
 .profile-card {
   margin: 2rem auto;
   padding: 2rem 1.5rem;
+  border-radius: 10px;
+}
+
+.app-info-card {
+  margin: 2rem auto;
   border-radius: 10px;
 }
 

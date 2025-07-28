@@ -43,66 +43,94 @@
 
       <div v-if="scanning" id="reader"></div>
 
-      <ion-list v-if="!scanning">
-        <!-- Skeleton loader -->
-        <template v-if="loading && results.length === 0">
-          <ion-item v-for="n in 10" :key="'skeleton-' + n">
-            <ion-thumbnail slot="start">
-              <ion-skeleton-text animated style="width: 64px; height: 60px; border-radius: 8px;" aria-hidden="true"></ion-skeleton-text>
-            </ion-thumbnail>
-            <ion-label>
-              <h2>
-                <ion-skeleton-text animated style="width: 80%; height: 16px;" aria-hidden="true"></ion-skeleton-text>
-              </h2>
-              <p>
-                <ion-skeleton-text animated style="width: 60%; height: 12px;" aria-hidden="true"></ion-skeleton-text>
-              </p>
-            </ion-label>
-          </ion-item>
-        </template>
+      <ion-content>
+        <div v-if="!scanning" class="ion-padding">
 
-        <template v-else-if="results.length === 0">
-          <ion-item>
-            <ion-label>
-              <h2>
-                Sorry, no product found...
-              </h2>
-            </ion-label>
-          </ion-item>
-        </template>
+          <!-- Skeleton loader -->
+          <template v-if="loading && results.length === 0">
+            <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
+              <div style="display: flex; align-items: center;">
+                <!-- Skeleton Image -->
+                <ion-skeleton-text
+                    animated
+                    style="width: 115px; height: 115px; border-radius: 10px;"
+                ></ion-skeleton-text>
 
-        <!-- Actual product list -->
-        <template v-else>
-          <ion-item
-              v-for="product in results"
-              :key="product.barcode"
-              :button="true"
-              @click="openDetails(product)"
-          >
-            <ion-thumbnail slot="start" v-if="product.photo_front_url">
-              <img
-                  :src="product.photo_front_url"
-                  alt="Front Image"
-                  style="object-fit: cover; width: 64px; height: 60px; border-radius: 8px;"
-              />
-            </ion-thumbnail>
+                <!-- Skeleton Text & Chip -->
+                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                  <div>
+                    <ion-skeleton-text
+                        animated
+                        style="width: 70%; height: 20px; margin-bottom: 8px;"
+                    ></ion-skeleton-text>
+                    <ion-skeleton-text
+                        animated
+                        style="width: 50%; height: 14px;"
+                    ></ion-skeleton-text>
+                  </div>
 
-            <ion-label>
-              <h2>{{ product.name }}</h2>
-              <p><small>Added {{ fromNowToTaipei(product?.created_at) }}</small></p>
-              <ion-chip
-                  :color="product.status === 'Halal' ? 'success'
-                  : product.status === 'Muslim-friendly' ? 'primary'
-                  : product.status === 'Syubhah' ? 'warning'
-                  : product.status === 'Haram' ? 'danger'
-                  : 'medium'"
-              >
-                {{ product.status }}
-              </ion-chip>
-            </ion-label>
-          </ion-item>
-        </template>
-      </ion-list>
+                  <!-- Skeleton Chip -->
+                  <ion-skeleton-text
+                      animated
+                      style="width: 80px; height: 28px; border-radius: 12px; margin-top: 12px;"
+                  ></ion-skeleton-text>
+                </div>
+              </div>
+            </ion-card>
+          </template>
+
+          <!-- Empty state -->
+          <template v-else-if="results.length === 0">
+            <ion-card>
+              <ion-card-content>
+                <p>😔 Sorry, no product found...</p>
+              </ion-card-content>
+            </ion-card>
+          </template>
+
+          <!-- Actual product results -->
+          <template v-else>
+            <ion-card
+                class="product-card"
+                v-for="product in results"
+                :key="product.barcode"
+                @click="openDetails(product)"
+            >
+              <div style="display: flex; align-items: center;">
+                <!-- Image -->
+                <img
+                    :src="product.photo_front_url || 'https://via.placeholder.com/80'"
+                    alt="Product"
+                    style="width: 115px; height: 115px; border-radius: 10px; object-fit: cover;"
+                />
+
+                <!-- Info block -->
+                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                  <div>
+                    <h5 style="margin: 0;">{{ product.name }}</h5>
+                    <p style="margin: 4px 0 8px 0; font-size: 13px; color: gray;">
+                      Added {{ fromNowToTaipei(product.created_at) }}
+                    </p>
+                  </div>
+
+                  <!-- Status -->
+                  <ion-chip
+                      :color="product.status === 'Halal' ? 'success'
+                : product.status === 'Muslim-friendly' ? 'primary'
+                : product.status === 'Syubhah' ? 'warning'
+                : product.status === 'Haram' ? 'danger'
+                : 'medium'"
+                      style="align-self: flex-start; border-radius: 12px; font-size: 14px;"
+                  >
+                    {{ product.status }}
+                  </ion-chip>
+                </div>
+              </div>
+            </ion-card>
+
+          </template>
+        </div>
+      </ion-content>
 
       <ion-infinite-scroll @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content loading-spinner="bubbles" loading-text="Loading more products...">
@@ -184,6 +212,16 @@
 
             </div>
           </div>
+
+          <ion-button
+              class="ion-margin-top"
+              expand="block"
+              color="medium"
+              @click="goToReport(selectedProduct.barcode)"
+          >
+            Report Product
+          </ion-button>
+
         </ion-content>
       </ion-modal>
     </ion-content>
@@ -204,11 +242,8 @@
 import {
   IonPage,
   IonHeader,
-  IonItem,
   IonContent,
-  IonList,
   IonSearchbar,
-  IonLabel,
   IonText,
   IonModal,
   IonToolbar,
@@ -218,7 +253,6 @@ import {
   IonIcon,
   IonFooter,
   onIonViewWillEnter,
-  IonThumbnail,
   IonChip,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
@@ -232,7 +266,7 @@ import { Swiper, SwiperSlide } from 'swiper/vue';
 import { barcodeOutline, stopCircleOutline, chevronDownCircleOutline } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-
+import { useRouter } from 'vue-router';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/zoom';
@@ -265,11 +299,8 @@ export default defineComponent({
   components: {
     IonPage,
     IonHeader,
-    IonItem,
     IonContent,
-    IonList,
     IonSearchbar,
-    IonLabel,
     IonText,
     IonModal,
     IonToolbar,
@@ -278,7 +309,6 @@ export default defineComponent({
     IonButton,
     IonIcon,
     IonFooter,
-    IonThumbnail,
     IonChip,
     IonInfiniteScroll,
     IonInfiniteScrollContent,
@@ -289,6 +319,9 @@ export default defineComponent({
     IonSkeletonText
   },
   setup() {
+
+    const router = useRouter();
+
     const totalProductsCount = ref(0);
     const allProducts = ref<Product[]>([]);
     const results = ref<Product[]>([]);
@@ -304,7 +337,7 @@ export default defineComponent({
     const allLoaded = ref(false);
     const ingredientDictionary = ref<Record<string, string>>({});
     const loading = ref(true);
-
+    const showReportForm = ref(false);
 
     async function refreshList(event: CustomEvent) {
       await fetchAllProducts(); // Reset and reload products (first page)
@@ -332,6 +365,13 @@ export default defineComponent({
         allLoaded.value = true;
       }
     };
+
+    function goToReport(barcode: string) {
+      closeDetails(); // Close modal
+      setTimeout(() => {
+        router.push(`/report/${barcode}`);
+      }, 300);
+    }
 
 
     const fetchTotalCount = async () => {
@@ -563,7 +603,9 @@ export default defineComponent({
       fromNowToTaipei,
       refreshList,
       highlightedIngredients,
-      loading
+      loading,
+      showReportForm,
+      goToReport
     };
   },
 });

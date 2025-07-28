@@ -12,9 +12,14 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       { path: '', redirect: '/search' },
       { path: 'search', component: SearchView },
-      { path: 'add', component: () => import('@/views/AddProductView.vue') },
+      { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true } },
       { path: 'profile', component: () => import('@/views/ProfileView.vue') },
     ],
+  },
+  {
+    path: '/report/:barcode',
+    component: () => import('@/views/ReportView.vue'),
+    meta: { requiresAuth: true } // 👈 Add this flag
   },
   { path: '/settings', component: () => import('@/views/SettingsView.vue') },
   { path: '/legal', component: () => import('@/views/LegalView.vue') },
@@ -28,49 +33,32 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  // Public routes accessible without login
-  const publicPages = ['/login', '/signup', '/search', '/profile'];
+  const publicPages = ['/login', '/signup', '/search', '/profile', '/settings', '/legal'];
 
-  // If route is public, always allow access
-  if (publicPages.includes(to.path)) {
-    return next();
-  }
+  const isPublic = publicPages.includes(to.path);
+  const requiresAuth = to.meta.requiresAuth || !isPublic;
 
-  // For protected routes, check session
   const { data: { session } } = await supabase.auth.getSession();
 
-  if (!session) {
-    // Not logged in, redirect to login page
-    return next('/login');
+  if (requiresAuth && !session) {
+    return next({ path: '/login', query: { redirect: to.fullPath } });
   }
 
-  // Now check if route requires admin role
   if (to.meta.requiresAdmin) {
-    try {
-      const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+    const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session?.user.id)
+        .single();
 
-      if (error || !data) {
-        console.error('Failed to fetch user role:', error);
-        return next('/login'); // or unauthorized page
-      }
-
-      if (data.role !== 'admin') {
-        // Not admin: redirect to search or unauthorized page
-        return next('/search');
-      }
-    } catch (err) {
-      console.error('Error during role check:', err);
-      return next('/login');
+    if (error || !data || data.role !== 'admin') {
+      return next('/search');
     }
   }
 
-  // All other cases, allow access
-  next();
+  next(); // ✅ Allow access
 });
+
 
 
 
