@@ -10,7 +10,7 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <ion-accordion-group expand="first">
+      <ion-accordion-group :value="'tos'">
         <!-- Terms of Service -->
         <ion-accordion value="tos">
           <ion-item slot="header" color="light">
