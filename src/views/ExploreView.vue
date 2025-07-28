@@ -80,7 +80,8 @@ import {
   IonFab,
   IonFabButton,
   IonCard,
-  IonThumbnail
+  IonThumbnail,
+    onIonViewWillEnter
 } from '@ionic/vue'
 import {compassOutline, navigateCircleOutline} from 'ionicons/icons'
 import {ref, onMounted, nextTick, computed} from 'vue'
@@ -296,6 +297,7 @@ const initMap = async () => {
 
 import { Geolocation } from '@capacitor/geolocation'
 import { Capacitor } from '@capacitor/core'
+const userMarker = ref(null)
 
 const centerOnUser = async () => {
   try {
@@ -327,12 +329,18 @@ const centerOnUser = async () => {
     const dot = document.createElement('div')
     dot.className = 'user-location-dot'
 
-    new google.maps.marker.AdvancedMarkerElement({
-      position: userLoc,
-      map: mapInstance,
-      content: dot,
-      title: 'You are here'
-    })
+    if (userMarker.value) {
+      // just move it
+      userMarker.value.position = userLoc
+    } else {
+      // create once
+      userMarker.value = new google.maps.marker.AdvancedMarkerElement({
+        position: userLoc,
+        map: mapInstance,
+        content: dot,
+        title: 'You are here'
+      })
+    }
 
   } catch (err) {
     console.error(err)
@@ -381,6 +389,12 @@ const searchPlace = () => {
     selectedPlace.value = matched
   }
 }
+
+onIonViewWillEnter(() => {
+  if (!userLocation.value) {
+    centerOnUser()
+  }
+})
 
 onMounted(() => {
   initMap()
