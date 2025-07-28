@@ -8,6 +8,8 @@ import router from './router';
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '@/plugins/supabaseClient';
 
+import { SpeedInsights } from '@vercel/speed-insights/vue'
+
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/vue/css/core.css';
 
@@ -41,6 +43,9 @@ import './theme/variables.css';
 // Above the createApp() line
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 defineCustomElements(window);
+
+// 👇 Call this before mounting the app
+SpeedInsights()
 
 const app = createApp(App)
   .use(IonicVue)

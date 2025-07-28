@@ -29,6 +29,7 @@
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
     "@supabase/supabase-js": "^2.52.1",
+    "@vercel/speed-insights": "^1.2.0",
     "@zxing/library": "^0.21.3",
     "barcode-detector": "^3.0.5",
     "date-fns": "^4.1.0",
