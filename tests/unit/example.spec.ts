@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import SearchView from '../../src/views/SearchView.vue'
+import SearchView from '../../src/views/search/SearchView.vue'
 import { describe, expect, test } from 'vitest'
 
 describe('SearchView.vue', () => {

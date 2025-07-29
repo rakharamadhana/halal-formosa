@@ -10,7 +10,13 @@
     </ion-header>
 
     <!-- Map stays fixed -->
-    <div id="map"></div>
+    <div id="map">
+      <ion-fab position-anchor="map" vertical="bottom" horizontal="end" slot="fixed">
+        <ion-fab-button color="carrot" @click="centerOnUser">
+          <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
+    </div>
 
     <ion-toolbar style="--background: none;">
       <ion-searchbar
@@ -35,12 +41,16 @@
             @click="selectPlace(place)"
         >
           <div style="display: flex; align-items: center;">
-            <ion-thumbnail slot="start" style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;">
+            <ion-thumbnail
+                slot="start"
+                style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;"
+            >
               <img
                   loading="lazy"
-                  :src="place.image"
+                  :src="place.image || 'https://placehold.co/200x100'"
                   alt="thumbnail"
                   style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
+                  @error="event => event.target.src = 'assets/placeholder.png'"
               />
             </ion-thumbnail>
             <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
@@ -58,12 +68,6 @@
         </ion-card>
       </div>
     </ion-content>
-
-    <ion-fab style="transform: translateY(-580%) translateX(-25%);" vertical="bottom" horizontal="end" slot="fixed">
-      <ion-fab-button color="carrot" @click="centerOnUser">
-        <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
-      </ion-fab-button>
-    </ion-fab>
   </ion-page>
 </template>
 
@@ -87,7 +91,7 @@ import {compassOutline, navigateCircleOutline} from 'ionicons/icons'
 import {ref, onMounted, nextTick, computed} from 'vue'
 import {
   supabase
-} from '@/plugins/supabaseClient' // adjust path if needed
+} from '@/plugins/supabaseClient'
 
 const userLocation = ref(null)
 
@@ -445,7 +449,7 @@ onMounted(async () => {
 #map {
   margin: 16px 16px 0;
   padding: 10px;
-  height: 53vh;
+  height: 45vh;
   border-radius: 12px;
   overflow: hidden;
   position: relative;

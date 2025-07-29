@@ -174,7 +174,7 @@ import {
 } from 'vue'
 import {
   supabase
-} from '@/plugins/supabaseClient' // adjust path if needed
+} from '@/plugins/supabaseClient'
 import {
   Html5Qrcode,
   Html5QrcodeSupportedFormats

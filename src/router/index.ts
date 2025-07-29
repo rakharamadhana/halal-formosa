@@ -3,8 +3,8 @@ import { RouteRecordRaw } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // your supabase instance
 
 // Preload SearchView in the background
-import SearchView from '@/views/SearchView.vue';
-import ExploreView from '@/views/ExploreView.vue';
+import SearchView from '@/views/search/SearchView.vue';
+import ExploreView from '@/views/explore/ExploreView.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -14,18 +14,18 @@ const routes: Array<RouteRecordRaw> = [
       { path: '', redirect: '/search' },
       { path: 'search', component: SearchView },
       { path: 'explore', component: ExploreView },
-      { path: 'add', component: () => import('@/views/AddProductView.vue'), meta: { requiresAuth: true } },
-      { path: 'profile', component: () => import('@/views/ProfileView.vue') },
+      { path: 'add', component: () => import('@/views/add-product/AddProductView.vue'), meta: { requiresAuth: true } },
+      { path: 'profile', component: () => import('@/views/profile/ProfileView.vue') },
     ],
   },
   {
     path: '/report/:barcode',
-    component: () => import('@/views/ReportView.vue'),
+    component: () => import('@/views/search/ReportView.vue'),
     meta: { requiresAuth: true } // 👈 Add this flag
   },
-  { path: '/settings', component: () => import('@/views/SettingsView.vue') },
-  { path: '/legal', component: () => import('@/views/LegalView.vue') },
-  { path: '/login', component: () => import('@/views/LoginView.vue') },
+  { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
+  { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },
+  { path: '/login', component: () => import('@/views/auth/LoginView.vue') },
 ];
 
 
