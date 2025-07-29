@@ -32,5 +32,19 @@
     <script type="module" src="/src/main.ts"></script>
   </body>
 
+  <!-- public/index.html -->
+  <script>
+      const savedTheme = localStorage.getItem('preferred-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const isDark = savedTheme === 'dark' || (savedTheme === null && prefersDark);
+
+      if (isDark) {
+          document.documentElement.classList.add('ion-palette-dark');
+      } else {
+          document.documentElement.classList.remove('ion-palette-dark');
+      }
+  </script>
+
+
 </html>
 
