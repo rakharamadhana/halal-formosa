@@ -10,8 +10,16 @@
     </ion-header>
 
     <!-- Map stays fixed -->
-    <div id="map">
-      <ion-fab position-anchor="map" vertical="bottom" horizontal="end" slot="fixed">
+    <div style="position: relative;">
+      <!-- Map container -->
+      <div id="map"></div>
+      <!-- FAB absolutely anchored inside the map container -->
+      <ion-fab
+          vertical="bottom"
+          horizontal="end"
+          slot="fixed"
+          style="position: absolute; bottom: 20px; right: 20px; z-index: 10;"
+      >
         <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
         </ion-fab-button>
