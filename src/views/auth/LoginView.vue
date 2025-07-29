@@ -113,6 +113,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient'; // adjust path if needed
 import { Capacitor } from '@capacitor/core';
 import {IonItemGroup} from "@ionic/vue";
+import type { LocationQueryValue } from 'vue-router';
 
 const email = ref('');
 const password = ref('');
@@ -121,13 +122,9 @@ const loading = ref(false);
 const router = useRouter();
 const route = useRoute(); // ✅ This is what was missing
 
-const redirectTo = route.query.redirect || '/';
-
-const redirectUrl = Capacitor.isNativePlatform()
-    ? 'myapp://callback'
-    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:8100/profile'  // adjust port if needed
-        : `${window.location.origin}/profile`;
+const rawRedirect = route.query.redirect as LocationQueryValue;
+const redirectTo: string =
+    typeof rawRedirect === 'string' ? rawRedirect : '/';
 
 async function login() {
   loading.value = true;
@@ -147,21 +144,38 @@ async function login() {
   }
 }
 
+// ✅ Construct dynamic redirectUrl with `#next=...` for native OAuth login
+const redirectUrl = Capacitor.isNativePlatform()
+    ? 'myapp://callback'
+    : window.location.origin + (redirectTo || '/');
+
 async function loginWithGoogle() {
   errorMsg.value = '';
+  console.log('🔁 Starting Google login');
+  console.log('🔗 Redirect URL:', redirectUrl);
+
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
+        queryParams: {
+          next: redirectTo
+        }
       },
     });
 
+    console.log('📡 signInWithOAuth response:', { data, error });
+
     if (error) {
       errorMsg.value = error.message;
+      console.error('❌ OAuth error:', error.message);
+    } else {
+      console.log('✅ OAuth login initiated, waiting for redirect...');
     }
   } catch (err: any) {
     errorMsg.value = err.message || 'An unexpected error occurred during Google login.';
+    console.error('💥 Unexpected error during OAuth login:', err);
   }
 }
 

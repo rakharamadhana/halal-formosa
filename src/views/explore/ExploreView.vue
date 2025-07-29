@@ -58,7 +58,7 @@
                   :src="place.image || 'https://placehold.co/200x100'"
                   alt="thumbnail"
                   style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
-                  @error="event => event.target.src = 'assets/placeholder.png'"
+                  @error="event => event.target.src = 'https://placehold.co/200x100'"
               />
             </ion-thumbnail>
             <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">

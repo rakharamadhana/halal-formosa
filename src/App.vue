@@ -8,38 +8,29 @@
 
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
-import {supabase} from "@/plugins/supabaseClient";
-import { Analytics } from "@vercel/analytics/vue"
-import { SpeedInsights } from '@vercel/speed-insights/vue'
+import { supabase } from "@/plugins/supabaseClient";
+import { useRouter } from 'vue-router';
+import { onMounted } from 'vue';
+import { Analytics } from "@vercel/analytics/vue";
+import { SpeedInsights } from '@vercel/speed-insights/vue';
 
-async function assignDefaultRole(userId: string) {
-  try {
-    const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
+const router = useRouter();
 
-    if (!existingRole) {
-      console.log('No existing role found, assigning default role "user"');
-      const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: 'user' }]);
-
-      if (insertError) {
-        console.error('Error inserting default role:', insertError);
-      } else {
-        console.log('Default role "user" assigned successfully');
-      }
-    }
-  } catch (error) {
-    console.error('Unexpected error in assignDefaultRole:', error);
+// ✅ Restore session on app mount (non-blocking)
+onMounted(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user && router.currentRoute.value.fullPath === '/login') {
+    console.log('🔒 Session found on app start:', session.user.email);
+    router.push('/profile');
   }
-}
+});
 
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  if (session?.user) {
-    await assignDefaultRole(session.user.id);
+// ✅ Logout handler
+supabase.auth.onAuthStateChange(async (event) => {
+  if (event === 'SIGNED_OUT') {
+    console.log('🔓 User signed out');
+    router.push('/login');
   }
 });
 </script>
+
