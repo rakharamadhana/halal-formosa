@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.halal.formosa',
+  appId: 'com.rcreative.halalformosa',
   appName: 'Halal Formosa',
   webDir: 'dist',
   server: {

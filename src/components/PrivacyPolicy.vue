@@ -3,89 +3,101 @@
     <h1>Privacy Policy</h1>
 
     <p>
-      This Privacy Policy ("Policy") describes how <strong>R Creative</strong> ("we", "our") handles personal
-      information in the Halal Formosa mobile application ("Service"). By using this Service, you agree to the
-      collection and use of information in accordance with this Policy.
+      This Privacy Policy ("Policy") explains how <strong>R Creative</strong> ("we", "our", or "us") handles personal
+      and non-personal information collected through the <strong>Halal Formosa</strong> mobile application ("Service").
+      By using the Service, you agree to the collection, storage, and use of information in accordance with this Policy.
     </p>
 
     <h2>Article 1 – Definition of Personal Information</h2>
     <p>
-      "Personal information" refers to identifiable data such as your email address and Google account display name,
-      including profile image, obtained during login.
+      "Personal information" refers to identifiable data such as your email address, Google account display name, and
+      profile image collected during authentication. Other app usage information is anonymized.
     </p>
 
     <h2>Article 2 – Methods of Collecting Personal Information</h2>
-    <p>
-      We collect personal information when Users sign in using Google. This includes email, display name, and
-      profile image. We also gather anonymized logs and interaction data (such as app usage patterns) to improve
-      performance and security.
-    </p>
+    <ul>
+      <li>When you sign in using Google, we collect your email, display name, and profile image.</li>
+      <li>We collect anonymized logs and interaction data (e.g., app usage patterns, report submissions) for security and feature improvement.</li>
+      <li>If you use the Explore / Map feature, we collect your approximate device location to show nearby mosques, prayer rooms, and halal facilities.
+        Location accuracy depends on Google Maps and device GPS.</li>
+      <li>If you make a donation, only the transaction record from the payment processor (e.g., Stripe) is stored.
+        We do not store any credit card information.</li>
+    </ul>
 
     <h2>Article 3 – Purpose of Use</h2>
     <ul>
-      <li>To authenticate users and provide access to the app</li>
-      <li>To improve app features based on anonymized usage data</li>
-      <li>To identify errors or abuse and maintain secure service operation</li>
-      <li>To personalize user experience using stored preferences in local storage</li>
+      <li>To authenticate users and provide access to app features</li>
+      <li>To provide Explore / Map services based on your location (if granted)</li>
+      <li>To improve app features using anonymized usage data</li>
+      <li>To detect and prevent abuse or security breaches</li>
+      <li>To maintain donation records for app maintenance transparency</li>
+      <li>To personalize user experience using non-personal local storage preferences</li>
     </ul>
 
     <h2>Article 4 – Changes to Purpose of Use</h2>
     <p>
-      Any changes to the purposes described will be communicated via app updates or in-app notices. We will only make
-      such changes if reasonably related to the original purpose.
+      Any change to the purposes above will be communicated through in-app notices or updates.
+      We will only change purposes if reasonably related to the original purpose.
     </p>
 
     <h2>Article 5 – Retention Period</h2>
     <p>
-      Personal data is retained as long as the user account remains active. Upon account deletion request, your data will
-      be permanently deleted.
+      Personal data is retained as long as the account remains active.
+      Upon verified account deletion request, your personal data will be permanently deleted.
+      Donation records may be anonymized for accounting purposes.
     </p>
 
     <h2>Article 6 – Third-Party Disclosure</h2>
-    <p>
-      We do <strong>not</strong> share or sell any personal information to external third parties. Authentication is conducted
-      through Google, and any additional data collected is kept securely within our systems.
-    </p>
+    <ul>
+      <li>We <strong>do not sell or share</strong> personal information with third parties for marketing.</li>
+      <li>Authentication is through Google, and map data is provided by Google Maps.</li>
+      <li>Payment processing is handled securely by third-party providers (e.g., Stripe), subject to their own privacy policies.</li>
+      <li>Voluntary donations are processed through <strong>bobaboba.me (AnyoneLab)</strong>.
+        We do not receive or store your full payment information such as credit card numbers.
+        Users should refer to <strong>AnyoneLab’s Terms of Service and Privacy Policy</strong> for details on payment processing.</li>
+    </ul>
 
-    <h2>Article 7 – Disclosure & Correction</h2>
-    <p>
-      Users may contact support to request a copy of or correct their stored information. As all login information comes
-      directly from Google, changes must be made in the user’s Google account.
-    </p>
+    <h2>Article 7 – User Rights: Access, Correction, and Deletion</h2>
+    <ul>
+      <li>You may contact support to request access to or deletion of your stored data.</li>
+      <li>For login information changes, you must update your Google account directly.</li>
+      <li>Account deletion requests can be submitted to our support email.</li>
+    </ul>
 
-    <h2>Article 8 – Suspension of Use</h2>
+    <h2>Article 8 – Data Suspension and Misuse</h2>
     <p>
-      If you believe your data has been used improperly, you may contact our support team. We will investigate the
-      request and take appropriate measures, including deletion or anonymization of data.
+      If you believe your data has been accessed or used improperly, you may contact our support team.
+      We will investigate and take appropriate actions, including deletion or anonymization if necessary.
     </p>
 
     <h2>Article 9 – Cookie and Local Storage Policy</h2>
-    <p>
-      We do not use browser cookies. However, we use <strong>local storage</strong> to store non-personal preferences such as language
-      settings and viewed history.
-    </p>
+    <ul>
+      <li>We do not use browser cookies.</li>
+      <li>We use <strong>local storage</strong> only to store non-personal data, such as language settings and viewed history.</li>
+    </ul>
 
     <h2>Article 10 – Security Measures</h2>
     <p>
-      We use Supabase authentication and industry-standard encryption (HTTPS) to protect personal information.
-      Access to user data is restricted to authorized personnel only.
+      We use <strong>Supabase authentication</strong> and industry-standard <strong>HTTPS encryption</strong> to protect user data.
+      Access to personal information is strictly limited to authorized team members only.
     </p>
 
-    <h2>Article 11 – International Users</h2>
+    <h2>Article 11 – International and Religious Considerations</h2>
     <p>
-      This Service is provided in Taiwan but may be accessed from abroad. All personal data is handled according to Taiwan's
-      data protection regulations.
+      This Service is operated in Taiwan but may be accessed internationally.
+      All data is handled in accordance with Taiwan's data protection principles.
+      In case of disputes, we first seek <strong>amicable resolution guided by Shariah (Islamic) principles</strong>.
     </p>
 
     <h2>Article 12 – Changes to this Policy</h2>
     <p>
-      This Policy may be updated periodically. Updates will be published in-app and take effect upon release.
+      This Policy may be updated periodically. Updates will be published in-app and are effective immediately upon release.
     </p>
 
     <h2>Article 13 – Contact</h2>
     <p>
-      For inquiries regarding this Privacy Policy, please contact:<br />
-      <strong>R Creative</strong><br />
+      For privacy-related inquiries, please contact:<br/>
+      <strong>R Creative</strong><br/>
       Email: <em>gunslingerarecool@gmail.com</em>
     </p>
 

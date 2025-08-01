@@ -25,6 +25,7 @@ const routes: Array<RouteRecordRaw> = [
   },
   { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
   { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },
+  { path: '/signup', component: () => import('@/views/auth/SignUpView.vue') },
   { path: '/login', component: () => import('@/views/auth/LoginView.vue') },
 ];
 
