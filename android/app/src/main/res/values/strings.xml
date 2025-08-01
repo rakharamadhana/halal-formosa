@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Halal Formosa</string>
+    <string name="title_activity_main">Halal Formosa</string>
+    <string name="package_name">com.rcreative.halalformosa</string>
+    <string name="custom_url_scheme">com.rcreative.halalformosa</string>
+</resources>
