@@ -69,6 +69,49 @@
 
       <ion-card class="app-info-card ion-text-center">
         <ion-card-header>
+          <ion-card-title>Support Halal Formosa ❤️</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <p>
+            Your support keeps Halal Formosa running and growing with new features.
+          </p>
+
+          <!-- Bobaobame Button -->
+          <a
+              href="https://halalformosa.bobaboba.me"
+              target="_blank"
+              style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 180px;
+        height: 44px;
+        margin: 1rem auto;
+        padding: 8px 16px;
+        background-color: #AD5138;
+        color: #F8E0BE;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: bold;
+      "
+          >
+            <img
+                src="https://s3.ap-southeast-1.amazonaws.com/media.anyonelab.com/images/boba/boba-embed-icon.png"
+                alt="boba-icon"
+                style="height: 100%; margin-right: 8px"
+            />
+            Give me a Boba!
+          </a>
+
+          <p style="font-size: 0.9rem; color: var(--ion-color-medium);">
+            Thank you for your support! 🙏
+          </p>
+          <p><small>*Donations are voluntary and do not unlock in-app features.</small></p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="app-info-card ion-text-center">
+        <ion-card-header>
           <ion-card-title>App Info</ion-card-title>
         </ion-card-header>
         <ion-card-content>
@@ -94,11 +137,13 @@
   margin: 2rem auto;
   padding: 2rem 1.5rem;
   border-radius: 10px;
+  cursor: default; /* or cursor: auto */
 }
 
 .app-info-card {
   margin: 2rem auto;
   border-radius: 10px;
+  cursor: default; /* or cursor: auto */
 }
 
 .avatar-wrapper {
