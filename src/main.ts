@@ -36,6 +36,7 @@ const app = createApp(App)
 
 /* ✅ OAuth Redirect Handler for Native Apps */
 CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+  console.log('🔗 appUrlOpen event fired:', url); // <--- Add this
   if (url?.startsWith('myapp://callback')) {
     console.log('📦 App URL Open triggered:', url);
 
