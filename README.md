@@ -69,7 +69,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```bash
 ionic serve
 ```
-Then visit: `http://localhost:5173`
+Then visit: `http://localhost:8100`
 
 ### 5️⃣ Build for Production
 ```bash
@@ -84,19 +84,23 @@ To build the app for Android/iOS:
 
 ```bash
 ionic build
+
+# android
 ionic cap sync android
-# or
+ionic cap open android
+
+# or iOS
 ionic cap sync ios
+ionic cap open ios
 ```
 
 ---
 
 ## 📝 Roadmap
 
-- [ ] Ingredient auto-check for E-codes  
-- [ ] Push notification for new product approval  
-- [ ] Multi-language support (EN/ID/中文)  
-- [ ] Offline product cache
+- [ ] Ingredients scanner
+- [ ] Push notification  
+- [ ] Multi-language support (EN/ID/中文)
 
 ---
 
