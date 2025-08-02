@@ -423,6 +423,14 @@ async function handleSubmit() {
   showErrorToast.value = false
 
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      errorMsg.value = 'You must be logged in to submit a product.'
+      showErrorToast.value = true
+      loading.value = false
+      return
+    }
+
     const {
       barcode
     } = form.value
@@ -539,6 +547,7 @@ async function handleSubmit() {
       ...form.value,
       photo_front_url: frontUrl,
       photo_back_url: backUrl,
+      added_by: user.id, // ✅ Fill with current user's ID
       created_at: new Date().toISOString(),
     }])
 
