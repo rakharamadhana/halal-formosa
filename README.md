@@ -48,8 +48,8 @@ Follow these steps to run Halal Formosa locally:
 
 ### 1️⃣ Clone Repository
 ```bash
-git clone https://github.com/yourusername/halal-formosa.git
-cd halal-formosa
+git clone https://github.com/rakharamadhana/halal-project.git
+cd halal-project
 ```
 
 ### 2️⃣ Install Dependencies
@@ -67,13 +67,13 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 
 ### 4️⃣ Run Development Server
 ```bash
-npm run dev
+ionic serve
 ```
 Then visit: `http://localhost:5173`
 
 ### 5️⃣ Build for Production
 ```bash
-npm run build
+ionic build
 ```
 
 ---
@@ -83,11 +83,10 @@ npm run build
 To build the app for Android/iOS:
 
 ```bash
-npm run build
-npx cap sync
-npx cap open android
+ionic build
+ionic cap sync android
 # or
-npx cap open ios
+ionic cap sync ios
 ```
 
 ---
