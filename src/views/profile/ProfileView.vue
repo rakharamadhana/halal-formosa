@@ -122,7 +122,7 @@
             </ion-item>
             <ion-item>
               <ion-label>Version</ion-label>
-              <ion-note slot="end">1.0.5</ion-note> <!-- Replace with actual version if dynamic -->
+              <ion-note slot="end">1.0.7</ion-note> <!-- Replace with actual version if dynamic -->
             </ion-item>
           </ion-list>
         </ion-card-content>
