@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
 import { supabase } from '@/plugins/supabaseClient';
 
@@ -30,18 +31,26 @@ import './theme/variables.css';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 defineCustomElements(window);
 
-/* ✅ Setup keyboard behavior */
-// set resize mode to "body"
-Keyboard.setResizeMode({ mode: 'body' as KeyboardResize });
-Keyboard.setScroll({ isDisabled: false }); // optional to enable auto-scroll
+/* ✅ Setup keyboard behavior only for native platforms */
+if (Capacitor.isNativePlatform()) {
+  // Set resize mode to "body"
+  Keyboard.setResizeMode({ mode: 'body' as KeyboardResize });
 
-Keyboard.addListener('keyboardWillShow', () => {
-  document.body.classList.add('keyboard-visible');
-});
+  // Optional: Enable auto scroll
+  Keyboard.setScroll({ isDisabled: false });
 
-Keyboard.addListener('keyboardWillHide', () => {
-  document.body.classList.remove('keyboard-visible');
-});
+  // Listen to keyboard events to add/remove class
+  Keyboard.addListener('keyboardWillShow', () => {
+    document.body.classList.add('keyboard-visible');
+  });
+
+  Keyboard.addListener('keyboardWillHide', () => {
+    document.body.classList.remove('keyboard-visible');
+  });
+} else {
+  console.log('ℹ️ Keyboard plugin not available on web, skipping...');
+}
+
 
 /* Create app */
 const app = createApp(App).use(IonicVue).use(router);

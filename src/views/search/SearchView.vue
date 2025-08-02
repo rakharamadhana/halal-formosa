@@ -155,7 +155,7 @@
           </ion-toolbar>
         </ion-header>
 
-        <div class="ion-padding">
+        <ion-content class="ion-padding">
           <div v-if="selectedProduct">
             <!-- Swiper carousel for images -->
             <swiper
@@ -211,8 +211,6 @@
                   {{ selectedProduct.ingredients }}
                 </template>
               </h5>
-
-
             </div>
           </div>
 
@@ -225,8 +223,7 @@
           >
             Report Product
           </ion-button>
-
-        </div>
+        </ion-content>
       </ion-modal>
     </ion-content>
 
@@ -373,46 +370,6 @@ export default defineComponent({
       return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
     }
 
-    const fetchProductsCount = async () => {
-      const cacheKey = 'products_cache';
-      const cacheTimeKey = 'products_cache_timestamp';
-      const cacheTimeLimit = 1000 * 60 * 5; // 5 minutes
-
-      const cachedData = localStorage.getItem(cacheKey);
-      const cachedTime = localStorage.getItem(cacheTimeKey);
-      const isCacheFresh = cachedData && cachedTime && (Date.now() - parseInt(cachedTime) < cacheTimeLimit);
-
-      if (isCacheFresh) {
-        const data = JSON.parse(cachedData);
-        allProducts.value = data;
-        results.value = [...data];
-        totalProductsCount.value = data.length;
-        allLoaded.value = true;
-        console.log('✅ Loaded from cache');
-        return;
-      }
-
-      // If no valid cache, fetch from Supabase
-      const { data, error, count } = await supabase
-          .from('products')
-          .select('*', { count: 'exact' })
-          .order('created_at', { ascending: false });
-
-      if (error) {
-        errorMsg.value = error.message;
-      } else {
-        allProducts.value = data || [];
-        results.value = allProducts.value;
-        totalProductsCount.value = count || 0;
-        allLoaded.value = true;
-
-        // ✅ Save to cache
-        localStorage.setItem(cacheKey, JSON.stringify(data));
-        localStorage.setItem(cacheTimeKey, Date.now().toString());
-        console.log('📦 Fetched and cached');
-      }
-    };
-
     const fetchProducts = async (reset = false) => {
       if (loadingMore.value || allLoaded.value) return;
 
@@ -519,29 +476,38 @@ export default defineComponent({
     const highlightedIngredients = computed(() => {
       if (!selectedProduct.value || !selectedProduct.value.ingredients) return '';
 
-      // If product is Halal, do not highlight
+      // If product is Halal, just return plain text
       if (selectedProduct.value.status === 'Halal') {
         return selectedProduct.value.ingredients;
       }
 
-      let text = selectedProduct.value.ingredients;
+      const rawIngredients = selectedProduct.value.ingredients;
+      const parts = rawIngredients.split(',').map(p => p.trim());
 
-      // Sort keywords by length desc to avoid partial matches before longer matches
+      // Sort dictionary by length to avoid partial overlaps first
       const sortedKeys = Object.keys(ingredientDictionary.value).sort((a, b) => b.length - a.length);
 
-      sortedKeys.forEach(key => {
-        const color = ingredientDictionary.value[key];
-        if (!color) return;
+      const highlightedParts = parts.map(part => {
+        const lowerPart = part.toLowerCase();
+        let matchedKey: string | null = null;
 
-        // Replace with highlighted span, case insensitive
-        const regex = new RegExp(`\\b${escapeRegExp(key)}\\b`, 'gi');
-        text = text.replace(regex, (match) => `<span style="font-weight: 600; color: var(${color});">${match}</span>`);
+        for (const key of sortedKeys) {
+          if (lowerPart.includes(key.toLowerCase())) {
+            matchedKey = key;
+            break; // ✅ only first/highest match
+          }
+        }
 
+        if (matchedKey) {
+          const color = ingredientDictionary.value[matchedKey];
+          return `<span style="font-weight:600;color:var(${color});">${part}</span>`;
+        } else {
+          return part;
+        }
       });
 
-      return text;
+      return highlightedParts.join(', ');
     });
-
 
     const closeDetails = () => {
       selectedProduct.value = null;

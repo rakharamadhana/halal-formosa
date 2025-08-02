@@ -133,18 +133,15 @@
           </ion-item-group>
         </div>
 
-
-        <ion-footer>
-          <ion-button
-              expand="block"
-              type="submit"
-              class="ion-margin-top"
-              color="carrot"
-              :disabled="loading"
-          >
-            {{ loading ? 'Submitting product...' : 'Submit' }}
-          </ion-button>
-        </ion-footer>
+        <ion-button
+            expand="block"
+            type="submit"
+            class="ion-margin-top"
+            color="carrot"
+            :disabled="loading"
+        >
+          {{ loading ? 'Submitting product...' : 'Submit' }}
+        </ion-button>
 
         <ion-spinner id="spinner" name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
 
