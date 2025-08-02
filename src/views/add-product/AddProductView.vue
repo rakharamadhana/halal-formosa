@@ -17,7 +17,7 @@
               <ion-input
                   v-model="form.barcode"
                   required
-                  label="Barcode"
+                  label="Barcode *"
                   label-placement="floating"
                   placeholder="Enter digits only"
                   @input="onBarcodeInput"
@@ -34,7 +34,7 @@
               <ion-input
                   v-model="form.name"
                   required
-                  label="Product Name"
+                  label="Product Name *"
                   label-placement="floating"
                   placeholder="Enter text"
                   @input="onProductNameInput"
@@ -54,19 +54,38 @@
             <ion-item>
               <ion-textarea
                   v-model="form.ingredients"
-                  label="Ingredients"
+                  label="Ingredients *"
                   label-placement="floating"
                   placeholder="Enter text"
                   :auto-grow="true"
-                  @input="onIngredientsInput"
+                  @input="handleIngredientsInput"
                   required
               />
             </ion-item>
 
+            <div v-if="checkingIngredients" class="ion-padding-top" style="color: gray;">
+              Checking highlights...
+            </div>
+
+            <div v-if="ingredientHighlights.length" class="ion-no-padding">
+              <div class="ion-padding-vertical">
+                <ion-chip
+                    v-for="(highlight, idx) in ingredientHighlights"
+                    :key="idx"
+                    outline
+                    class="ion-margin-end ion-margin-bottom"
+                    :color="extractIonColor(highlight.color)"
+                >
+                {{ highlight.keyword }} - {{ getColorMeaning(extractIonColor(highlight.color)) }}
+                </ion-chip>
+              </div>
+            </div>
+
+
             <ion-item>
               <ion-textarea
                   v-model="form.description"
-                  label="Description"
+                  label="Description *"
                   label-placement="floating"
                   placeholder="Enter text"
                   :auto-grow="true"
@@ -187,6 +206,9 @@ import {
   CameraSource
 } from '@capacitor/camera'
 
+const ingredientHighlights = ref<{ keyword: string; color: string }[]>([])
+const checkingIngredients = ref(false)
+
 interface ProductForm {
   barcode: string;
   name: string;
@@ -246,6 +268,61 @@ function onIngredientsInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
   input.value = toProperCase(input.value);
   form.value.ingredients = input.value;
+}
+
+function getColorMeaning(color: string) {
+  switch (color) {
+    case 'danger': return 'Haram'
+    case 'warning': return 'Syubhah'
+    case 'primary': return 'Halal'
+    default: return 'Unknown'
+  }
+}
+
+function extractIonColor(fullColor: string) {
+  const parts = fullColor.split('-')
+  return parts[parts.length - 1] // last part = "warning"
+}
+
+
+async function checkIngredientHighlights() {
+  const rawIngredients = form.value.ingredients.trim()
+  if (!rawIngredients) {
+    ingredientHighlights.value = []
+    return
+  }
+
+  // Split by comma or newline
+  const ingredients = rawIngredients.split(/,|\n/).map(i => i.trim()).filter(Boolean)
+  if (!ingredients.length) return
+
+  checkingIngredients.value = true
+  try {
+    // Fetch all highlights once
+    const { data, error } = await supabase
+        .from('ingredient_highlights')
+        .select('keyword, color')
+
+    if (error) throw error
+
+    // Match ingredients to keywords (case-insensitive, contains)
+    ingredientHighlights.value = []
+    for (const ing of ingredients) {
+      const match = data?.find(d =>
+          ing.toLowerCase().includes(d.keyword.toLowerCase())
+      )
+      if (match) {
+        ingredientHighlights.value.push({
+          keyword: match.keyword,
+          color: match.color
+        })
+      }
+    }
+  } catch (err) {
+    console.error('Ingredient highlight error:', err)
+  } finally {
+    checkingIngredients.value = false
+  }
 }
 
 
@@ -416,6 +493,10 @@ async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Prom
   })
 }
 
+function handleIngredientsInput(event: Event) {
+  onIngredientsInput(event)
+  checkIngredientHighlights()
+}
 
 async function handleSubmit() {
   loading.value = true
