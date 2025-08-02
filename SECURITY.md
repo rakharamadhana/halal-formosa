@@ -17,7 +17,7 @@ Older versions are **not guaranteed to receive security patches**.
 If you discover a security vulnerability in **Halal Formosa**, we highly appreciate your responsible disclosure.
 
 **Please report security issues by emailing:**
-**rcreative.dev@gmail.com**  
+**gunslingerarecool@gmail.com**  
 
 **What to expect:**
 1. We will acknowledge your report within **48 hours**.
