@@ -59,13 +59,17 @@
                   placeholder="Enter text"
                   :auto-grow="true"
                   @input="handleIngredientsInput"
+                  @blur="checkIngredientHighlights"
                   required
               />
             </ion-item>
 
-            <div v-if="checkingIngredients" class="ion-padding-top" style="color: gray;">
-              Checking highlights...
-            </div>
+            <ion-progress-bar
+                v-if="checkingIngredients"
+                type="indeterminate"
+                color="primary"
+                style="margin-top: 10px;"
+            ></ion-progress-bar>
 
             <div v-if="ingredientHighlights.length" class="ion-no-padding">
               <div class="ion-padding-vertical">
@@ -76,7 +80,11 @@
                     class="ion-margin-end ion-margin-bottom"
                     :color="extractIonColor(highlight.color)"
                 >
-                {{ highlight.keyword }} - {{ getColorMeaning(extractIonColor(highlight.color)) }}
+                  {{ highlight.keyword }}
+                  <template v-if="highlight.keyword_zh">
+                    ({{ highlight.keyword_zh }})
+                  </template>
+                  - {{ getColorMeaning(extractIonColor(highlight.color)) }}
                 </ion-chip>
               </div>
             </div>
@@ -126,15 +134,17 @@
         </div>
 
 
-        <ion-button
-            expand="block"
-            type="submit"
-            class="ion-margin-top"
-            color="carrot"
-            :disabled="loading"
-        >
-          {{ loading ? 'Submitting product...' : 'Submit' }}
-        </ion-button>
+        <ion-footer>
+          <ion-button
+              expand="block"
+              type="submit"
+              class="ion-margin-top"
+              color="carrot"
+              :disabled="loading"
+          >
+            {{ loading ? 'Submitting product...' : 'Submit' }}
+          </ion-button>
+        </ion-footer>
 
         <ion-spinner id="spinner" name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
 
@@ -183,13 +193,16 @@ import {
   IonSpinner,
   IonToast,
     IonButtons,
-    IonItemGroup
+    IonItemGroup,
+    IonChip,
+    IonProgressBar,
+    IonText
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
 import {
   ref,
   nextTick,
-  onUnmounted
+  onUnmounted, onMounted
 } from 'vue'
 import {
   supabase
@@ -206,8 +219,27 @@ import {
   CameraSource
 } from '@capacitor/camera'
 
-const ingredientHighlights = ref<{ keyword: string; color: string }[]>([])
 const checkingIngredients = ref(false)
+
+interface IngredientHighlight {
+  keyword: string;
+  keyword_zh?: string; // optional for backward compatibility
+  color: string;
+}
+
+const ingredientHighlights = ref<IngredientHighlight[]>([])
+const allHighlights = ref<IngredientHighlight[]>([])
+
+// ✅ Fetch highlights once when component mounts
+onMounted(async () => {
+  const { data, error } = await supabase
+      .from('ingredient_highlights')
+      .select('keyword, keyword_zh, color')
+
+  if (!error && data) {
+    allHighlights.value = data
+  }
+})
 
 interface ProductForm {
   barcode: string;
@@ -237,6 +269,18 @@ const toastMessage = ref('')
 const errorMsg = ref('')
 const scanning = ref(false)
 let html5QrcodeScanner: Html5Qrcode | null = null
+
+import { Keyboard } from '@capacitor/keyboard';
+
+const keyboardOpen = ref(false);
+
+Keyboard.addListener('keyboardWillShow', () => {
+  keyboardOpen.value = true;
+});
+Keyboard.addListener('keyboardWillHide', () => {
+  keyboardOpen.value = false;
+});
+
 
 function toProperCase(str: string): string {
   return str.replace(/\w\S*/g, (txt) => {
@@ -274,7 +318,7 @@ function getColorMeaning(color: string) {
   switch (color) {
     case 'danger': return 'Haram'
     case 'warning': return 'Syubhah'
-    case 'primary': return 'Halal'
+    case 'primary': return 'Muslim-friendly'
     default: return 'Unknown'
   }
 }
@@ -287,44 +331,42 @@ function extractIonColor(fullColor: string) {
 
 async function checkIngredientHighlights() {
   const rawIngredients = form.value.ingredients.trim()
-  if (!rawIngredients) {
+  if (!rawIngredients || allHighlights.value.length === 0) {
     ingredientHighlights.value = []
     return
   }
 
-  // Split by comma or newline
-  const ingredients = rawIngredients.split(/,|\n/).map(i => i.trim()).filter(Boolean)
+  const ingredients = rawIngredients.split(/\s*,\s*/).map(i => i.trim()).filter(Boolean)
   if (!ingredients.length) return
 
   checkingIngredients.value = true
   try {
-    // Fetch all highlights once
-    const { data, error } = await supabase
-        .from('ingredient_highlights')
-        .select('keyword, color')
+    const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
 
-    if (error) throw error
+    const foundHighlights: IngredientHighlight[] = []
+    const addedKeywords = new Set<string>()
 
-    // Match ingredients to keywords (case-insensitive, contains)
-    ingredientHighlights.value = []
     for (const ing of ingredients) {
-      const match = data?.find(d =>
-          ing.toLowerCase().includes(d.keyword.toLowerCase())
+      const lowerIng = ing.toLowerCase()
+      const match = highlights.find(h =>
+          lowerIng === h.keyword.toLowerCase() || lowerIng.includes(h.keyword.toLowerCase())
       )
-      if (match) {
-        ingredientHighlights.value.push({
-          keyword: match.keyword,
+
+      if (match && !addedKeywords.has(match.keyword.toLowerCase())) {
+        addedKeywords.add(match.keyword.toLowerCase())
+        foundHighlights.push({
+          keyword: ing,
+          keyword_zh: match.keyword_zh, // ✅ now allowed
           color: match.color
         })
       }
     }
-  } catch (err) {
-    console.error('Ingredient highlight error:', err)
+
+    ingredientHighlights.value = foundHighlights
   } finally {
     checkingIngredients.value = false
   }
 }
-
 
 async function startBarcodeScan() {
   if (scanning.value) return
@@ -493,9 +535,15 @@ async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Prom
   })
 }
 
+let debounceTimer: NodeJS.Timeout | null = null
+
 function handleIngredientsInput(event: Event) {
   onIngredientsInput(event)
-  checkIngredientHighlights()
+
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    checkIngredientHighlights()
+  }, 800)
 }
 
 async function handleSubmit() {
@@ -689,6 +737,14 @@ ion-item {
   border-radius: 10px;
   background-color: var(--ion-color-light); /* optional background */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* optional elevation */
+}
+
+ion-content::part(scroll) {
+  padding-bottom: 100px; /* leave space for keyboard */
+}
+
+.keyboard-open ion-footer {
+  margin-bottom: 300px; /* adjust to keyboard height */
 }
 
 </style>

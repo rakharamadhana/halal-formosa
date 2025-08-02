@@ -44,7 +44,7 @@
 
       <div v-if="scanning" id="reader"></div>
 
-      <ion-content>
+      <div>
         <div v-if="!scanning" class="ion-padding">
 
           <!-- Skeleton loader -->
@@ -133,7 +133,7 @@
             </ion-card>
           </template>
         </div>
-      </ion-content>
+      </div>
 
       <ion-infinite-scroll @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content loading-spinner="bubbles" loading-text="Loading more products...">
@@ -155,7 +155,7 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="ion-padding">
+        <div class="ion-padding">
           <div v-if="selectedProduct">
             <!-- Swiper carousel for images -->
             <swiper
@@ -226,7 +226,7 @@
             Report Product
           </ion-button>
 
-        </ion-content>
+        </div>
       </ion-modal>
     </ion-content>
 
@@ -355,8 +355,17 @@ export default defineComponent({
       localStorage.removeItem('products_cache_timestamp');
       localStorage.removeItem('products_pages');
 
-      await fetchProductsCount(); // Force fresh fetch
-      event.detail.complete();    // End refresh animation
+      // Reset state
+      currentPage.value = 0;
+      allLoaded.value = false;
+      allProducts.value = [];
+      results.value = [];
+
+      // Fetch first page only
+      await fetchProducts(true);
+      await fetchTotalCount(); // Only fetch count, no need to load all products
+
+      event.detail.complete(); // End refresh animation
     }
 
     function fromNowToTaipei(dateString?: string) {

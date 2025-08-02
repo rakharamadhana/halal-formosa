@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 
 import { App as CapacitorApp } from '@capacitor/app';
+import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
 import { supabase } from '@/plugins/supabaseClient';
 
 /* Ionic CSS */
@@ -25,21 +26,30 @@ import '@ionic/vue/css/palettes/dark.class.css';
 /* Custom variables */
 import './theme/variables.css';
 
-/* PWA Elements (for camera, file upload, etc.) */
+/* PWA Elements */
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 defineCustomElements(window);
 
-/* Create and configure app */
-const app = createApp(App)
-    .use(IonicVue)
-    .use(router);
+/* ✅ Setup keyboard behavior */
+// set resize mode to "body"
+Keyboard.setResizeMode({ mode: 'body' as KeyboardResize });
+Keyboard.setScroll({ isDisabled: false }); // optional to enable auto-scroll
 
-/* ✅ OAuth Redirect Handler for Native Apps */
+Keyboard.addListener('keyboardWillShow', () => {
+  document.body.classList.add('keyboard-visible');
+});
+
+Keyboard.addListener('keyboardWillHide', () => {
+  document.body.classList.remove('keyboard-visible');
+});
+
+/* Create app */
+const app = createApp(App).use(IonicVue).use(router);
+
+/* OAuth Redirect Handler */
 CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
-  console.log('🔗 appUrlOpen event fired:', url); // <--- Add this
+  console.log('🔗 appUrlOpen event fired:', url);
   if (url?.startsWith('myapp://callback')) {
-    console.log('📦 App URL Open triggered:', url);
-
     const hash = new URL(url).hash.substring(1);
     const params = new URLSearchParams(hash);
 
@@ -48,33 +58,14 @@ CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
     const next = new URL(url).searchParams.get('next') || '/profile';
 
     if (access_token && refresh_token) {
-      console.log('🔑 Tokens extracted');
       const { error } = await supabase.auth.setSession({
         access_token,
         refresh_token,
       });
-
-      if (error) {
-        console.error('❌ Failed to set session:', error.message);
-        return;
-      }
-
-      // 🔁 Wait a bit and verify user
-      setTimeout(async () => {
-        const userResult = await supabase.auth.getUser();
-        if (userResult.data?.user) {
-          console.log('✅ User now logged in:', userResult.data.user.email);
-          router.push(next);
-        } else {
-          console.warn('⚠️ Still no user after session set, retrying...');
-        }
-      }, 300); // delay a bit to allow hydration
-    } else {
-      console.warn('⚠️ No tokens found in callback URL.');
+      if (!error) router.push(next);
     }
   }
 });
-
 
 /* Start app */
 router.isReady().then(() => {

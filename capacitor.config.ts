@@ -5,14 +5,17 @@ const config: CapacitorConfig = {
   appName: 'Halal Formosa',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true
-    }
-  }
+      enabled: true,
+    },
+    Keyboard: {
+      resize: 'body',           // or 'native' for Android 12+
+      resizeOnFullScreen: true, // helpful for fullscreen mode
+    },
+  },
 };
-
 
 export default config;
