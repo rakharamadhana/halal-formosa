@@ -387,8 +387,9 @@ async function extractTextFromImage(file: File) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('apikey', apiKey);
-  formData.append('language', 'cht'); // use 'chs' for Chinese
+  formData.append('language', 'auto'); // use 'chs' for Chinese
   formData.append('isOverlayRequired', 'false');
+  formData.append('scale', 'true');        // 🔹 Use Engine 2
   formData.append('OCREngine', '2');        // 🔹 Use Engine 2
 
   try {
@@ -471,29 +472,25 @@ async function translateToEnglish(text: string) {
 
 function cleanChineseOcrText(text: string): string {
   let cleaned = text
-      .replace(/\r?\n+/g, ', ')         // new lines -> commas
-      .replace(/[。、．]/g, ',')        // Chinese punctuation -> commas
-      .replace(/\s{2,}/g, ' ');         // multiple spaces
+      .replace(/\r?\n+/g, ', ')    // new lines -> commas
+      .replace(/[。、．]/g, ',')   // Chinese punctuation -> commas
+      .replace(/\s{2,}/g, ' ')     // multiple spaces
+      .replace(/品\s*,?\s*名/gi, '品名')  // merge fragmented
+      .replace(/成\s*,?\s*分/gi, '成分'); // merge fragmented
 
-  const chineseBlacklist = [
-    /本產品.*(生產線|含有|製作|過敏原).*$/i,
-    /可能含有.*$/i,
-    /葷素別.*$/i,
-    /保存方式.*$/i,
-    /請冷凍保存.*$/i,
-    /請勿重複冷凍.*$/i
-  ];
-
-  for (const pattern of chineseBlacklist) {
+  // ✅ Apply blacklist from DB
+  for (const pattern of blacklistPatterns.value) {
     cleaned = cleaned.replace(pattern, '').trim();
   }
 
-  cleaned = cleaned.replace(/品\s*名[:：].*?,/i, ''); // Remove product name
-  cleaned = cleaned.replace(/成\s*分[:：]/i, 'Ingredients: '); // Standardize
+  // ✅ Standardize product name & ingredients
+  cleaned = cleaned.replace(/品名[:：].*?,/i, '');        // remove product name
+  cleaned = cleaned.replace(/成分[:：]/i, 'Ingredients: '); // normalize
   cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
 
   return cleaned.trim();
 }
+
 
 function cleanTranslatedIngredients(text: string): string {
   let extracted = text;
@@ -533,9 +530,9 @@ function cleanTranslatedIngredients(text: string): string {
 }
 
 function toProperCase(str: string): string {
-  return str.replace(/\w\S*/g, (txt) => {
-    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-  });
+  return str
+      .trim()
+      .replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase());
 }
 
 function extractProductName(text: string) {
