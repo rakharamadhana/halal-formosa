@@ -27,6 +27,11 @@
               :src="cropperSrc"
               :stencil-props="{ aspectRatio: null }"
           />
+
+          <div v-if="ocrLoading" class="ion-text-center ion-padding">
+            <ion-spinner name="crescent" color="primary"></ion-spinner>
+            <p>Processing OCR...</p>
+          </div>
         </ion-content>
       </ion-modal>
       <form @submit.prevent="handleSubmit">
@@ -343,12 +348,15 @@ function closeCropper() {
 }
 
 async function confirmCrop() {
+  console.log('✅ Confirm Crop button clicked');
+
   if (!cropperRef.value) {
     console.error('❗ Cropper ref is null');
     return;
   }
 
   const result = cropperRef.value.getResult();
+  console.log('📐 Cropper result:', result);
 
   if (!result || !result.canvas) {
     errorMsg.value = 'No crop result available.';
@@ -357,10 +365,13 @@ async function confirmCrop() {
     return;
   }
 
-  const { canvas } = result;
+  // ✅ Start loading spinner
+  ocrLoading.value = true;
 
+  const { canvas } = result;
   const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob((b: Blob | null) => {
+      console.log('🖼 Canvas to Blob finished. Blob size:', b?.size || 0);
       resolve(b);
     }, 'image/jpeg', 0.9);
   });
@@ -369,14 +380,18 @@ async function confirmCrop() {
     const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
       type: 'image/jpeg',
     });
+    console.log('📂 Cropped file ready:', croppedFile.name, croppedFile.size, 'bytes');
 
-    await runOcrOnFile(croppedFile);
+    await runOcrOnFile(croppedFile); // OCR + translation
   } else {
     console.error('❌ Failed to create blob from canvas');
   }
 
+  // ✅ Hide spinner & close modal
+  ocrLoading.value = false;
   closeCropper();
 }
+
 
 const ocrLoading = ref(false);
 
