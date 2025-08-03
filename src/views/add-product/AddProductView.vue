@@ -207,7 +207,6 @@
             :duration="2500"
             color="danger"
             position="bottom"
-            position-anchor="spinner"
             @did-dismiss="showErrorToast = false"
         ></ion-toast>
       </form>
