@@ -60,9 +60,11 @@ npm install
 ### 3️⃣ Setup Environment
 Create `.env` in the project root:
 ```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_KEY=your_supabase_anon_key
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+VITE_SUPABASE_URL=supabase_url
+VITE_SUPABASE_ANON_KEY=supabase_anon_key
+VITE_GOOGLE_MAPS_API_KEY=google_maps_api_key
+VITE_GOOGLE_TRANSLATION_API_KEY=google_translation_api_key
+VITE_OCR_SPACE_API_KEY=ocr_space_api_key
 ```
 
 ### 4️⃣ Run Development Server
