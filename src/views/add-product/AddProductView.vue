@@ -546,7 +546,6 @@ function cleanTranslatedIngredients(text: string): string {
 
 function toProperCase(str: string): string {
   return str
-      .trim()
       .replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase());
 }
 
