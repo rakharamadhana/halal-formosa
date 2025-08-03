@@ -10,6 +10,25 @@
     </ion-header>
 
     <ion-content :fullscreen="true" class="ion-padding" >
+      <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Crop Ingredients</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="confirmCrop">Done</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content>
+          <cropper
+              ref="cropperRef"
+              class="cropper"
+              :src="cropperSrc"
+              :stencil-props="{ aspectRatio: null }"
+          />
+        </ion-content>
+      </ion-modal>
       <form @submit.prevent="handleSubmit">
         <div class="form-container">
           <ion-item-group>
@@ -56,13 +75,28 @@
                   v-model="form.ingredients"
                   label="Ingredients *"
                   label-placement="floating"
-                  placeholder="Enter text"
+                  placeholder="Enter text or use camera/gallery"
                   :auto-grow="true"
                   @input="handleIngredientsInput"
                   @blur="checkIngredientHighlights"
                   required
               />
+              <ion-buttons slot="end">
+                <ion-button @click="scanIngredientsWithCamera" :disabled="ocrLoading">
+                  <ion-icon :icon="cameraOutline" />
+                </ion-button>
+                <ion-button @click="scanIngredientsFromGallery" :disabled="ocrLoading">
+                  <ion-icon :icon="cloudUploadOutline" />
+                </ion-button>
+              </ion-buttons>
             </ion-item>
+
+            <ion-progress-bar
+                v-if="ocrLoading"
+                type="indeterminate"
+                color="primary"
+                style="margin-top: 10px;"
+            ></ion-progress-bar>
 
             <ion-progress-bar
                 v-if="checkingIngredients"
@@ -152,10 +186,19 @@
             :duration="1500"
             color="success"
             position="bottom"
-            position-anchor="spinner"
             @did-dismiss="showToast = false"
             style="margin-bottom: 100px"
         ></ion-toast>
+
+        <!-- OCR Success Toast -->
+        <ion-toast
+            :is-open="showOcrToast"
+            message="✅ Ingredients succesfully extracted!"
+            :duration="2000"
+            color="success"
+            position="bottom"
+            @did-dismiss="showOcrToast = false"
+        />
 
         <!-- Toast for error -->
         <ion-toast
@@ -174,47 +217,37 @@
 
 <script setup lang="ts">
 import {
-  IonPage,
-  IonHeader,
-  IonItem,
-  IonContent,
-  IonLabel,
-  IonToolbar,
-  IonTitle,
   IonButton,
-  IonTextarea,
+  IonButtons,
+  IonChip,
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonInput,
+  IonItem,
+  IonItemGroup,
+  IonLabel,
+  IonModal,
+  IonPage,
+  IonProgressBar,
   IonSelect,
   IonSelectOption,
-  IonInput,
-  IonIcon,
   IonSpinner,
+  IonText,
+  IonTextarea,
+  IonTitle,
   IonToast,
-    IonButtons,
-    IonItemGroup,
-    IonChip,
-    IonProgressBar,
-    IonText
+  IonToolbar
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
-import {
-  ref,
-  nextTick,
-  onUnmounted, onMounted
-} from 'vue'
-import {
-  supabase
-} from '@/plugins/supabaseClient'
-import {
-  Html5Qrcode,
-  Html5QrcodeSupportedFormats
-} from 'html5-qrcode'
+import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {supabase} from '@/plugins/supabaseClient'
+import {Html5Qrcode, Html5QrcodeSupportedFormats} from 'html5-qrcode'
 
 // Import Camera plugin and types
-import {
-  Camera,
-  CameraResultType,
-  CameraSource
-} from '@capacitor/camera'
+import {Camera, CameraResultType, CameraSource} from '@capacitor/camera'
+import {Cropper} from 'vue-advanced-cropper';
+import 'vue-advanced-cropper/dist/style.css';
 
 const checkingIngredients = ref(false)
 
@@ -225,18 +258,46 @@ interface IngredientHighlight {
 }
 
 const ingredientHighlights = ref<IngredientHighlight[]>([])
-const allHighlights = ref<IngredientHighlight[]>([])
+const allHighlights = ref<IngredientHighlight[]>([]);
+const blacklistPatterns = ref<RegExp[]>([]);
 
-// ✅ Fetch highlights once when component mounts
+// ✅ Fetch highlights & blacklist once when component mounts
 onMounted(async () => {
-  const { data, error } = await supabase
-      .from('ingredient_highlights')
-      .select('keyword, keyword_zh, color')
+  const [highlightsResult, blacklistResult] = await Promise.all([
+    supabase.from('ingredient_highlights').select('keyword, keyword_zh, color'),
+    supabase.from('ingredient_blacklist').select('pattern').eq('is_active', true)
+  ]);
 
-  if (!error && data) {
-    allHighlights.value = data
+  if (!highlightsResult.error && highlightsResult.data) {
+    allHighlights.value = highlightsResult.data;
   }
-})
+  if (!blacklistResult.error && blacklistResult.data) {
+    blacklistPatterns.value = blacklistResult.data.map((row) => new RegExp(row.pattern, 'i'));
+  }
+});
+
+watch(ingredientHighlights, (newHighlights) => {
+  if (!newHighlights.length) {
+    form.value.status = 'Halal'; // default
+    return;
+  }
+
+  // Extract colors from highlights
+  const colors = newHighlights.map(h => extractIonColor(h.color));
+
+  // Determine status based on priority
+  if (colors.includes('danger')) {
+    form.value.status = 'Haram';
+  } else if (colors.includes('warning')) {
+    form.value.status = 'Syubhah';
+  } else if (colors.includes('primary')) {
+    form.value.status = 'Muslim-friendly';
+  } else {
+    form.value.status = 'Halal';
+  }
+
+  console.log('⚡ Auto-set status to:', form.value.status);
+});
 
 interface ProductForm {
   barcode: string;
@@ -261,28 +322,303 @@ const backPreview = ref < string | null > (null)
 
 const loading = ref(false)
 const showToast = ref(false)
+const showOcrToast = ref(false);
 const showErrorToast = ref(false)
 const toastMessage = ref('')
 const errorMsg = ref('')
 const scanning = ref(false)
 let html5QrcodeScanner: Html5Qrcode | null = null
 
-import { Keyboard } from '@capacitor/keyboard';
+const showCropper = ref(false);
+const cropperSrc = ref<string | null>(null);
+const cropperRef = ref<any>(null);
 
-const keyboardOpen = ref(false);
+function openCropper(file: File) {
+  cropperSrc.value = URL.createObjectURL(file);
+  showCropper.value = true;
+}
 
-Keyboard.addListener('keyboardWillShow', () => {
-  keyboardOpen.value = true;
-});
-Keyboard.addListener('keyboardWillHide', () => {
-  keyboardOpen.value = false;
-});
+function closeCropper() {
+  showCropper.value = false;
+  cropperSrc.value = null;
+}
 
+async function confirmCrop() {
+  if (!cropperRef.value) {
+    console.error('❗ Cropper ref is null');
+    return;
+  }
+
+  const result = cropperRef.value.getResult();
+
+  if (!result || !result.canvas) {
+    errorMsg.value = 'No crop result available.';
+    showErrorToast.value = true;
+    console.error('❌ No canvas returned from cropper');
+    return;
+  }
+
+  const { canvas } = result;
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((b: Blob | null) => {
+      resolve(b);
+    }, 'image/jpeg', 0.9);
+  });
+
+  if (blob) {
+    const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
+      type: 'image/jpeg',
+    });
+
+    await runOcrOnFile(croppedFile);
+  } else {
+    console.error('❌ Failed to create blob from canvas');
+  }
+
+  closeCropper();
+}
+
+const ocrLoading = ref(false);
+
+async function extractTextFromImage(file: File) {
+  console.log('🔍 Starting OCR for file:', file.name);
+
+  const apiKey = 'K89322696088957'; // replace with your OCR.Space API key
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('apikey', apiKey);
+  formData.append('language', 'cht'); // use 'chs' for Chinese
+  formData.append('isOverlayRequired', 'false');
+  formData.append('OCREngine', '2');        // 🔹 Use Engine 2
+
+  try {
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (result?.ParsedResults?.length > 0) {
+      return result.ParsedResults[0].ParsedText;
+    } else {
+      console.error('❌ OCR failed to detect text');
+      return '';
+    }
+  } catch (err) {
+    console.error('❌ OCR request error:', err);
+    return '';
+  }
+}
+
+async function scanIngredientsWithCamera() {
+  console.log('📸 Taking picture from camera...');
+  const image = await Camera.getPhoto({
+    quality: 90,
+    allowEditing: false,
+    resultType: CameraResultType.Uri,
+    source: CameraSource.Camera,
+  });
+
+  console.log('📸 Camera image received:', image.webPath);
+
+  const blob = await fetch(image.webPath!).then((r) => r.blob());
+  const file = new File([blob], `ingredients-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+  openCropper(file); // 🔹 open cropper before OCR
+}
+
+function scanIngredientsFromGallery() {
+    const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+      openCropper(target.files[0]); // 🔹 open cropper before OCR
+    } else {
+      console.warn('⚠️ No file selected');
+    }
+  };
+  input.click();
+}
+
+async function translateToEnglish(text: string) {
+  const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string;
+
+  const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+  const body = {
+    q: text,
+    source: 'zh',       // or 'auto'
+    target: 'en',
+    format: 'text',
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json();
+  if (result.data?.translations?.[0]) {
+    return result.data.translations[0].translatedText;
+  } else {
+    console.error('Translation failed:', result);
+    return '';
+  }
+}
+
+function cleanChineseOcrText(text: string): string {
+  let cleaned = text
+      .replace(/\r?\n+/g, ', ')         // new lines -> commas
+      .replace(/[。、．]/g, ',')        // Chinese punctuation -> commas
+      .replace(/\s{2,}/g, ' ');         // multiple spaces
+
+  const chineseBlacklist = [
+    /本產品.*(生產線|含有|製作|過敏原).*$/i,
+    /可能含有.*$/i,
+    /葷素別.*$/i,
+    /保存方式.*$/i,
+    /請冷凍保存.*$/i,
+    /請勿重複冷凍.*$/i
+  ];
+
+  for (const pattern of chineseBlacklist) {
+    cleaned = cleaned.replace(pattern, '').trim();
+  }
+
+  cleaned = cleaned.replace(/品\s*名[:：].*?,/i, ''); // Remove product name
+  cleaned = cleaned.replace(/成\s*分[:：]/i, 'Ingredients: '); // Standardize
+  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
+
+  return cleaned.trim();
+}
+
+function cleanTranslatedIngredients(text: string): string {
+  let extracted = text;
+  const idx = text.toLowerCase().indexOf('ingredients:');
+  if (idx !== -1) {
+    extracted = text.substring(idx + 'ingredients:'.length).trim();
+  }
+
+  extracted = extracted.replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ');
+
+  // Apply blacklist patterns from DB if available
+  blacklistPatterns.value.forEach((pattern) => {
+    extracted = extracted.replace(pattern, '').trim();
+  });
+
+  // Split and clean
+  let parts = extracted
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean); // ✅ Remove any empty parts
+
+  // Remove weight-only items like 800g, 1kg, 250 ml
+  parts = parts.filter((p) => !/^\d+\s*(g|kg|ml|毫升|公克)$/i.test(p));
+
+  // Remove title-case product names with digits if first
+  if (parts.length && /^[A-Z][a-z]+.*\d+.*$/i.test(parts[0])) {
+    parts.shift();
+  }
+
+  // ✅ Remove incomplete items like "(" or ")" or ending commas
+  parts = parts.filter((p) => !/^[\(\)\,]+$/.test(p));
+
+  // ✅ Join and remove trailing punctuation
+  return parts.map(toProperCase).join(', ')
+      .replace(/[\s,]+$/g, '')   // remove trailing spaces/commas
+      .replace(/\(\s*$/g, '');
+}
 
 function toProperCase(str: string): string {
   return str.replace(/\w\S*/g, (txt) => {
     return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
   });
+}
+
+function extractProductName(text: string) {
+  const lower = text.toLowerCase();
+  const nameKeywords = ['product name', 'name:', 'item:', '品名', '品項'];
+
+  for (const keyword of nameKeywords) {
+    const idx = lower.indexOf(keyword);
+    if (idx !== -1) {
+      // Extract part after keyword
+      let remainder = text.substring(idx + keyword.length).trim();
+
+      // ✅ Stop at "ingredients" or the first comma/parenthesis/newline
+      remainder = remainder
+          .split(/ingredients?:/i)[0]  // stop before ingredients
+          .split(/[,(\n]/)[0]          // stop at first comma/parenthesis/newline
+          .replace(/[:：]/g, '')        // remove colon
+          .trim();
+
+      // ✅ Avoid single words like "Sodium" being mistaken for product name
+      if (remainder.length > 2 && /\s/.test(remainder)) {
+        const productName = toProperCase(remainder);
+        console.log('🏷 Extracted Product Name:', productName);
+        form.value.name = productName;
+        return productName;
+      } else {
+        console.warn('⚠️ Potential product name found but skipped (too short or single word):', remainder);
+      }
+    }
+  }
+
+  console.warn('⚠️ Product name could not be extracted from OCR text.');
+  return '';
+}
+
+async function runOcrOnFile(file: File) {
+  const ocrText = await extractTextFromImage(file);
+
+  if (!ocrText) {
+    errorMsg.value = 'OCR failed to detect any text.';
+    showErrorToast.value = true;
+    return;
+  }
+
+  // 1️⃣ Clean Chinese OCR first
+  const cleanedChinese = cleanChineseOcrText(ocrText);
+  console.log('🔹 Cleaned Chinese OCR:', cleanedChinese);
+
+  // 2️⃣ Translate to English
+  const translatedText = await translateToEnglish(cleanedChinese);
+  console.log('🔹 Translated text:', translatedText);
+
+  // 3️⃣ Check if translated text likely has ingredients
+  const lowerTranslated = translatedText.toLowerCase();
+  if (!lowerTranslated.includes('ingredient')) {
+    errorMsg.value = '⚠️ Ingredients not detected. Please crop the correct ingredients section.';
+    showErrorToast.value = true;
+    console.warn('⚠️ No ingredients section detected in OCR result.');
+    return;
+  }
+
+  // 4️⃣ Extract product name if available
+  extractProductName(translatedText);
+
+  // 5️⃣ Clean & extract only ingredients
+  const readableText = cleanTranslatedIngredients(translatedText);
+  console.log('✨ Final Ingredients:', readableText);
+
+  // 6️⃣ Populate form and highlight
+  form.value.ingredients = readableText;
+  checkIngredientHighlights();
+
+  // Focus the ingredients textarea
+  nextTick(() => {
+    const textarea = document.querySelector('ion-textarea');
+    if (textarea && (textarea as any).setFocus) {
+      (textarea as any).setFocus();
+    }
+  });
+
+  // 7️⃣ Show OCR success toast
+  showOcrToast.value = true;
 }
 
 function onBarcodeInput(event: Event) {

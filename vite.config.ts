@@ -11,6 +11,9 @@ export default defineConfig({
     vue(),
     legacy()
   ],
+  optimizeDeps: {
+    include: ['vue-advanced-cropper'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

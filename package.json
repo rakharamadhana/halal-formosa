@@ -25,6 +25,7 @@
     "@capacitor/keyboard": "^7.0.1",
     "@capacitor/preferences": "^7.0.1",
     "@capacitor/status-bar": "7.0.1",
+    "@google-cloud/translate": "^9.2.0",
     "@googlemaps/js-api-loader": "^1.16.10",
     "@ionic/pwa-elements": "^3.3.0",
     "@ionic/vue": "^8.0.0",
@@ -43,6 +44,7 @@
     "ionicons": "^7.0.0",
     "swiper": "^11.2.10",
     "vue": "^3.3.0",
+    "vue-advanced-cropper": "^2.8.9",
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
