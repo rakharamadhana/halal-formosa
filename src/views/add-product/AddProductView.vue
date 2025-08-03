@@ -383,7 +383,7 @@ const ocrLoading = ref(false);
 async function extractTextFromImage(file: File) {
   console.log('🔍 Starting OCR for file:', file.name);
 
-  const apiKey = 'K89322696088957'; // replace with your OCR.Space API key
+  const apiKey = import.meta.env.VITE_OCR_SPACE_API_KEY as string; // replace with your OCR.Space API key
   const formData = new FormData();
   formData.append('file', file);
   formData.append('apikey', apiKey);
