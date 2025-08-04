@@ -633,16 +633,23 @@ async function runOcrOnFile(file: File) {
 
 function onBarcodeInput(event: Event) {
   const input = event.target as HTMLInputElement;
-  // Remove non-digit characters
   let numericValue = input.value.replace(/\D/g, '');
 
-  // Limit to 13 digits max
-  if (numericValue.length > 13) {
-    numericValue = numericValue.slice(0, 13);
-  }
+  // Limit to max 14 digits
+  if (numericValue.length > 14) numericValue = numericValue.slice(0, 14);
 
   form.value.barcode = numericValue;
-  input.value = numericValue; // update input field too
+  input.value = numericValue;
+
+  if (numericValue.length >= 8) {
+    const result = validateBarcode(numericValue);
+    if (!result.isValid) {
+      errorMsg.value = result.message;
+      showErrorToast.value = true;
+    } else {
+      console.log(result.message);
+    }
+  }
 }
 
 function onProductNameInput(event: Event) {
@@ -889,6 +896,59 @@ function handleIngredientsInput(event: Event) {
   }, 800)
 }
 
+function validateBarcode(barcode: string) {
+  if (!/^\d+$/.test(barcode)) return { isValid: false, message: 'Barcode must be digits only' };
+
+  const len = barcode.length;
+  let type = '';
+  switch (len) {
+    case 8: type = 'EAN-8'; break;
+    case 12: type = 'UPC-A'; break;
+    case 13: type = 'EAN-13'; break;
+    case 14: type = 'GTIN-14'; break;
+    default:
+      return { isValid: false, message: 'Barcode must be 8, 12, 13, or 14 digits' };
+  }
+
+  const digits = barcode.split('').map(Number);
+  const checkDigit = digits.pop()!;
+  const calcCheckDigit = calculateCheckDigit(digits);
+
+  const isValid = checkDigit === calcCheckDigit;
+  const correctBarcode = isValid ? null : [...digits, calcCheckDigit].join('');
+
+  return {
+    isValid,
+    type,
+    checkDigit: calcCheckDigit,
+    correctBarcode,
+    message: isValid
+        ? `✅ Valid ${type} barcode`
+        : `❌ Invalid ${type}. Correct check digit: ${calcCheckDigit}`
+  };
+}
+
+function calculateCheckDigit(digits: number[]) {
+  const len = digits.length;
+  let sumOdd = 0;
+  let sumEven = 0;
+
+  // GS1 logic: positions are counted from the right (rightmost = position 1)
+  for (let i = 0; i < len; i++) {
+    const digit = digits[len - 1 - i];
+    if ((i + 1) % 2 === 1) {
+      sumOdd += digit;  // odd position from right
+    } else {
+      sumEven += digit; // even position from right
+    }
+  }
+
+  const total = sumOdd * 3 + sumEven;
+  const mod = total % 10;
+  return mod === 0 ? 0 : 10 - mod;
+}
+
+
 async function handleSubmit() {
   loading.value = true
   errorMsg.value = ''
@@ -907,15 +967,9 @@ async function handleSubmit() {
       barcode
     } = form.value
 
-    if (!barcode) {
-      errorMsg.value = 'Barcode is required.'
-      showErrorToast.value = true
-      loading.value = false
-      return
-    }
-
-    if (form.value.barcode.length !== 13) {
-      errorMsg.value = 'Barcode must be exactly 13 digits.';
+    const barcodeValidation = validateBarcode(barcode);
+    if (!barcodeValidation.isValid) {
+      errorMsg.value = barcodeValidation.message;
       showErrorToast.value = true;
       loading.value = false;
       return;
@@ -1040,6 +1094,7 @@ async function handleSubmit() {
     backFile.value = null
     frontPreview.value = null
     backPreview.value = null
+    ingredientHighlights.value = []
   } catch (err: any) {
     console.error('Submission error:', err)
     errorMsg.value = err.message || 'An unexpected error occurred.'
