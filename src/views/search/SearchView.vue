@@ -135,11 +135,12 @@
         </div>
       </div>
 
-      <ion-infinite-scroll @ionInfinite="loadMore" threshold="100px">
-        <ion-infinite-scroll-content loading-spinner="bubbles" loading-text="Loading more products...">
+      <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
+        <ion-infinite-scroll-content
+            loading-spinner="bubbles"
+            loading-text="Loading more products...">
         </ion-infinite-scroll-content>
       </ion-infinite-scroll>
-
 
       <ion-text color="danger" v-if="errorMsg" class="ion-padding">
         ❌ {{ errorMsg }}
@@ -345,24 +346,25 @@ export default defineComponent({
     const ingredientDictionary = ref<Record<string, string>>({});
     const loading = ref(true);
     const showReportForm = ref(false);
+    const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null);
 
     async function refreshList(event: CustomEvent) {
-      // Clear cache
-      localStorage.removeItem('products_cache');
-      localStorage.removeItem('products_cache_timestamp');
-      localStorage.removeItem('products_pages');
-
       // Reset state
       currentPage.value = 0;
       allLoaded.value = false;
       allProducts.value = [];
       results.value = [];
 
-      // Fetch first page only
-      await fetchProducts(true);
-      await fetchTotalCount(); // Only fetch count, no need to load all products
+      // ✅ Re-enable infinite scroll
+      if (infiniteScroll.value) {
+        infiniteScroll.value.disabled = false;
+      }
 
-      event.detail.complete(); // End refresh animation
+      // Fetch first page
+      await fetchProducts(true);
+      await fetchTotalCount();
+
+      event.detail.complete(); // end refresh animation
     }
 
     function fromNowToTaipei(dateString?: string) {
@@ -370,11 +372,30 @@ export default defineComponent({
       return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
     }
 
+    const CACHE_KEY = 'products_cache';
+    const CACHE_TIMESTAMP_KEY = 'products_cache_timestamp';
+    const CACHE_EXPIRY_MS = 60_000; // 1 minute
+
     const fetchProducts = async (reset = false) => {
       if (loadingMore.value || allLoaded.value) return;
 
+      // ✅ Check cache only on first load
+      if (!reset && currentPage.value === 0) {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+
+        if (cachedData && cachedTimestamp && (now - parseInt(cachedTimestamp)) < CACHE_EXPIRY_MS) {
+          const parsed = JSON.parse(cachedData);
+          allProducts.value = parsed;
+          results.value = [...allProducts.value];
+          loading.value = false;
+          return;
+        }
+      }
+
       if (reset) {
-        loading.value = true; // show skeletons while resetting
+        loading.value = true;
         currentPage.value = 0;
         allLoaded.value = false;
         allProducts.value = [];
@@ -398,22 +419,18 @@ export default defineComponent({
         }
 
         allProducts.value = [...allProducts.value, ...(data || [])];
+        results.value = [...allProducts.value];
 
-        if (!searchQuery.value) {
-          results.value = [...allProducts.value];
-        } else {
-          const query = searchQuery.value.toLowerCase();
-          results.value = allProducts.value.filter(
-              (product) =>
-                  (product.name && product.name.toLowerCase().includes(query)) ||
-                  (product.barcode && product.barcode.toLowerCase().includes(query))
-          );
+        // ✅ Cache products and timestamp
+        if (currentPage.value === 0) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts.value));
+          localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
         }
 
         currentPage.value++;
       }
 
-      loading.value = false; // hide skeletons after data fetched
+      loading.value = false;
       loadingMore.value = false;
     };
 
@@ -441,8 +458,8 @@ export default defineComponent({
       await fetchProducts();
       (event.target as HTMLIonInfiniteScrollElement).complete();
 
-      if (allLoaded.value) {
-        (event.target as HTMLIonInfiniteScrollElement).disabled = true;
+      if (allLoaded.value && infiniteScroll.value) {
+        infiniteScroll.value.disabled = true; // disable after reaching end
       }
     };
 
