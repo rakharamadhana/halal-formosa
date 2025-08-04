@@ -15,7 +15,7 @@
         <ion-searchbar
             placeholder="Search product (e.g. Water)"
             :debounce="1000"
-            @ionInput="handleInput($event)"
+            @ionInput="handleSearchInput($event)"
             style="flex-grow: 1;"
             :value="searchQuery"
             class="rounded"
@@ -446,20 +446,30 @@ export default defineComponent({
       }
     };
 
-    const handleInput = (event: Event) => {
+    const handleSearchInput = async (event: Event) => {
       const target = event.target as HTMLInputElement;
-      const query = target.value.trim().toLowerCase();
+      const query = target.value.trim();
       searchQuery.value = query;
 
+      // If query is empty, show loaded products
       if (!query) {
-        // Show all loaded products when search cleared
         results.value = [...allProducts.value];
+        return;
+      }
+
+      // Query Supabase directly for name or barcode
+      const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .or(`name.ilike.%${query}%,barcode.ilike.%${query}%`) // Search in both columns
+          .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Search error:', error);
+        results.value = [];
+        errorMsg.value = 'Failed to search products';
       } else {
-        results.value = allProducts.value.filter(
-            (product) =>
-                (product.name && product.name.toLowerCase().includes(query)) ||
-                (product.barcode && product.barcode.toString().toLowerCase().includes(query))
-        );
+        results.value = data || [];
       }
     };
 
@@ -601,7 +611,7 @@ export default defineComponent({
       selectedProduct,
       scanning,
       searchQuery,
-      handleInput,
+      handleSearchInput,
       openDetails,
       closeDetails,
       startScan,
