@@ -25,6 +25,8 @@
     "@capacitor/keyboard": "^7.0.1",
     "@capacitor/preferences": "^7.0.1",
     "@capacitor/status-bar": "7.0.1",
+    "@capawesome/capacitor-app-review": "^7.0.1",
+    "@capawesome/capacitor-app-update": "^7.0.1",
     "@google-cloud/translate": "^9.2.0",
     "@googlemaps/js-api-loader": "^1.16.10",
     "@ionic/pwa-elements": "^3.3.0",
