@@ -41,16 +41,23 @@
       </ion-card>
 
 
-      <!-- Halal News -->
+      <!-- Halal & Islam News -->
       <ion-card class="news-card">
         <ion-card-header>
-          <ion-card-title>Halal News</ion-card-title>
+          <ion-card-title>Halal & Islam News</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item v-for="(item, idx) in news" :key="idx" button detail class="news-item">
-              <div class="news-thumbnail">
-                <img :src="item.thumbnail" alt="News Thumbnail" />
+            <ion-item
+                v-for="(item, idx) in news"
+                :key="idx"
+                button
+                detail
+                class="news-item"
+                @click="router.push(`/news/${item.id}`)"
+            >
+            <div class="news-thumbnail">
+                <img :src="item.thumbnail" loading="lazy" alt="News Thumbnail" />
               </div>
               <ion-label>
                 <h2>{{ item.title }}</h2>
@@ -76,6 +83,7 @@ import {
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonItem, IonLabel, IonList, IonSkeletonText
 } from '@ionic/vue';
+import { useRouter } from 'vue-router';
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js';
 import { Doughnut } from 'vue-chartjs';
 import { supabase } from '@/plugins/supabaseClient';
@@ -89,7 +97,6 @@ const doughnutRef = ref<any>(null);
 
 const totalProducts = ref(0);
 const totalLocations = ref(0);
-const loadingNews = ref(true);
 
 const chartOptions: ChartOptions<'doughnut'> = {
   responsive: true,
@@ -117,34 +124,58 @@ const statusChartData = ref<ChartData<'doughnut'>>({
   datasets: [{ backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545'], data: [0,0,0,0] }],
 });
 
-const news = ref([
-  {
-    title: 'New Halal Restaurant in Taipei',
-    summary: 'A halal-certified restaurant opened this week in Taipei.',
-    thumbnail: 'https://placehold.co/600x400' // placeholder image
-  },
-  {
-    title: 'Halal Expo 2025 Announced',
-    summary: 'Join the largest halal products expo in Asia this November.',
-    thumbnail: 'https://placehold.co/600x400'
-  },
-  {
-    title: 'Taipei Mosque Community Event',
-    summary: 'Join the community gathering at Taipei Grand Mosque this weekend.',
-    thumbnail: 'https://placehold.co/600x400'
-  },
-  {
-    title: 'New Halal Snack Launched',
-    summary: 'A new halal-certified snack is now available in Taiwan supermarkets.',
-    thumbnail: 'https://placehold.co/600x400'
-  },
-]);
 
+const router = useRouter();
+const news = ref<any[]>([]);
+const loadingNews = ref(true);
 
 onMounted(async () => {
   await fetchStats();
-  setTimeout(() => { loadingNews.value = false; }, 2000); // Fake news loading
+  await fetchNews();
 });
+
+function truncateText(text: string, wordLimit = 10) {
+  const words = text.trim().split(/\s+/);
+  return words.slice(0, wordLimit).join(' ') + (words.length > wordLimit ? '…' : '');
+}
+
+function generateSummary(content: string, title: string, wordLimit = 20) {
+  // Remove HTML tags
+  const text = content.replace(/<[^>]+>/g, '').trim();
+
+  // Split into clean lines
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+  // Remove title duplicates
+  const filtered = lines.filter(line => !line.includes(title)).join(' ');
+
+  // Split into words
+  const allWords = filtered.split(/\s+/);
+  const truncatedWords = allWords.slice(0, wordLimit);
+
+  // Only add ellipsis if original text is longer than limit
+  return truncatedWords.join(' ') + (allWords.length > wordLimit ? '…' : '');
+}
+
+
+async function fetchNews() {
+  const { data, error } = await supabase
+      .from('news')
+      .select('id, title, header_image, content, created_at, author_name')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+  if (!error && data) {
+    news.value = data.map(item => ({
+      id: item.id,
+      title: truncateText(item.title, 12),
+      summary: generateSummary(item.content, item.title, 10),
+      thumbnail: item.header_image || 'https://placehold.co/600x400'
+    }));
+  }
+
+  loadingNews.value = false;
+}
 
 async function fetchStats() {
   const { data: products } = await supabase.from('products').select('status, created_at');
@@ -257,8 +288,8 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 }
 
 .news-thumbnail {
-  width: 90px;
-  height: 90px;
+  width: 100px;
+  height: 125px;
   border-radius: 8px;
   overflow: hidden;
   margin-right: 12px;

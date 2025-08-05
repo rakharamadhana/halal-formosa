@@ -147,7 +147,8 @@ async function login() {
 // ✅ Construct dynamic redirectUrl with `#next=...` for native OAuth login
 const redirectUrl = Capacitor.isNativePlatform()
     ? 'myapp://callback'
-    : window.location.origin + (redirectTo || '/');
+    : window.location.origin + redirectTo;
+
 
 async function loginWithGoogle() {
   errorMsg.value = '';

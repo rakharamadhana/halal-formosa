@@ -1,12 +1,43 @@
 <template>
   <ion-page>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title class="title-brand">
+          <img
+              src="/favicon-32x32.png"
+              alt="Halal Formosa"
+              style="height: 28px; vertical-align: middle; margin-right: 6px;"
+          />
+          Halal Formosa
+        </ion-title>
+
+        <!-- ✅ Profile always visible -->
+        <ion-buttons slot="end">
+          <ion-button @click="$router.push('/profile')">
+            <template v-if="isAuthenticated && profilePic">
+              <img
+                  :key="profilePic"
+                  :src="profilePic"
+                  alt="Profile"
+                  class="toolbar-profile-img"
+              />
+            </template>
+            <template v-else>
+              <ion-icon :icon="personCircle" />
+            </template>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
     <ion-tabs>
       <ion-router-outlet />
+
+      <!-- ✅ Bottom tab bar without profile -->
       <ion-tab-bar slot="bottom" id="footer-tabs">
-        <!-- Inside your Tabs.vue -->
-        <ion-tab-button tab="news" href="/news">
-          <ion-icon :icon="newspaperOutline" />
-          <ion-label>News</ion-label>
+        <ion-tab-button tab="home" href="/home">
+          <ion-icon :icon="homeOutline" />
+          <ion-label>Home</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="search" href="/search">
@@ -27,20 +58,11 @@
           <ion-icon :icon="cameraOutline" />
           <ion-label>Add Products</ion-label>
         </ion-tab-button>
-
-        <ion-tab-button tab="profile" href="/profile">
-          <template v-if="isAuthenticated && profilePic">
-            <img :key="profilePic" :src="profilePic" alt="Profile" class="tab-profile-img" />
-          </template>
-          <template v-else>
-            <ion-icon :icon="personCircle" />
-          </template>
-          <ion-label style="margin-bottom: 6px">Profile</ion-label>
-        </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
   </ion-page>
 </template>
+
 
 
 <script setup lang="ts">
@@ -51,7 +73,7 @@ import {
   cameraOutline,
   searchOutline,
   compassOutline,
-  newspaperOutline
+  homeOutline
 } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 
@@ -146,6 +168,14 @@ ion-tab-button img.tab-profile-img {
 
 /* ✅ Apply carrot border only if tab is selected */
 ion-tab-button.tab-selected img.tab-profile-img {
+  border: 1px solid var(--ion-color-carrot);
+}
+
+.toolbar-profile-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
   border: 1px solid var(--ion-color-carrot);
 }
 </style>

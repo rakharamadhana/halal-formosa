@@ -2,13 +2,9 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title class="title-brand">
-          <img
-              src="/favicon-32x32.png"
-              alt="Halal Formosa"
-              style="height: 32px; vertical-align: middle; margin-right: 3px;"
-          />
-          Halal Formosa
+        <ion-title class="title-large">
+          <ion-icon :icon="searchOutline" style="vertical-align: middle; "></ion-icon>
+          Search
         </ion-title>
       </ion-toolbar>
       <ion-toolbar >
@@ -96,6 +92,7 @@
                 v-for="product in results"
                 :key="product.barcode"
                 @click="openDetails(product)"
+                :class="getStatusClass(product.status)"
             >
               <div style="display: flex; align-items: center;">
                 <!-- Image -->
@@ -268,7 +265,7 @@ import {
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
 import { Pagination, Zoom } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/vue';
-import { barcodeOutline, stopCircleOutline, chevronDownCircleOutline } from 'ionicons/icons';
+import {barcodeOutline, stopCircleOutline, chevronDownCircleOutline, searchOutline} from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useRouter } from 'vue-router';
@@ -535,6 +532,21 @@ export default defineComponent({
       selectedProduct.value = null;
     };
 
+    function getStatusClass(status: string) {
+      switch (status) {
+        case 'Halal':
+          return 'status-halal';
+        case 'Muslim-friendly':
+          return 'status-muslim';
+        case 'Syubhah':
+          return 'status-syubhah';
+        case 'Haram':
+          return 'status-haram';
+        default:
+          return '';
+      }
+    }
+
     onIonViewWillEnter(() => {
       loading.value = true;
       fetchProducts(true);
@@ -686,7 +698,9 @@ export default defineComponent({
       highlightedIngredients,
       loading,
       showReportForm,
-      goToReport
+      goToReport,
+      getStatusClass,
+      searchOutline
     };
   },
 });
@@ -741,5 +755,35 @@ ion-skeleton-text {
 ion-searchbar.rounded {
   --border-radius: 8px;
   --box-shadow: 0 1px 3px rgba(41, 40, 40, 0.1);
+}
+
+.product-card {
+  border-radius: 12px;
+  transition: box-shadow 0.3s, border 0.3s;
+  cursor: pointer;
+}
+
+/* ✅ Halal = green glow */
+.status-halal {
+  border: 1px solid rgba(0, 200, 83, 0.2);
+  box-shadow: 0 0 15px rgba(0, 200, 83, 0.2);
+}
+
+/* ✅ Muslim-friendly = blue glow */
+.status-muslim {
+  border: 1px solid rgba(0, 123, 255, 0.2);
+  box-shadow: 0 0 15px rgba(0, 123, 255, 0.2);
+}
+
+/* ⚠️ Syubhah = yellow/orange glow */
+.status-syubhah {
+  border: 1px solid rgba(255, 193, 7, 0.2);
+  box-shadow: 0 0 15px rgba(255, 193, 7, 0.2);
+}
+
+/* ❌ Haram = red glow */
+.status-haram {
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  box-shadow: 0 0 15px rgba(244, 67, 54, 0.3);
 }
 </style>
