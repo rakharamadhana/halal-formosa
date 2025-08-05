@@ -494,11 +494,6 @@ export default defineComponent({
       selectedProduct.value = product;
     };
 
-    // Helper to escape special regex chars
-    function escapeRegExp(string: string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    }
-
     // Computed property to highlight ingredients if product is not Halal
     const highlightedIngredients = computed(() => {
       if (!selectedProduct.value || !selectedProduct.value.ingredients) return '';
