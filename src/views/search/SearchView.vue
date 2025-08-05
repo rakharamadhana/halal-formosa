@@ -563,6 +563,9 @@ export default defineComponent({
       }
     });
 
+    const barcodeCache: Record<string, any[]> = {}; // key = barcode, value = products array
+    let lastDecoded: string | null = null;
+
     async function startScan() {
       if (scanning.value) return;
       scanning.value = true;
@@ -588,15 +591,59 @@ export default defineComponent({
               qrbox: { width: 250, height: 100 },
               formatsToSupport,
             } as any,
-            (decodedText) => {
-              console.log('Barcode detected:', decodedText);
+            async (decodedText) => {
+              // 🔹 Avoid duplicate callbacks
+              if (decodedText === lastDecoded) return;
+              lastDecoded = decodedText;
               searchQuery.value = decodedText;
-              results.value = allProducts.value.filter(
-                  (product) =>
-                      product.barcode &&
-                      product.barcode.toString().toLowerCase().includes(decodedText.toLowerCase())
-              );
+
+              // 🔹 Check cache first
+              if (barcodeCache[decodedText]) {
+                console.log(`♻️ Using cached result for "${decodedText}"`);
+                results.value = barcodeCache[decodedText];
+
+                if (results.value.length > 0) {
+                  console.log(`✅ Cached ${results.value.length} product(s) for "${decodedText}"`);
+                  results.value.forEach((p) =>
+                      console.log(`→ ${p.barcode}: ${p.name}`)
+                  );
+                } else {
+                  console.log(`⚠️ No products found (cached) for "${decodedText}"`);
+                }
+
+                stopScan();
+                lastDecoded = null;
+                return;
+              }
+
+              // 🔹 Not cached → query Supabase
+              console.log(`🔍 Querying Supabase for "${decodedText}"...`);
+              const { data, error } = await supabase
+                  .from('products')
+                  .select('*')
+                  .or(`name.ilike.%${decodedText}%,barcode.ilike.%${decodedText}%`)
+                  .order('created_at', { ascending: false });
+
+              if (error) {
+                console.error('❌ Search error:', error);
+                results.value = [];
+                errorMsg.value = 'Failed to search products';
+              } else {
+                results.value = data || [];
+                barcodeCache[decodedText] = results.value; // 🔹 Cache result
+
+                if (results.value.length > 0) {
+                  console.log(`✅ ${results.value.length} product(s) found for "${decodedText}"`);
+                  results.value.forEach((p) =>
+                      console.log(`→ ${p.barcode}: ${p.name}`)
+                  );
+                } else {
+                  console.log(`⚠️ No products found for "${decodedText}"`);
+                }
+              }
+
               stopScan();
+              lastDecoded = null;
             },
             (errorMessage) => {
               if (!errorMessage.includes('NotFoundException')) {
