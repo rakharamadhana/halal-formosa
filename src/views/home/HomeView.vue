@@ -1,18 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-brand">
-          <img
-              src="/favicon-32x32.png"
-              alt="Halal Formosa"
-              style="height: 28px; vertical-align: middle; margin-right: 6px;"
-          />
-          Halal Formosa
-        </ion-title>
-      </ion-toolbar>
-    </ion-header>
-
+    <app-header title="Halal Formosa" />
     <ion-content class="ion-padding">
 
       <!-- Combined Product Status + Stats Card -->
@@ -88,6 +76,7 @@ import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, Categ
 import { Doughnut } from 'vue-chartjs';
 import { supabase } from '@/plugins/supabaseClient';
 import type { ChartData, ChartOptions } from 'chart.js';
+import AppHeader from "@/components/AppHeader.vue";
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale);
 
@@ -243,7 +232,7 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   flex: 1 1 45%;
   min-width: 140px;
   height: 100px;
-  background: #fff;
+  background: var(--ion-color-light);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   display: flex;

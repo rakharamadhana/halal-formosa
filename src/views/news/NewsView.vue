@@ -24,7 +24,7 @@
         <h1>{{ newsItem.title}}</h1>
         <p style="margin: 4px 0 8px 0; font-size: 13px;">Added by {{newsItem.author_name}} - {{ fromNowToTaipei(newsItem.created_at) }}</p>
         <div class="article-content" v-html="newsItem.content"></div>
-        <p class="ion-text-end ion-margin-top" style="color: var(--ion-color-medium); font-size: 0.8rem;">
+        <p class="ion-text-end ion-margin-top" style="color: var(--ion-color-shade); font-size: 0.8rem;">
           Added by {{ newsItem.author_name || 'Unknown' }} • {{ new Date(newsItem.created_at).toLocaleDateString() }}
         </p>
       </div>
@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import {IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton} from '@ionic/vue';
+import {IonPage, IonSkeletonText, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton} from '@ionic/vue';
 import { useRoute } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
 
@@ -81,7 +81,7 @@ onMounted(async () => {
 .article-content {
   line-height: 1.7;
   font-size: 1rem;
-  color: #333;
+  color: var(--ion-color-dark);
 }
 
 .article-content h2 {

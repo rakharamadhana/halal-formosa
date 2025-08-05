@@ -1,13 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-large">
-          <ion-icon :icon="compassOutline" style="vertical-align: middle;" />
-          Explore
-        </ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <app-header title="Explore" :icon="compassOutline" />
 
     <!-- Map stays fixed -->
     <div style="position: relative;">
@@ -309,6 +302,7 @@ const initMap = async () => {
 
 import { Geolocation } from '@capacitor/geolocation'
 import { Capacitor } from '@capacitor/core'
+import AppHeader from "@/components/AppHeader.vue";
 const userMarker = ref(null)
 
 const centerOnUser = async () => {

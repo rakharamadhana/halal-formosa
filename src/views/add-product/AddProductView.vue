@@ -1,13 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-large">
-          <ion-icon :icon="addOutline" style="vertical-align: middle; "></ion-icon>
-          Add New Product
-        </ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <app-header title="Search" :icon="addOutline" />
 
     <ion-content :fullscreen="true" class="ion-padding" >
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
@@ -252,6 +245,7 @@ import {Html5Qrcode, Html5QrcodeSupportedFormats} from 'html5-qrcode'
 import {Camera, CameraResultType, CameraSource} from '@capacitor/camera'
 import {Cropper} from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
+import AppHeader from "@/components/AppHeader.vue";
 
 const checkingIngredients = ref(false)
 

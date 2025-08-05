@@ -1,47 +1,72 @@
 <template>
   <ion-page>
+    <app-header title="Search" :icon="searchOutline" />
     <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-large">
-          <ion-icon :icon="searchOutline" style="vertical-align: middle; "></ion-icon>
-          Search
-        </ion-title>
-      </ion-toolbar>
-      <ion-toolbar >
-        <ion-searchbar
-            placeholder="Search product (e.g. Water)"
-            :debounce="1000"
-            @ionInput="handleSearchInput($event)"
-            style="flex-grow: 1;"
-            :value="searchQuery"
-            class="rounded"
-        ></ion-searchbar>
+      <ion-toolbar style="padding: 8px;">
+        <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
+          <!-- Searchbar -->
+          <ion-searchbar
+              placeholder="Search (e.g. Water)"
+              :debounce="1000"
+              @ionInput="handleSearchInput($event)"
+              :value="searchQuery"
+              class="rounded"
+              style="flex: 1;"
+          ></ion-searchbar>
 
-        <ion-buttons slot="end">
-          <ion-button @click="startScan" aria-label="Scan barcode" :disabled="scanning">
-            <ion-icon :icon="barcodeOutline" />
+          <!-- Scan Button (Styled like FAB but inline) -->
+          <ion-button
+              @click="startScan"
+              v-if="!scanning"
+              color="carrot"
+              style="
+              width: 30px;
+              height: 50px;
+              min-width: 50px;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              "
+          >
+            <ion-icon :icon="barcodeOutline" style="font-size: 22px;" />
           </ion-button>
-          <ion-button v-if="scanning" @click="stopScan" color="danger">
+          <ion-button
+              v-if="scanning"
+              @click="stopScan"
+              color="danger"
+              style="
+              width: 30px;
+              height: 50px;
+              min-width: 50px;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              "
+          >
             <ion-icon :icon="stopCircleOutline" />
           </ion-button>
-        </ion-buttons>
+        </div>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-refresher slot="fixed" @ionRefresh="refreshList">
+      <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
         <ion-refresher-content
             :pulling-icon="chevronDownCircleOutline"
             pullingText="Pull to refresh"
             refreshingSpinner="circles"
-            refreshingText="Refreshing...">
+        >
         </ion-refresher-content>
       </ion-refresher>
 
-      <div v-if="scanning" id="reader"></div>
+      <div v-if="scanning" id="reader">
+        <div class="scan-line"></div>
+      </div>
 
       <div>
-        <div v-if="!scanning" class="ion-padding">
+        <div v-if="!scanning" class="ion-padding" style="padding-top: 5px;">
 
           <!-- Skeleton loader -->
           <template v-if="loading && results.length === 0">
@@ -285,6 +310,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
 import { computed } from 'vue'
+import AppHeader from "@/components/AppHeader.vue";
 
 interface Product {
   barcode: string;
@@ -299,6 +325,7 @@ interface Product {
 
 export default defineComponent({
   components: {
+    AppHeader,
     IonPage,
     IonHeader,
     IonContent,

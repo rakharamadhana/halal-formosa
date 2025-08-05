@@ -1,35 +1,5 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-brand">
-          <img
-              src="/favicon-32x32.png"
-              alt="Halal Formosa"
-              style="height: 28px; vertical-align: middle; margin-right: 6px;"
-          />
-          Halal Formosa
-        </ion-title>
-
-        <!-- ✅ Profile always visible -->
-        <ion-buttons slot="end">
-          <ion-button @click="$router.push('/profile')">
-            <template v-if="isAuthenticated && profilePic">
-              <img
-                  :key="profilePic"
-                  :src="profilePic"
-                  alt="Profile"
-                  class="toolbar-profile-img"
-              />
-            </template>
-            <template v-else>
-              <ion-icon :icon="personCircle" />
-            </template>
-          </ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
     <ion-tabs>
       <ion-router-outlet />
 
@@ -63,13 +33,10 @@
   </ion-page>
 </template>
 
-
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonRouterOutlet, IonPage } from '@ionic/vue';
 import {
-  personCircle,
   cameraOutline,
   searchOutline,
   compassOutline,
@@ -155,27 +122,3 @@ onMounted(() => {
   });
 });
 </script>
-
-<style>
-ion-tab-button img.tab-profile-img {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  margin-top: 6px;
-  margin-bottom: 2px;
-  transition: border 0.2s ease; /* smooth transition */
-}
-
-/* ✅ Apply carrot border only if tab is selected */
-ion-tab-button.tab-selected img.tab-profile-img {
-  border: 1px solid var(--ion-color-carrot);
-}
-
-.toolbar-profile-img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--ion-color-carrot);
-}
-</style>
