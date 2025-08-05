@@ -647,10 +647,14 @@ function onBarcodeInput(event: Event) {
       errorMsg.value = result.message;
       showErrorToast.value = true;
     } else {
+      // ✅ Show toast for valid barcode
+      toastMessage.value = result.message;
+      showToast.value = true;
       console.log(result.message);
     }
   }
 }
+
 
 function onProductNameInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
