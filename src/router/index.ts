@@ -9,14 +9,22 @@ import ExploreView from '@/views/explore/ExploreView.vue';
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    component: () => import('@/views/HomeView.vue'),
+    component: () => import('@/views/MainView.vue'),
     children: [
-      { path: '', redirect: '/search' },
+      { path: '', redirect: '/home' },
+      { path: 'home', component: () => import('@/views/home/HomeView.vue') },
       { path: 'search', component: SearchView },
       { path: 'explore', component: ExploreView },
       { path: 'add', component: () => import('@/views/add-product/AddProductView.vue'), meta: { requiresAuth: true } },
       { path: 'profile', component: () => import('@/views/profile/ProfileView.vue') },
     ],
+  },
+  // router/index.ts
+  {
+    path: '/news/:id',
+    name: 'news-view',
+    component: () => import('@/views/news/NewsView.vue'),
+    props: true
   },
   {
     path: '/report/:barcode',
@@ -36,9 +44,22 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const publicPages = ['/login', '/signup', '/search', '/explore', '/profile', '/settings', '/legal'];
+  const publicPages = [
+    '/login',
+    '/signup',
+    '/search',
+    '/explore',
+    '/profile',
+    '/settings',
+    '/legal',
+    '/home'
+  ];
 
-  const isPublic = publicPages.includes(to.path);
+  // ✅ Mark public paths
+  const isPublic =
+      publicPages.includes(to.path) ||
+      to.path.startsWith('/news/'); // ✅ dynamic news pages are public
+
   const requiresAuth = to.meta.requiresAuth || !isPublic;
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -55,14 +76,11 @@ router.beforeEach(async (to, from, next) => {
         .single();
 
     if (error || !data || data.role !== 'admin') {
-      return next('/search');
+      return next('/home');
     }
   }
 
-  next(); // ✅ Allow access
+  next();
 });
-
-
-
 
 export default router;
