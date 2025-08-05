@@ -51,7 +51,7 @@
 import { ref } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonItem, IonInput, IonButton } from '@ionic/vue';
 import { supabase } from '@/plugins/supabaseClient';
-import { QuillEditor, QuillOptionsStatic } from '@vueup/vue-quill';
+import { Quill } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 const title = ref('');
@@ -60,7 +60,7 @@ const headerFile = ref<File | null>(null);
 const headerPreview = ref<string | null>(null);
 const loading = ref(false);
 
-const editorModules: QuillOptionsStatic['modules'] = {
+const editorModules: Quill['modules'] = {
   toolbar: [
     [{ header: [1, 2, 3, false] }],
     ['bold', 'italic', 'underline', 'strike'],
