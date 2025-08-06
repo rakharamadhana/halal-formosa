@@ -28,7 +28,6 @@
         </ion-card-content>
       </ion-card>
 
-
       <!-- Halal & Islam News -->
       <ion-card class="news-card">
         <ion-card-header>
@@ -44,12 +43,13 @@
                 class="news-item"
                 @click="router.push(`/news/${item.id}`)"
             >
-            <div class="news-thumbnail">
+              <div class="news-thumbnail">
                 <img :src="item.thumbnail" loading="lazy" alt="News Thumbnail" />
               </div>
               <ion-label>
                 <h2>{{ item.title }}</h2>
-                <p>{{ item.summary }}</p>
+                <p style="color: var(--ion-background-color-step-800)">{{ item.summary }}</p>
+                <p><small>{{ fromNowToTaipei(item.created_at) }}</small></p>
               </ion-label>
             </ion-item>
           </ion-list>
@@ -58,6 +58,18 @@
             <ion-skeleton-text animated style="width: 80%; height: 20px"></ion-skeleton-text>
             <ion-skeleton-text animated style="width: 60%; height: 14px; margin-top: 6px"></ion-skeleton-text>
           </template>
+
+          <!-- ✅ View More Button -->
+          <div class="view-more-container">
+            <ion-button
+                fill="clear"
+                size="small"
+                color="primary"
+                @click="goToNewsPage"
+            >
+              View More →
+            </ion-button>
+          </div>
         </ion-card-content>
       </ion-card>
     </ion-content>
@@ -67,9 +79,10 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+  IonPage, IonContent,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonItem, IonLabel, IonList, IonSkeletonText
+  IonItem, IonLabel, IonList, IonSkeletonText,
+    IonButton
 } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js';
@@ -87,6 +100,25 @@ const doughnutRef = ref<any>(null);
 const totalProducts = ref(0);
 const totalLocations = ref(0);
 
+import relativeTime from 'dayjs/plugin/relativeTime'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+// Extend dayjs
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(relativeTime)
+
+function fromNowToTaipei(dateString?: string) {
+  if (!dateString) return ''
+  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+}
+
+const ionColorDark = getComputedStyle(document.documentElement)
+    .getPropertyValue('--ion-color-dark')
+    .trim(); // remove whitespace
+
 const chartOptions: ChartOptions<'doughnut'> = {
   responsive: true,
   maintainAspectRatio: false,
@@ -95,6 +127,7 @@ const chartOptions: ChartOptions<'doughnut'> = {
       position: 'right',  // ✅ Move legend to right
       align: 'center',
       labels: {
+        color: ionColorDark, // Sets the color of the legend labels to white
         boxWidth: 14,      // Smaller color boxes
         font: {
           size: 12         // Smaller font
@@ -146,20 +179,24 @@ function generateSummary(content: string, title: string, wordLimit = 20) {
   return truncatedWords.join(' ') + (allWords.length > wordLimit ? '…' : '');
 }
 
+function goToNewsPage() {
+  router.push('/news');
+}
 
 async function fetchNews() {
   const { data, error } = await supabase
       .from('news')
       .select('id, title, header_image, content, created_at, author_name')
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(3);
 
   if (!error && data) {
     news.value = data.map(item => ({
       id: item.id,
       title: truncateText(item.title, 12),
       summary: generateSummary(item.content, item.title, 10),
-      thumbnail: item.header_image || 'https://placehold.co/600x400'
+      thumbnail: item.header_image || 'https://placehold.co/600x400',
+      created_at: item.created_at
     }));
   }
 
@@ -290,6 +327,12 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   height: 100%;
   object-fit: cover;
 }
+
+.view-more-container {
+  text-align: center;
+  margin-top: 8px;
+}
+
 </style>
 
 

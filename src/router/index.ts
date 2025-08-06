@@ -19,22 +19,22 @@ const routes: Array<RouteRecordRaw> = [
       { path: 'profile', component: () => import('@/views/profile/ProfileView.vue') },
     ],
   },
-  // router/index.ts
-  {
-    path: '/news/:id',
-    name: 'news-view',
-    component: () => import('@/views/news/NewsView.vue'),
-    props: true
-  },
-  {
-    path: '/report/:barcode',
-    component: () => import('@/views/search/ReportView.vue'),
-    meta: { requiresAuth: true } // 👈 Add this flag
-  },
-  { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
-  { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },
-  { path: '/signup', component: () => import('@/views/auth/SignUpView.vue') },
-  { path: '/login', component: () => import('@/views/auth/LoginView.vue') },
+    { path: '/news', component: () => import('@/views/news/NewsView.vue') },
+    { path: '/news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), props: true },
+    {
+        path: '/news/add',
+        component: () => import('@/views/news/AddNewsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/news/edit/:id',
+        component: () => import('@/views/news/AddNewsView.vue'), // same as "Add" view
+    },
+    { path: '/report/:barcode', component: () => import('@/views/search/ReportView.vue'), meta: { requiresAuth: true } },
+    { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
+    { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },
+    { path: '/signup', component: () => import('@/views/auth/SignUpView.vue') },
+    { path: '/login', component: () => import('@/views/auth/LoginView.vue') },
 ];
 
 
@@ -52,7 +52,8 @@ router.beforeEach(async (to, from, next) => {
     '/profile',
     '/settings',
     '/legal',
-    '/home'
+    '/home',
+      '/news'
   ];
 
   // ✅ Mark public paths
