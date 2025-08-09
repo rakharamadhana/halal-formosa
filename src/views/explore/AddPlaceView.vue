@@ -460,12 +460,33 @@ const submitPlace = async () => {
 }
 
 /* -------------------- Lifecycle -------------------- */
+const centerOnUserOnce = async () => {
+  return new Promise<void>((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          form.value.lat = latitude
+          form.value.lng = longitude
+          resolve()
+        },
+        (err) => {
+          console.warn('Geolocation failed or denied, using default center', err)
+          resolve() // fallback to DEFAULT_CENTER
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+    )
+  })
+}
+
 onMounted(async () => {
   await loadRole()
+
   if (isAllowed.value) {
+    await centerOnUserOnce()
     await initMap()
-    updatePinColor() // set initial color now
+    updatePinColor()
   }
+
   themeObserver = new MutationObserver(updatePinColor)
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 })

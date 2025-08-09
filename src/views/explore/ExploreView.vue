@@ -42,17 +42,22 @@
       </div>
     </ion-toolbar>
 
+    <ion-toolbar v-if="focusedPlaceId !== null" style="--background: none;">
+      <div style="display:flex; align-items:center; gap:8px; padding:8px 16px;">
+        <span>Showing 1 place</span>
+        <ion-button size="small" fill="outline" @click="focusedPlaceId = null">Clear</ion-button>
+      </div>
+    </ion-toolbar>
+
+
     <!-- Place list scrolls -->
-    <ion-content>
+    <ion-content ref="contentRef">
       <div class="place-list">
         <ion-card
             v-for="place in sortedLocations"
-            :key="place.name"
-            :ref="el => {
-              if (!cardRefs.value) cardRefs.value = {}
-              cardRefs.value[place.name] = el
-            }"
-            :class="{ 'active-card': selectedPlace?.name === place.name }"
+            :key="place.id"
+            :ref="el => { if (!cardRefs.value) cardRefs.value = {}; cardRefs.value[place.id] = el }"
+            :class="{ 'active-card': selectedPlace?.id === place.id }"
             @click="selectPlace(place)"
         >
           <div style="display: flex; align-items: center;">
@@ -75,9 +80,7 @@
                   {{ place.type }}
                 </p>
               </div>
-              <div v-if="userLocation">
-                📍 {{ getDistanceInKm(place.position) }} km away
-              </div>
+              <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
             </div>
           </div>
         </ion-card>
@@ -87,7 +90,7 @@
 </template>
 
 
-<script setup>
+<script setup lang="ts">
 import {
   IonPage,
   IonContent,
@@ -113,13 +116,14 @@ const userLocation = ref(null)
 const isContributor = ref(false)
 const router = useRouter()
 
+import type { HTMLIonContentElement } from '@ionic/core/components'
 import { Loader } from '@googlemaps/js-api-loader'
 
 const searchQuery = ref('')
 let mapInstance = null
 let allLocations = []
 let advancedMarkerLib = null
-const markerMap = new Map()
+const markerMap = new Map<number, any>()
 let infoWindow = null
 const selectedPlace = ref(null)
 
@@ -129,7 +133,29 @@ const loader = new Loader({
   libraries: ['marker']
 })
 
-const cardRefs = ref({})
+const cardRefs = ref<Record<number, any>>({})
+
+const getDomEl = (node: any) => (node?.$el ?? node) as HTMLElement
+
+const contentRef = ref<any>(null)
+
+const focusedPlaceId = ref<number | null>(null)
+
+const scrollCardIntoView = async (id: number) => {
+  await nextTick()
+  const el = (contentRef.value?.$el ?? contentRef.value) as HTMLIonContentElement | undefined
+  if (!el) return
+  const scrollEl = await el.getScrollElement()
+
+  const cardNode = cardRefs.value[id]
+  if (!scrollEl || !cardNode) return
+  const cardEl = getDomEl(cardNode)
+
+  const cardRect = cardEl.getBoundingClientRect()
+  const containerRect = scrollEl.getBoundingClientRect()
+  const y = scrollEl.scrollTop + (cardRect.top - containerRect.top) - 12
+  scrollEl.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+}
 
 const loadRole = async () => {            // <-- NEW
   const { data: { user } } = await supabase.auth.getUser()
@@ -147,98 +173,78 @@ const loadRole = async () => {            // <-- NEW
 }
 
 const getDistanceInKm = (locPos) => {
-  if (!userLocation.value) return null
-
-  const R = 6371; // Radius of the earth in km
+  if (!userLocation.value) return Number.POSITIVE_INFINITY
+  const R = 6371
   const dLat = (locPos.lat - userLocation.value.lat) * Math.PI / 180
   const dLon = (locPos.lng - userLocation.value.lng) * Math.PI / 180
-  const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(userLocation.value.lat * Math.PI / 180) *
-      Math.cos(locPos.lat * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  const distance = R * c
-  return distance.toFixed(2)
+  const a = Math.sin(dLat/2)**2 +
+      Math.cos(userLocation.value.lat * Math.PI/180) *
+      Math.cos(locPos.lat * Math.PI/180) *
+      Math.sin(dLon/2)**2
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) // number
 }
+const formatKm = (n) => (Number.isFinite(n) ? n.toFixed(2) : '–')
 
 // Computed list of locations sorted by distance
 const sortedLocations = computed(() => {
+  // If a marker/card is focused, show only that one
+  if (focusedPlaceId.value != null) {
+    const p = locations.value.find(x => x.id === focusedPlaceId.value)
+    return p ? [p] : []
+  }
+
   const query = searchQuery.value?.toLowerCase().trim()
-
   if (!query) {
-    return [...locations.value].sort((a, b) => {
-      const distA = getDistanceInKm(a.position)
-      const distB = getDistanceInKm(b.position)
-      return distA - distB
-    })
+    return [...locations.value].sort((a, b) => getDistanceInKm(a.position) - getDistanceInKm(b.position))
   }
 
-  const matched = locations.value.filter(loc =>
-      loc.name.toLowerCase().includes(query)
-  )
-
-  const others = locations.value.filter(loc =>
-      !loc.name.toLowerCase().includes(query)
-  )
-
-  const sortByDistance = (a, b) => {
-    const distA = getDistanceInKm(a.position)
-    const distB = getDistanceInKm(b.position)
-    return distA - distB
-  }
+  const matched = locations.value.filter(loc => loc.name.toLowerCase().includes(query))
+  const others  = locations.value.filter(loc => !loc.name.toLowerCase().includes(query))
 
   if (userLocation.value) {
-    matched.sort(sortByDistance)
-    others.sort(sortByDistance)
+    const byDist = (a,b)=> getDistanceInKm(a.position) - getDistanceInKm(b.position)
+    matched.sort(byDist); others.sort(byDist)
   }
-
   return [...matched, ...others]
 })
+
 
 let lastPanTime = 0
 
 const selectPlace = (place) => {
-  nextTick(() => {
-    cardRefs.value[place.name]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  })
-
+  focusedPlaceId.value = place.id
   selectedPlace.value = place
+
+  // scroll the card into view
+  scrollCardIntoView(place.id)
 
   if (!mapInstance || !place?.position) return
 
-  const position = place.position
-
   lastPanTime = Date.now()
-  mapInstance.panTo(position)
-
+  mapInstance.panTo(place.position)
   const currentPanTime = lastPanTime
 
   setTimeout(() => {
     if (currentPanTime !== lastPanTime) return
+    mapInstance.setZoom(15)
 
-    mapInstance.setZoom(15) // ✅ animated zoom after pan
-
-    const existingMarker = markerMap.get(place.name.toLowerCase())
-    if (existingMarker && infoWindow) {
+    const marker = markerMap.get(place.id)
+    if (marker && infoWindow) {
       infoWindow.setContent(`
         <div>
           <strong>${place.name}</strong><br>
           ${place.type}<br>
           <a
-            href="https://www.google.com/maps/dir/?api=1&destination=${position.lat},${position.lng}"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://www.google.com/maps/dir/?api=1&destination=${place.position.lat},${place.position.lng}"
+            target="_blank" rel="noopener noreferrer"
             style="color: var(--ion-color-primary); text-decoration: none;"
-          >
-            Navigate
-          </a>
+          >Navigate</a>
         </div>
       `)
-      infoWindow.open(mapInstance, existingMarker)
+      infoWindow.open(mapInstance, marker)
       setTimeout(applyInfoWindowDarkClass, 50)
     }
-  }, 400) // wait for pan animation to finish
+  }, 400)
 }
 
 // Default center (Taipei)
@@ -246,22 +252,22 @@ const defaultCenter = { lat: 25.0343, lng: 121.5645 }
 
 const locations = ref([])
 
-
 const fetchLocations = async () => {
-  const { data, error } = await supabase.from('locations').select('*')
-  if (error) {
-    console.error('Error fetching locations:', error)
-    return
-  }
+  const { data, error } = await supabase
+      .from('locations')
+      .select('id,name,type,lat,lng,image')  // ← include id
+
+  if (error) { console.error(error); return }
 
   locations.value = data.map(loc => ({
+    id: loc.id,
     name: loc.name,
     type: loc.type,
     position: { lat: loc.lat, lng: loc.lng },
     image: loc.image
   }))
 
-  allLocations = locations.value // update allLocations after fetch
+  allLocations = locations.value
   initMarkers()
 }
 
@@ -278,28 +284,12 @@ const initMarkers = () => {
     })
 
     markerInstance.addListener('click', () => {
-      if (infoWindow) {
-        infoWindow.setContent(`
-          <div>
-            <strong>${loc.name}</strong><br>
-            ${loc.type}<br>
-            <a
-              href="https://www.google.com/maps/dir/?api=1&destination=${loc.position.lat},${loc.position.lng}"
-              target="_blank"
-              rel="noopener noreferrer"
-              style="color: var(--ion-color-primary); text-decoration: none;"
-            >
-              Navigate
-            </a>
-          </div>
-        `)
-        infoWindow.open(mapInstance, markerInstance)
-        setTimeout(applyInfoWindowDarkClass, 50)
-      }
-      selectedPlace.value = loc
+      if (searchQuery.value) searchQuery.value = ''  // clear search if any
+      focusedPlaceId.value = loc.id                  // <-- focus
+      selectPlace(loc)
     })
 
-    markerMap.set(loc.name.toLowerCase(), markerInstance)
+    markerMap.set(loc.id, markerInstance)
   })
 }
 
@@ -387,9 +377,11 @@ const centerOnUser = async () => {
 }
 
 const onSearchInput = (event) => {
+  focusedPlaceId.value = null                    // typing cancels focus
   searchQuery.value = event.detail.value
   searchPlace()
 }
+
 
 const searchPlace = () => {
   if (!searchQuery.value.trim() || !mapInstance) return
@@ -402,7 +394,7 @@ const searchPlace = () => {
   if (matched) {
     mapInstance.panTo(matched.position)
 
-    const existingMarker = markerMap.get(matched.name.toLowerCase())
+    const existingMarker = markerMap.get(matched.id)
 
     if (existingMarker) {
       infoWindow.setContent(`
@@ -425,6 +417,7 @@ const searchPlace = () => {
     }
 
     selectedPlace.value = matched
+    scrollCardIntoView(matched.id)
   }
 }
 
@@ -433,15 +426,11 @@ onIonViewWillEnter(async () => {
     await initMap()
     await fetchLocations()
     await centerOnUser()
+    await loadRole()
   }
 })
 
 onMounted(async () => {
-  await initMap()
-  await fetchLocations()
-  await centerOnUser()
-  await loadRole()   // <-- NEW
-
   const observer = new MutationObserver(() => {
     applyInfoWindowDarkClass()
   })
