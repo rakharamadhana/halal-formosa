@@ -55,8 +55,21 @@
           </ion-list>
 
           <template v-if="loadingNews">
-            <ion-skeleton-text animated style="width: 80%; height: 20px"></ion-skeleton-text>
-            <ion-skeleton-text animated style="width: 60%; height: 14px; margin-top: 6px"></ion-skeleton-text>
+            <ion-list>
+              <ion-item v-for="n in 3" :key="n" class="news-item">
+                <!-- Skeleton thumbnail -->
+                <div class="news-thumbnail">
+                  <ion-skeleton-text animated style="width: 100%; height: 100%; border-radius: 6px;" />
+                </div>
+
+                <!-- Skeleton text placeholders -->
+                <ion-label>
+                  <ion-skeleton-text animated style="width: 80%; height: 18px; margin-bottom: 6px;" />
+                  <ion-skeleton-text animated style="width: 60%; height: 14px; margin-bottom: 6px;" />
+                  <ion-skeleton-text animated style="width: 40%; height: 12px;" />
+                </ion-label>
+              </ion-item>
+            </ion-list>
           </template>
 
           <!-- ✅ View More Button -->

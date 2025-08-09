@@ -89,7 +89,18 @@
 
         <div class="map-wrap">
           <div class="hint">Tap on the map to set coordinates</div>
-          <div id="add-map"></div>
+
+          <div class="map-holder">
+            <!-- Real map is ALWAYS in the DOM -->
+            <div id="add-map" :class="{'fade-in': mapReady}"></div>
+
+            <!-- Skeleton overlays while loading -->
+            <ion-skeleton-text
+                v-if="mapLoading"
+                animated
+                class="map-skeleton"
+            />
+          </div>
         </div>
 
         <ion-button type="submit" expand="block" :disabled="submitting || !isValid">
@@ -121,6 +132,8 @@ import { supabase } from '@/plugins/supabaseClient'
 import { Loader } from '@googlemaps/js-api-loader'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { cameraOutline, cloudUploadOutline } from 'ionicons/icons'
+import { Capacitor } from '@capacitor/core'
+import { Geolocation } from '@capacitor/geolocation'
 
 /* -------------------- Constants -------------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
@@ -128,6 +141,9 @@ const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 const DEFAULT_CENTER = { lat: 25.0343, lng: 121.5645 }
 let clickMarker: google.maps.marker.AdvancedMarkerElement | null = null
 let pinEl: any | null = null
+const mapLoading = ref(true)  // show skeleton
+const mapReady = ref(false)   // reveal map once real map is ready
+
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -307,6 +323,7 @@ let advancedMarkerLib: any = null
 let mapClickListener: google.maps.MapsEventListener | null = null
 
 const initMap = async () => {
+  mapLoading.value = true
   const loader = new Loader({
     apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     version: 'weekly',
@@ -332,7 +349,7 @@ const initMap = async () => {
     gestureHandling: 'greedy'   // 👈 add
   })
 
-// Build a colored pin (much more visible than a small dot)
+  // Build a colored pin (much more visible than a small dot)
   pinEl = new advancedMarkerLib.PinElement({
     background: getComputedStyle(document.documentElement)
         .getPropertyValue('--ion-color-carrot')
@@ -342,7 +359,7 @@ const initMap = async () => {
     scale: 1.2,
   })
 
-// Create marker at initial coords
+  // Create marker at initial coords
   clickMarker = new advancedMarkerLib.AdvancedMarkerElement({
     map,
     position: { lat: form.value.lat, lng: form.value.lng },
@@ -350,7 +367,25 @@ const initMap = async () => {
     zIndex: 10,
   })
 
-// On click: move pin + animate + update form
+  // Prefer 'idle' (fires once map finishes first render)
+  const onReady = () => {
+    mapReady.value = true
+    // tiny next tick to avoid flicker
+    requestAnimationFrame(() => { mapLoading.value = false })
+  }
+
+  google.maps.event.addListenerOnce(map, 'idle', onReady);
+  google.maps.event.addListenerOnce(map, 'tilesloaded', onReady);
+
+  // Absolute last resort: time out after 3s
+  setTimeout(() => {
+    if (!mapReady.value) {
+      onReady()
+      console.warn('Map ready fallback timeout used')
+    }
+  }, 3000)
+
+  // On click: move pin + animate + update form
   let firstTapDone = false
   mapClickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
@@ -461,6 +496,31 @@ const submitPlace = async () => {
 
 /* -------------------- Lifecycle -------------------- */
 const centerOnUserOnce = async () => {
+  // Native (Android/iOS): use Capacitor plugin
+  if (Capacitor.getPlatform() !== 'web') {
+    try {
+      // Permissions
+      const perm = await Geolocation.checkPermissions()
+      if (perm.location !== 'granted') {
+        await Geolocation.requestPermissions()
+      }
+
+      // Get position
+      const pos = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 5000,
+      })
+      const { latitude, longitude } = pos.coords
+      form.value.lat = latitude
+      form.value.lng = longitude
+      return
+    } catch (err) {
+      console.warn('Native geolocation failed, falling back to default', err)
+      return
+    }
+  }
+
+  // Web fallback: use the browser API
   return new Promise<void>((resolve) => {
     navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -470,8 +530,8 @@ const centerOnUserOnce = async () => {
           resolve()
         },
         (err) => {
-          console.warn('Geolocation failed or denied, using default center', err)
-          resolve() // fallback to DEFAULT_CENTER
+          console.warn('Web geolocation failed or denied', err)
+          resolve()
         },
         { enableHighAccuracy: true, timeout: 5000 }
     )
@@ -482,9 +542,11 @@ onMounted(async () => {
   await loadRole()
 
   if (isAllowed.value) {
-    await centerOnUserOnce()
+    try { await centerOnUserOnce() } catch { /* empty */ }
     await initMap()
     updatePinColor()
+  } else {
+    mapLoading.value = false
   }
 
   themeObserver = new MutationObserver(updatePinColor)
@@ -518,10 +580,29 @@ onBeforeUnmount(() => {
 /* Map */
 .map-wrap { margin: 12px 0 16px; }
 .hint { font-size: 12px; color: var(--ion-color-medium); margin: 4px 0 8px; }
-#add-map {
+
+.map-holder {
+  position: relative;
   height: 32vh;
   border-radius: 12px;
   overflow: hidden;
+}
+
+#add-map {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+#add-map.fade-in {
+  opacity: 1;
+}
+
+.map-skeleton {
+  position: absolute;
+  inset: 0;              /* cover the map fully */
+  border-radius: 12px;
 }
 
 /* Image preview */
