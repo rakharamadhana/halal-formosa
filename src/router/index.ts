@@ -30,6 +30,13 @@ const routes: Array<RouteRecordRaw> = [
         path: '/news/edit/:id',
         component: () => import('@/views/news/AddNewsView.vue'), // same as "Add" view
     },
+
+    {
+        path: '/explore/add',
+        name: 'ExploreAdd',
+        component: () => import('@/views/explore/AddPlaceView.vue'),
+    },
+
     { path: '/report/:barcode', component: () => import('@/views/search/ReportView.vue'), meta: { requiresAuth: true } },
     { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
     { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },

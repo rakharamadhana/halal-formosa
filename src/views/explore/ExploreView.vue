@@ -20,14 +20,28 @@
     </div>
 
     <ion-toolbar style="--background: none;">
-      <ion-searchbar
-          class="search-explore"
-          :debounce="1000"
-          @ionInput="onSearchInput"
-          style="flex-grow: 1;"
-          placeholder="Search places (e.g. Mosque)"
-      ></ion-searchbar>
+      <div style="display: flex;">
+        <ion-searchbar
+            class="search-explore"
+            :debounce="1000"
+            @ionInput="onSearchInput"
+            style="flex-grow: 1; margin-right: 8px;"
+            placeholder="Search places (e.g. Mosque)"
+        ></ion-searchbar>
+
+        <!-- Add Place button, only for contributors/admins -->
+        <ion-button
+            v-if="isContributor"
+            @click="goToAddPlace"
+            color="carrot"
+            size="small"
+            style="margin-right: 12px; margin-top: 12px;"
+        >
+          <ion-icon :icon="addOutline" />
+        </ion-button>
+      </div>
     </ion-toolbar>
+
     <!-- Place list scrolls -->
     <ion-content>
       <div class="place-list">
@@ -76,25 +90,28 @@
 <script setup>
 import {
   IonPage,
-  IonHeader,
   IonContent,
   IonToolbar,
-  IonTitle,
   IonSearchbar,
   IonIcon,
   IonFab,
   IonFabButton,
   IonCard,
   IonThumbnail,
+    IonButton,
     onIonViewWillEnter
 } from '@ionic/vue'
-import {compassOutline, navigateCircleOutline} from 'ionicons/icons'
+import {compassOutline, navigateCircleOutline, addOutline } from 'ionicons/icons'
 import {ref, onMounted, nextTick, computed} from 'vue'
+import { useRouter } from 'vue-router'
+
 import {
   supabase
 } from '@/plugins/supabaseClient'
 
 const userLocation = ref(null)
+const isContributor = ref(false)
+const router = useRouter()
 
 import { Loader } from '@googlemaps/js-api-loader'
 
@@ -113,6 +130,21 @@ const loader = new Loader({
 })
 
 const cardRefs = ref({})
+
+const loadRole = async () => {            // <-- NEW
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+  if (!error && (data?.role === 'admin' || data?.role === 'contributor')) {
+    isContributor.value = true
+  }
+}
 
 const getDistanceInKm = (locPos) => {
   if (!userLocation.value) return null
@@ -408,18 +440,20 @@ onMounted(async () => {
   await initMap()
   await fetchLocations()
   await centerOnUser()
-  const observer = new MutationObserver(() => {
+  await loadRole()   // <-- NEW
 
-    // Always reapply on change
+  const observer = new MutationObserver(() => {
     applyInfoWindowDarkClass()
   })
-
   observer.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['class']
   })
-
 })
+
+const goToAddPlace = () => {
+  router.push('/explore/add')
+}
 </script>
 
 <style>
