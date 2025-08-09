@@ -18,6 +18,7 @@
       <div v-if="loading">
         <ion-skeleton-text animated style="width: 100%; height: 200px;" />
         <ion-skeleton-text animated style="width: 70%; height: 20px; margin-top: 10px;" />
+        <ion-skeleton-text animated style="width: 70%; height: 20px; margin-top: 10px;" />
       </div>
 
       <div v-else-if="newsItem">
