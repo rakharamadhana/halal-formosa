@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <app-header title="Search" :icon="addOutline" />
+    <app-header title="Add product" :icon="addOutline" :showProfile="true" />
 
     <ion-content :fullscreen="true" class="ion-padding" >
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">

@@ -1,7 +1,7 @@
 <template>
   <ion-page>
-    <app-header title="Explore" :icon="compassOutline" />
-
+    <app-header title="Explore" :icon="compassOutline" :showProfile="true" />
+    <div v-if="isNative" id="ad-space-explore" style="height:60px;"></div>
     <!-- Map stays fixed -->
     <div style="position: relative;">
       <!-- Map container -->
@@ -94,16 +94,17 @@
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewWillEnter
+  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter, onIonViewWillLeave
 } from '@ionic/vue'
 import { compassOutline, navigateCircleOutline, addOutline } from 'ionicons/icons'
-import { ref, computed, nextTick } from 'vue'
+import {ref, computed, nextTick } from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader } from '@googlemaps/js-api-loader'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { supabase } from '@/plugins/supabaseClient'
+import AppHeader from "@/components/AppHeader.vue";
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
@@ -139,6 +140,7 @@ const cardRefs = ref<Record<number, Element | ComponentPublicInstance | null>>({
 const contentRef = ref<HTMLIonContentElement | null>(null)
 
 const searchQuery = ref('')
+const isNative = ref(Capacitor.isNativePlatform())
 
 /* Google Maps runtime objects */
 let mapInstance: google.maps.Map | null = null
@@ -423,12 +425,16 @@ onIonViewWillEnter(async () => {
   await loadRole()
 })
 
+onIonViewDidEnter(() => (window as any).scheduleBannerUpdate?.());
+
 /* dark mode InfoWindow sync */
 const observer = new MutationObserver(applyInfoWindowDarkClass)
 observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 
 /* ---------------- Navigation ---------------- */
-const goToAddPlace = () => router.push('/explore/add')
+const goToAddPlace = async () => {
+  router.push('/explore/add')
+}
 </script>
 
 
@@ -461,7 +467,7 @@ const goToAddPlace = () => router.push('/explore/add')
 #map {
   margin: 16px 16px 0;
   padding: 10px;
-  height: 45vh;
+  height: 40vh;
   border-radius: 12px;
   overflow: hidden;
   position: relative;

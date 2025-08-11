@@ -3,7 +3,7 @@
     <ion-tabs>
       <ion-router-outlet />
 
-      <!-- ✅ Bottom tab bar without profile -->
+      <!-- Bottom tab bar -->
       <ion-tab-bar slot="bottom" id="footer-tabs">
         <ion-tab-button tab="home" href="/home">
           <ion-icon :icon="homeOutline" />
@@ -35,7 +35,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonRouterOutlet, IonPage } from '@ionic/vue';
+import {
+  IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonRouterOutlet, IonPage
+} from '@ionic/vue';
 import {
   cameraOutline,
   searchOutline,
@@ -45,11 +47,9 @@ import {
 import { supabase } from '@/plugins/supabaseClient';
 
 const isAuthenticated = ref(false);
-
 const userRole = ref<string | null>(null);
 const isRoleLoading = ref(true);
 const profilePic = ref<string | null>(null);
-
 
 async function checkSession() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -89,31 +89,26 @@ async function fetchUserRole() {
 }
 
 async function fetchProfilePic(session?: any) {
-  profilePic.value = null; // ✅ Clear first
-
+  profilePic.value = null;
   if (!session) {
     const { data } = await supabase.auth.getSession();
     session = data.session;
   }
-
   if (session?.user) {
     profilePic.value = session.user.user_metadata?.avatar_url || null;
   }
 }
 
-// Check session when component mounts
 onMounted(() => {
   checkSession();
   fetchUserRole();
   fetchProfilePic();
 
-  // Optional: Listen for auth state changes to update UI dynamically
   supabase.auth.onAuthStateChange((_event, session) => {
     isAuthenticated.value = !!session;
-
     if (session) {
       fetchUserRole();
-      fetchProfilePic(session); // ✅ Pass session for instant update
+      fetchProfilePic(session);
     } else {
       userRole.value = null;
       isRoleLoading.value = false;

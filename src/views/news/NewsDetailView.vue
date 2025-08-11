@@ -13,6 +13,7 @@
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
+    <div v-if="isNative" id="ad-space-news-detail" style="height:60px;"></div>
 
     <ion-content class="ion-padding">
       <div v-if="loading">
@@ -42,8 +43,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import {IonPage,
+import {ref, onMounted, nextTick} from 'vue';
+import {
+  IonPage,
   IonSkeletonText,
   IonHeader,
   IonToolbar,
@@ -65,10 +67,12 @@ const user = ref<User | null>(null)
 const route = useRoute();
 const newsItem = ref<any>(null);
 const loading = ref(true);
+const isNative = ref(Capacitor.isNativePlatform())
 
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import {Capacitor} from "@capacitor/core";
 
 // Extend dayjs
 dayjs.extend(utc)
@@ -95,7 +99,10 @@ onMounted(async () => {
   if (!error && data) {
     newsItem.value = data;
   }
+
   loading.value = false;
+  await nextTick()
+  setTimeout(() => (window as any).scheduleBannerUpdate?.(), 50)
 });
 </script>
 

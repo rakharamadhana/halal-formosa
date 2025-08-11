@@ -34,20 +34,30 @@
       <li>To personalize user experience using non-personal local storage preferences</li>
     </ul>
 
-    <h2>Article 4 – Changes to Purpose of Use</h2>
+    <h2>Article 4 – Advertising and Ad Tracking</h2>
+    <ul>
+      <li>The Service displays <strong>Google AdMob banner advertisements</strong> in certain sections of the app, including Explore, Search, and News Detail screens.</li>
+      <li>Advertising content is delivered directly by Google AdMob and may be <strong>personalized or non-personalized</strong> based on the user's Google account and device ad settings.</li>
+      <li>We <strong>do not collect or store</strong> any additional personal information for ad targeting purposes beyond what Google AdMob automatically processes.</li>
+      <li>Data that may be processed by Google AdMob for ads can include device information, approximate location, and app interaction data, as described in <a href="https://policies.google.com/technologies/ads" target="_blank">Google’s Privacy Policy</a>.</li>
+      <li>We are not responsible for the content of third-party ads and do not endorse any advertised products or services. Any engagement with ads is subject to the terms and privacy policies of the advertiser.</li>
+      <li>Advertising revenue is used to support ongoing <strong>maintenance and development</strong> of the Service.</li>
+    </ul>
+
+    <h2>Article 5 – Changes to Purpose of Use</h2>
     <p>
       Any change to the purposes above will be communicated through in-app notices or updates.
       We will only change purposes if reasonably related to the original purpose.
     </p>
 
-    <h2>Article 5 – Retention Period</h2>
+    <h2>Article 6 – Retention Period</h2>
     <p>
       Personal data is retained as long as the account remains active.
       Upon verified account deletion request, your personal data will be permanently deleted.
       Donation records may be anonymized for accounting purposes.
     </p>
 
-    <h2>Article 6 – Third-Party Disclosure</h2>
+    <h2>Article 7 – Third-Party Disclosure</h2>
     <ul>
       <li>We <strong>do not sell or share</strong> personal information with third parties for marketing.</li>
       <li>Authentication is through Google, and map data is provided by Google Maps.</li>
@@ -57,44 +67,44 @@
         Users should refer to <strong>AnyoneLab’s Terms of Service and Privacy Policy</strong> for details on payment processing.</li>
     </ul>
 
-    <h2>Article 7 – User Rights: Access, Correction, and Deletion</h2>
+    <h2>Article 8 – User Rights: Access, Correction, and Deletion</h2>
     <ul>
       <li>You may contact support to request access to or deletion of your stored data.</li>
       <li>For login information changes, you must update your Google account directly.</li>
       <li>Account deletion requests can be submitted to our support email.</li>
     </ul>
 
-    <h2>Article 8 – Data Suspension and Misuse</h2>
+    <h2>Article 9 – Data Suspension and Misuse</h2>
     <p>
       If you believe your data has been accessed or used improperly, you may contact our support team.
       We will investigate and take appropriate actions, including deletion or anonymization if necessary.
     </p>
 
-    <h2>Article 9 – Cookie and Local Storage Policy</h2>
+    <h2>Article 10 – Cookie and Local Storage Policy</h2>
     <ul>
       <li>We do not use browser cookies.</li>
       <li>We use <strong>local storage</strong> only to store non-personal data, such as language settings and viewed history.</li>
     </ul>
 
-    <h2>Article 10 – Security Measures</h2>
+    <h2>Article 11 – Security Measures</h2>
     <p>
       We use <strong>Supabase authentication</strong> and industry-standard <strong>HTTPS encryption</strong> to protect user data.
       Access to personal information is strictly limited to authorized team members only.
     </p>
 
-    <h2>Article 11 – International and Religious Considerations</h2>
+    <h2>Article 12 – International and Religious Considerations</h2>
     <p>
       This Service is operated in Taiwan but may be accessed internationally.
       All data is handled in accordance with Taiwan's data protection principles.
       In case of disputes, we first seek <strong>amicable resolution guided by Shariah (Islamic) principles</strong>.
     </p>
 
-    <h2>Article 12 – Changes to this Policy</h2>
+    <h2>Article 13 – Changes to this Policy</h2>
     <p>
       This Policy may be updated periodically. Updates will be published in-app and are effective immediately upon release.
     </p>
 
-    <h2>Article 13 – Contact</h2>
+    <h2>Article 14 – Contact</h2>
     <p>
       For privacy-related inquiries, please contact:<br/>
       <strong>R Creative</strong><br/>

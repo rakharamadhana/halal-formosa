@@ -122,7 +122,7 @@
             </ion-item>
             <ion-item>
               <ion-label>Version</ion-label>
-              <ion-note slot="end">1.1.0</ion-note> <!-- Replace with actual version if dynamic -->
+              <ion-note slot="end">1.1.1</ion-note> <!-- Replace with actual version if dynamic -->
             </ion-item>
           </ion-list>
         </ion-card-content>
@@ -188,7 +188,7 @@
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
-import { onIonViewWillEnter } from '@ionic/vue';
+import {onIonViewDidLeave, onIonViewWillEnter} from '@ionic/vue';
 import {settingsOutline, documentTextOutline, personCircleOutline} from 'ionicons/icons';
 import {
   IonPage,
@@ -254,8 +254,8 @@ export default defineComponent({
       }
     }
 
-    onIonViewWillEnter(() => {
-      updateUser();
+    onIonViewWillEnter(async () => {
+      await updateUser();
     });
 
     async function handleLogout() {

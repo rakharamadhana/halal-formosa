@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import {ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonPage, IonHeader, IonToolbar, IonSearchbar, IonContent,
@@ -78,6 +78,7 @@ import {
 } from '@ionic/vue';
 import { supabase } from '@/plugins/supabaseClient';
 import {addOutline, chevronDownCircleOutline} from 'ionicons/icons';
+
 
 interface NewsItem {
   id: number;
@@ -102,6 +103,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import {Capacitor} from "@capacitor/core";
 
 // Extend dayjs
 dayjs.extend(utc)

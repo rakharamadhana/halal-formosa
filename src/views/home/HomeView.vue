@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <app-header title="Halal Formosa" />
+    <app-header title="Halal Formosa" :showProfile="true" />
     <ion-content class="ion-padding">
 
       <!-- Combined Product Status + Stats Card -->
@@ -24,6 +24,18 @@
               <h2>{{ totalLocations }}</h2>
               <p>Halal Locations</p>
             </div>
+          </div>
+
+          <div class="scan-row">
+            <ion-button
+                expand="block"
+                color="carrot"
+                @click="goScan"
+            >
+              <ion-icon :icon="scanOutline" slot="start" />
+              Scan Ingredients
+            </ion-button>
+
           </div>
         </ion-card-content>
       </ion-card>
@@ -95,7 +107,7 @@ import {
   IonPage, IonContent,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonItem, IonLabel, IonList, IonSkeletonText,
-    IonButton
+  IonButton, IonIcon
 } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js';
@@ -117,6 +129,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import {scanOutline} from "ionicons/icons";
 
 // Extend dayjs
 dayjs.extend(utc)
@@ -168,6 +181,10 @@ onMounted(async () => {
   await fetchStats();
   await fetchNews();
 });
+
+function goScan() {
+  router.push('/scan')
+}
 
 function truncateText(text: string, wordLimit = 10) {
   const words = text.trim().split(/\s+/);
@@ -277,6 +294,27 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   min-height: 120px;
 }
 
+.scan-row {
+  display: flex;
+  justify-content: space-between; /* or space-around / space-evenly */
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-height: 60px;
+  width: 100%; /* make it fill the card width */
+  /* Override Ionic default */
+  text-transform: none;
+}
+
+.scan-row > * {
+  flex: 1; /* equal width for children */
+}
+
+.scan-row ion-button {
+  text-transform: none;
+}
+
+
+
 .stat-box {
   cursor: pointer;
   flex: 1 1 45%;
@@ -346,6 +384,27 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   margin-top: 8px;
 }
 
-</style>
+/* If your style block is scoped, use :deep(); if not scoped, drop :deep() */
+:deep(#scan-fab) {
+  position: fixed;
+  right: 20px;
+  bottom: calc(16px + env(safe-area-inset-bottom) + var(--tabbar-height, 0px));
+  z-index: 20;
+  /* Override Ionic default */
+  text-transform: none;
+}
 
+:deep(#scan-fab.center) {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Ensure the tab bar exposes its height as a CSS var */
+#footer-tabs {
+  --tabbar-height: 56px; /* fallback */
+  height: var(--tabbar-height);
+}
+
+</style>
 

@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <app-header title="Search" :icon="searchOutline" />
+    <app-header title="Search" :icon="searchOutline" :showProfile="true" />
     <ion-header>
       <ion-toolbar style="padding: 8px;">
         <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
@@ -50,6 +50,7 @@
         </div>
       </ion-toolbar>
     </ion-header>
+    <div v-if="isNative" id="ad-space-search" style="height:60px;"></div>
 
     <ion-content :fullscreen="true">
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
@@ -157,6 +158,7 @@
         </div>
       </div>
 
+      <!-- bind the ref so we can disable/enable it -->
       <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content
             loading-spinner="bubbles"
@@ -168,7 +170,10 @@
         ❌ {{ errorMsg }}
       </ion-text>
 
-      <ion-modal :is-open="!!selectedProduct" @didDismiss="closeDetails">
+      <ion-modal
+          :is-open="!!selectedProduct"
+          @didDismiss="() => { closeDetails(); }"
+      >
         <ion-header>
           <ion-toolbar>
             <ion-title>Product Details</ion-title>
@@ -282,12 +287,12 @@ import {
   IonInfiniteScrollContent,
   IonRefresher,
   IonRefresherContent,
-    IonSkeletonText,
-    IonThumbnail,
-    IonCard,
-  IonCardContent
+  IonSkeletonText,
+  IonThumbnail,
+  IonCard,
+  IonCardContent, onIonViewWillLeave, onIonViewDidEnter
 } from '@ionic/vue';
-import { defineComponent, ref, onMounted, nextTick } from 'vue';
+import {defineComponent, ref, onMounted, nextTick } from 'vue';
 import { Pagination, Zoom } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import {barcodeOutline, stopCircleOutline, chevronDownCircleOutline, searchOutline} from 'ionicons/icons';
@@ -311,6 +316,7 @@ dayjs.extend(relativeTime)
 
 import { computed } from 'vue'
 import AppHeader from "@/components/AppHeader.vue";
+import {Capacitor} from "@capacitor/core";
 
 interface Product {
   barcode: string;
@@ -372,6 +378,8 @@ export default defineComponent({
     const showReportForm = ref(false);
     const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null);
 
+    const isFetching = ref(false)
+
     async function refreshList(event: CustomEvent) {
       // Reset state
       currentPage.value = 0;
@@ -400,63 +408,60 @@ export default defineComponent({
     const CACHE_TIMESTAMP_KEY = 'products_cache_timestamp';
     const CACHE_EXPIRY_MS = 60_000; // 1 minute
 
+    // update fetchProducts
     const fetchProducts = async (reset = false) => {
-      if (loadingMore.value || allLoaded.value) return;
+      if (isFetching.value || allLoaded.value) return
+      isFetching.value = true
 
-      // ✅ Check cache only on first load
-      if (!reset && currentPage.value === 0) {
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-        const now = Date.now();
-
-        if (cachedData && cachedTimestamp && (now - parseInt(cachedTimestamp)) < CACHE_EXPIRY_MS) {
-          const parsed = JSON.parse(cachedData);
-          allProducts.value = parsed;
-          results.value = [...allProducts.value];
-          loading.value = false;
-          return;
-        }
-      }
-
-      if (reset) {
-        loading.value = true;
-        currentPage.value = 0;
-        allLoaded.value = false;
-        allProducts.value = [];
-        results.value = [];
-      }
-
-      const from = currentPage.value * pageSize;
-      const to = from + pageSize - 1;
-
-      const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .range(from, to)
-          .order('created_at', { ascending: false });
-
-      if (error) {
-        errorMsg.value = error.message;
-      } else {
-        if (!data || data.length < pageSize) {
-          allLoaded.value = true;
+      try {
+        if (reset) {
+          // block infinite scroll while first page loads
+          if (infiniteScroll.value) infiniteScroll.value.disabled = true
+          loading.value = true
+          currentPage.value = 0
+          allLoaded.value = false
+          allProducts.value = []
+          results.value = []
         }
 
-        allProducts.value = [...allProducts.value, ...(data || [])];
-        results.value = [...allProducts.value];
+        const from = currentPage.value * pageSize
+        const to = from + pageSize - 1
 
-        // ✅ Cache products and timestamp
-        if (currentPage.value === 0) {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts.value));
-          localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false })
+            // optional: stable tie-breaker to avoid page overlaps
+            .order('barcode', { ascending: true })
+            .range(from, to)
+
+        if (error) {
+          errorMsg.value = error.message
+        } else {
+          if (!data || data.length < pageSize) allLoaded.value = true
+
+          // 🔒 de-dupe by barcode as a safety net
+          const map = new Map(allProducts.value.map(p => [p.barcode, p]))
+          ;(data || []).forEach(p => map.set(p.barcode, p))
+          allProducts.value = Array.from(map.values())
+          results.value = [...allProducts.value]
+
+          if (currentPage.value === 0) {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts.value))
+            localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString())
+          }
+
+          currentPage.value++
         }
-
-        currentPage.value++;
+      } finally {
+        isFetching.value = false
+        loading.value = false
+        loadingMore.value = false
+        // re-enable after first page completes
+        if (reset && infiniteScroll.value) infiniteScroll.value.disabled = false
       }
+    }
 
-      loading.value = false;
-      loadingMore.value = false;
-    };
 
     function goToReport(barcode: string) {
       closeDetails(); // Close modal
@@ -478,14 +483,15 @@ export default defineComponent({
     };
 
 
+    // loadMore should respect the guards
     const loadMore = async (event: Event) => {
-      await fetchProducts();
-      (event.target as HTMLIonInfiniteScrollElement).complete();
-
-      if (allLoaded.value && infiniteScroll.value) {
-        infiniteScroll.value.disabled = true; // disable after reaching end
+      if (allLoaded.value || isFetching.value) {
+        (event.target as HTMLIonInfiniteScrollElement).complete()
+        return
       }
-    };
+      await fetchProducts()
+      ;(event.target as HTMLIonInfiniteScrollElement).complete()
+    }
 
     const handleSearchInput = async (event: Event) => {
       const target = event.target as HTMLInputElement;
@@ -515,8 +521,8 @@ export default defineComponent({
     };
 
     const openDetails = (product: Product) => {
-      selectedProduct.value = product;
-    };
+      router.push({ name: 'item-details', params: { barcode: product.barcode } })
+    }
 
     // Computed property to highlight ingredients if product is not Halal
     const highlightedIngredients = computed(() => {
@@ -574,11 +580,7 @@ export default defineComponent({
       }
     }
 
-    onIonViewWillEnter(() => {
-      loading.value = true;
-      fetchProducts(true);
-      fetchTotalCount();
-    });
+    const isNative = ref(Capacitor.isNativePlatform())
 
     // Fetch ingredient dictionary from DB on mount
     onMounted(async () => {
@@ -596,6 +598,21 @@ export default defineComponent({
         }, {} as Record<string, string>);
       }
     });
+
+    onIonViewWillEnter(async () => {
+      loading.value = true;
+      await fetchProducts(true);
+      await fetchTotalCount();
+    });
+
+    onIonViewDidEnter(async () => {
+      // if you have a ref to IonContent, you can contentRef.value?.scrollToTop(0)
+      (window as any).scheduleBannerUpdate?.()
+    })
+
+    onIonViewWillLeave(async () => {
+      await stopScan()
+    })
 
     const barcodeCache: Record<string, any[]> = {}; // key = barcode, value = products array
     let lastDecoded: string | null = null;
@@ -727,7 +744,8 @@ export default defineComponent({
       showReportForm,
       goToReport,
       getStatusClass,
-      searchOutline
+      searchOutline,
+      isNative,
     };
   },
 });
