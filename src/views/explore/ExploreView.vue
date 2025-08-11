@@ -2,6 +2,16 @@
   <ion-page>
     <app-header title="Explore" :icon="compassOutline" :showProfile="true" />
     <div v-if="isNative" id="ad-space-explore" style="height:60px;"></div>
+
+    <!-- Web (desktop) AdSense banner -->
+    <div v-else id="ad-space-explore" style="margin: 8px 0;">
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-9588373061537955"
+           data-ad-slot="2307787840"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+    </div>
     <!-- Map stays fixed -->
     <div style="position: relative;">
       <!-- Map container -->
@@ -91,13 +101,15 @@
 
 
 <script setup lang="ts">
+declare global { interface Window { adsbygoogle: any[] } }
+
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter, onIonViewWillLeave
+  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter
 } from '@ionic/vue'
 import { compassOutline, navigateCircleOutline, addOutline } from 'ionicons/icons'
-import {ref, computed, nextTick } from 'vue'
+import {ref, computed, nextTick, onMounted} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader } from '@googlemaps/js-api-loader'
@@ -418,6 +430,15 @@ const sortedLocations = computed(() => {
 })
 
 /* ---------------- Lifecycle ---------------- */
+onMounted(async () => {
+  console.log('isNative?', isNative.value); // should be false in browser
+  if (!isNative.value) {
+    await nextTick();
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
+    catch (e) { console.warn('AdSense push error:', e); }
+  }
+});
+
 onIonViewWillEnter(async () => {
   await initMap()
   await fetchLocations()
