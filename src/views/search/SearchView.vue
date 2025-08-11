@@ -601,13 +601,11 @@ export default defineComponent({
           .from('ingredient_highlights')
           .select('keyword, color');
 
+      console.log('isNative?', isNative.value); // should be false in browser
       if (!isNative.value) {
-        try {
-          // Prevent duplicate push errors
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          console.warn("AdSense push error:", e);
-        }
+        await nextTick();
+        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
+        catch (e) { console.warn('AdSense push error:', e); }
       }
 
       if (error) {
