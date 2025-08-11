@@ -55,12 +55,12 @@
 
     <!-- Web (desktop) AdSense banner -->
     <div v-else id="ad-space-search" style="margin: 8px 0;">
-      <ins class="adsbygoogle"
-           style="display:block"
-           data-ad-client="ca-pub-9588373061537955"
-           data-ad-slot="9798462724"
-           data-ad-format="auto"
-           data-full-width-responsive="true"></ins>
+<!--      <ins class="adsbygoogle"-->
+<!--           style="display:block"-->
+<!--           data-ad-client="ca-pub-9588373061537955"-->
+<!--           data-ad-slot="9798462724"-->
+<!--           data-ad-format="auto"-->
+<!--           data-full-width-responsive="true"></ins>-->
     </div>
 
 
