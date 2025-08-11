@@ -173,7 +173,7 @@
 import {
   IonPage, IonContent, IonButton, IonIcon, IonCard, IonCardContent, IonInput, IonItem,
   IonTextarea, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonToast,
-  IonSpinner, IonProgressBar, IonChip, IonLabel, onIonViewWillEnter, onIonViewDidLeave
+  IonSpinner, IonProgressBar, IonChip, IonLabel
 } from '@ionic/vue'
 import {cameraOutline, cloudUploadOutline, copyOutline, scanOutline, shareOutline} from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
@@ -793,11 +793,30 @@ async function shareResult() {
     });
 
     if (Capacitor.getPlatform() !== 'web') {
-      const base64 = await blobToBase64(card)
+      const base64 = (await blobToBase64(card)).replace(/^data:image\/\w+;base64,/, '')
       const path = `share/ingredients-${Date.now()}.jpg`
-      await Filesystem.writeFile({ path, data: base64, directory: Directory.Cache })
+
+      await Filesystem.writeFile({
+        path,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true,
+      })
+
       const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
-      await Share.share({ title: 'Ingredients', files: [uri] })
+
+      const can = await Share.canShare()
+      if (!can.value) return shareTextFallback()
+
+      await Share.share({
+        title: 'Ingredients',
+        text: [
+          productName.value ? `Product: ${productName.value}` : null,
+          autoStatus.value ? `Status: ${autoStatus.value}` : null,
+        ].filter(Boolean).join('\n'),
+        files: [uri],
+        dialogTitle: 'Share ingredients'
+      })
       return
     }
 
@@ -811,7 +830,8 @@ async function shareResult() {
     a.href = url; a.download = card.name
     document.body.appendChild(a); a.click()
     URL.revokeObjectURL(url); document.body.removeChild(a)
-  } catch {
+  } catch (err) {
+    console.error('[shareResult] native share failed:', err)
     await shareTextFallback()
   }
 }
