@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton,
+  IonPage,
   IonContent, IonSkeletonText, IonChip, IonButton
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
@@ -95,12 +95,24 @@ import {bagOutline} from "ionicons/icons";
 const route = useRoute()
 const barcode = route.params.barcode as string
 
-const item = ref<any>(null)
 const loading = ref(true)
 const isNative = ref(Capacitor.isNativePlatform())
 const modules = [Pagination, Zoom];
 
 const ingredientDictionary = ref<Record<string, string>>({});
+
+interface Product {
+  barcode: string
+  name: string
+  status: string
+  ingredients?: string
+  description?: string
+  photo_front_url?: string
+  photo_back_url?: string
+  created_at?: string
+}
+
+const item = ref<Product | null>(null)
 
 // If this page should show ads (set meta accordingly), keep this true and include the slot.
 // If you used meta:{noAds:true} you can leave the slot out and keep showAds = false.
@@ -123,40 +135,41 @@ function goToReport(barcode: string) {
 }
 
 const highlightedIngredients = computed(() => {
-  if (!item.value || !item.value.ingredients) return '';
+  if (!item.value || !item.value.ingredients) return ''
 
-  // If product is Halal, just return plain text
   if (item.value.status === 'Halal') {
-    return item.value.ingredients;
+    return item.value.ingredients
   }
 
-  const rawIngredients = item.value.ingredients;
-  const parts = rawIngredients.split(',').map(p => p.trim());
+  const rawIngredients: string = item.value.ingredients ?? ''
+  const parts: string[] = rawIngredients
+      .split(',')
+      .map((p: string) => p.trim())        // 👈 typed
 
-  // Sort dictionary by length to avoid partial overlaps first
-  const sortedKeys = Object.keys(ingredientDictionary.value).sort((a, b) => b.length - a.length);
+  const sortedKeys: string[] = Object.keys(ingredientDictionary.value)
+      .sort((a: string, b: string) => b.length - a.length)
 
-  const highlightedParts = parts.map(part => {
-    const lowerPart = part.toLowerCase();
-    let matchedKey: string | null = null;
+  const highlightedParts = parts.map((part: string) => {   // 👈 typed
+    const lowerPart = part.toLowerCase()
+    let matchedKey: string | null = null
 
     for (const key of sortedKeys) {
       if (lowerPart.includes(key.toLowerCase())) {
-        matchedKey = key;
-        break; // ✅ only first/highest match
+        matchedKey = key
+        break
       }
     }
 
     if (matchedKey) {
-      const color = ingredientDictionary.value[matchedKey];
-      return `<span style="font-weight:600;color:var(${color});">${part}</span>`;
+      const color = ingredientDictionary.value[matchedKey]
+      return `<span style="font-weight:600;color:var(${color});">${part}</span>`
     } else {
-      return part;
+      return part
     }
-  });
+  })
 
-  return highlightedParts.join(', ');
-});
+  return highlightedParts.join(', ')
+})
 
 onMounted(async () => {
   loading.value = true
