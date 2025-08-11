@@ -50,7 +50,19 @@
         </div>
       </ion-toolbar>
     </ion-header>
+    <!-- Native (mobile) AdMob banner -->
     <div v-if="isNative" id="ad-space-search" style="height:60px;"></div>
+
+    <!-- Web (desktop) AdSense banner -->
+    <div v-else id="ad-space-search" style="margin: 8px 0;">
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-9588373061537955"
+           data-ad-slot="9798462724"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+    </div>
+
 
     <ion-content :fullscreen="true">
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
@@ -268,6 +280,8 @@
 </template>
 
 <script lang="ts">
+declare global { interface Window { adsbygoogle: any[] } }
+
 import {
   IonPage,
   IonHeader,
@@ -406,7 +420,6 @@ export default defineComponent({
 
     const CACHE_KEY = 'products_cache';
     const CACHE_TIMESTAMP_KEY = 'products_cache_timestamp';
-    const CACHE_EXPIRY_MS = 60_000; // 1 minute
 
     // update fetchProducts
     const fetchProducts = async (reset = false) => {
@@ -587,6 +600,15 @@ export default defineComponent({
       const { data, error } = await supabase
           .from('ingredient_highlights')
           .select('keyword, color');
+
+      if (!isNative.value) {
+        try {
+          // Prevent duplicate push errors
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.warn("AdSense push error:", e);
+        }
+      }
 
       if (error) {
         console.error('Failed to load ingredient highlights:', error);
