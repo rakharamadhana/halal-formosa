@@ -15,7 +15,8 @@
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": ["google.maps"]
   },
   "include": [
     "src/**/*.ts",

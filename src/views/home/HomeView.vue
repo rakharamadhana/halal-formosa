@@ -1,18 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title class="title-brand">
-          <img
-              src="/favicon-32x32.png"
-              alt="Halal Formosa"
-              style="height: 28px; vertical-align: middle; margin-right: 6px;"
-          />
-          Halal Formosa
-        </ion-title>
-      </ion-toolbar>
-    </ion-header>
-
+    <app-header title="Halal Formosa" :showProfile="true" />
     <ion-content class="ion-padding">
 
       <!-- Combined Product Status + Stats Card -->
@@ -37,9 +25,20 @@
               <p>Halal Locations</p>
             </div>
           </div>
+
+          <div class="scan-row">
+            <ion-button
+                expand="block"
+                color="carrot"
+                @click="goScan"
+            >
+              <ion-icon :icon="scanOutline" slot="start" />
+              Scan Ingredients
+            </ion-button>
+
+          </div>
         </ion-card-content>
       </ion-card>
-
 
       <!-- Halal & Islam News -->
       <ion-card class="news-card">
@@ -56,20 +55,46 @@
                 class="news-item"
                 @click="router.push(`/news/${item.id}`)"
             >
-            <div class="news-thumbnail">
+              <div class="news-thumbnail">
                 <img :src="item.thumbnail" loading="lazy" alt="News Thumbnail" />
               </div>
               <ion-label>
                 <h2>{{ item.title }}</h2>
-                <p>{{ item.summary }}</p>
+                <p style="color: var(--ion-background-color-step-800)">{{ item.summary }}</p>
+                <p><small>{{ fromNowToTaipei(item.created_at) }}</small></p>
               </ion-label>
             </ion-item>
           </ion-list>
 
           <template v-if="loadingNews">
-            <ion-skeleton-text animated style="width: 80%; height: 20px"></ion-skeleton-text>
-            <ion-skeleton-text animated style="width: 60%; height: 14px; margin-top: 6px"></ion-skeleton-text>
+            <ion-list>
+              <ion-item v-for="n in 3" :key="n" class="news-item">
+                <!-- Skeleton thumbnail -->
+                <div class="news-thumbnail">
+                  <ion-skeleton-text animated style="width: 100%; height: 100%; border-radius: 6px;" />
+                </div>
+
+                <!-- Skeleton text placeholders -->
+                <ion-label>
+                  <ion-skeleton-text animated style="width: 80%; height: 18px; margin-bottom: 6px;" />
+                  <ion-skeleton-text animated style="width: 60%; height: 14px; margin-bottom: 6px;" />
+                  <ion-skeleton-text animated style="width: 40%; height: 12px;" />
+                </ion-label>
+              </ion-item>
+            </ion-list>
           </template>
+
+          <!-- ✅ View More Button -->
+          <div class="view-more-container">
+            <ion-button
+                fill="clear"
+                size="small"
+                color="primary"
+                @click="goToNewsPage"
+            >
+              View More →
+            </ion-button>
+          </div>
         </ion-card-content>
       </ion-card>
     </ion-content>
@@ -79,15 +104,17 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
+  IonPage, IonContent,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonItem, IonLabel, IonList, IonSkeletonText
+  IonItem, IonLabel, IonList, IonSkeletonText,
+  IonButton, IonIcon
 } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js';
 import { Doughnut } from 'vue-chartjs';
 import { supabase } from '@/plugins/supabaseClient';
 import type { ChartData, ChartOptions } from 'chart.js';
+import AppHeader from "@/components/AppHeader.vue";
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale);
 
@@ -98,6 +125,26 @@ const doughnutRef = ref<any>(null);
 const totalProducts = ref(0);
 const totalLocations = ref(0);
 
+import relativeTime from 'dayjs/plugin/relativeTime'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+import {scanOutline} from "ionicons/icons";
+
+// Extend dayjs
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(relativeTime)
+
+function fromNowToTaipei(dateString?: string) {
+  if (!dateString) return ''
+  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+}
+
+const ionColorDark = getComputedStyle(document.documentElement)
+    .getPropertyValue('--ion-color-dark')
+    .trim(); // remove whitespace
+
 const chartOptions: ChartOptions<'doughnut'> = {
   responsive: true,
   maintainAspectRatio: false,
@@ -106,6 +153,7 @@ const chartOptions: ChartOptions<'doughnut'> = {
       position: 'right',  // ✅ Move legend to right
       align: 'center',
       labels: {
+        color: ionColorDark, // Sets the color of the legend labels to white
         boxWidth: 14,      // Smaller color boxes
         font: {
           size: 12         // Smaller font
@@ -134,6 +182,10 @@ onMounted(async () => {
   await fetchNews();
 });
 
+function goScan() {
+  router.push('/scan')
+}
+
 function truncateText(text: string, wordLimit = 10) {
   const words = text.trim().split(/\s+/);
   return words.slice(0, wordLimit).join(' ') + (words.length > wordLimit ? '…' : '');
@@ -157,20 +209,24 @@ function generateSummary(content: string, title: string, wordLimit = 20) {
   return truncatedWords.join(' ') + (allWords.length > wordLimit ? '…' : '');
 }
 
+function goToNewsPage() {
+  router.push('/news');
+}
 
 async function fetchNews() {
   const { data, error } = await supabase
       .from('news')
       .select('id, title, header_image, content, created_at, author_name')
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(3);
 
   if (!error && data) {
     news.value = data.map(item => ({
       id: item.id,
       title: truncateText(item.title, 12),
       summary: generateSummary(item.content, item.title, 10),
-      thumbnail: item.header_image || 'https://placehold.co/600x400'
+      thumbnail: item.header_image || 'https://placehold.co/600x400',
+      created_at: item.created_at
     }));
   }
 
@@ -238,12 +294,33 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   min-height: 120px;
 }
 
+.scan-row {
+  display: flex;
+  justify-content: space-between; /* or space-around / space-evenly */
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-height: 60px;
+  width: 100%; /* make it fill the card width */
+  /* Override Ionic default */
+  text-transform: none;
+}
+
+.scan-row > * {
+  flex: 1; /* equal width for children */
+}
+
+.scan-row ion-button {
+  text-transform: none;
+}
+
+
+
 .stat-box {
   cursor: pointer;
   flex: 1 1 45%;
   min-width: 140px;
   height: 100px;
-  background: #fff;
+  background: var(--ion-color-light);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   display: flex;
@@ -301,6 +378,33 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   height: 100%;
   object-fit: cover;
 }
-</style>
 
+.view-more-container {
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* If your style block is scoped, use :deep(); if not scoped, drop :deep() */
+:deep(#scan-fab) {
+  position: fixed;
+  right: 20px;
+  bottom: calc(16px + env(safe-area-inset-bottom) + var(--tabbar-height, 0px));
+  z-index: 20;
+  /* Override Ionic default */
+  text-transform: none;
+}
+
+:deep(#scan-fab.center) {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Ensure the tab bar exposes its height as a CSS var */
+#footer-tabs {
+  --tabbar-height: 56px; /* fallback */
+  height: var(--tabbar-height);
+}
+
+</style>
 

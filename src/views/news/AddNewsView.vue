@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-back-button default-href="/news" />
+        </ion-buttons>
         <ion-title>Write News Article</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -28,47 +31,158 @@
         </div>
       </div>
 
-      <!-- Rich Text Editor -->
+      <!-- Toggle -->
+      <ion-segment v-model="useRawHtml" class="mode-toggle">
+      <ion-segment-button value="editor">
+          <ion-label>Editor</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="raw">
+          <ion-label>Raw HTML</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+
+      <!-- Editor Section -->
       <div class="editor-section">
         <label class="upload-label">Content</label>
-        <QuillEditor
-            v-model="content"
-            theme="snow"
-            :modules="editorModules"
-            placeholder="Write your article..."
-        />
+        <div v-if="useRawHtml === 'editor'">
+          <QuillEditor
+              ref="quillRef"
+              theme="snow"
+              toolbar="full"
+              placeholder="Write your article..."
+              @text-change="onQuillTextChange"
+          />
+        </div>
+        <div v-else>
+          <ion-textarea
+              v-model="content"
+              label="Raw HTML"
+              label-placement="stacked"
+              auto-grow
+              :rows="10"
+          />
+        </div>
       </div>
 
       <!-- Actions -->
       <ion-button expand="block" color="carrot" class="ion-margin-top" @click="submitArticle" :disabled="loading">
         {{ loading ? 'Publishing...' : 'Publish Article' }}
       </ion-button>
+
+      <ion-toast
+          :is-open="showToast"
+          :message="toastMessage"
+          :duration="2000"
+          color="success"
+          position="bottom"
+          @did-dismiss="showToast = false"
+      />
+
+      <ion-toast
+          :is-open="showErrorToast"
+          :message="errorMsg"
+          :duration="2500"
+          color="danger"
+          position="bottom"
+          @did-dismiss="showErrorToast = false"
+      />
+
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonItem, IonInput, IonButton } from '@ionic/vue';
+import { ref, watch, nextTick, onMounted, computed } from 'vue';
+import {
+  IonPage,
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonItem,
+  IonInput,
+  IonButton,
+  IonBackButton,
+  IonButtons,
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
+  IonTextarea,
+  IonToast
+} from '@ionic/vue';
+import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
-import { Quill } from '@vueup/vue-quill';
+import type { User } from '@supabase/supabase-js';
+import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
+const user = ref<User | null>(null);
 const title = ref('');
 const content = ref('');
 const headerFile = ref<File | null>(null);
 const headerPreview = ref<string | null>(null);
 const loading = ref(false);
 
-const editorModules: Quill['modules'] = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline', 'strike'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['link', 'image'],
-    ['clean'],
-  ],
-};
+const quillRef = ref();
+const useRawHtml = ref('editor');
+
+const showToast = ref(false);
+const showErrorToast = ref(false);
+const toastMessage = ref('');
+const errorMsg = ref('');
+
+const route = useRoute();
+const router = useRouter();
+const isEdit = computed(() => !!route.params.id);
+const editingId = computed(() => route.params.id as string);
+
+// Prefill form if editing
+onMounted(async () => {
+  const { data } = await supabase.auth.getUser();
+  user.value = data.user;
+
+  if (isEdit.value) {
+    const { data: article, error } = await supabase
+        .from('news')
+        .select('*')
+        .eq('id', editingId.value)
+        .single();
+
+    if (!error && article) {
+      title.value = article.title;
+      content.value = article.content;
+      headerPreview.value = article.header_image;
+
+      // 🛠️ Manually update the Quill editor content if mode is 'editor'
+      nextTick(() => {
+        if (useRawHtml.value === 'editor' && quillRef.value) {
+          const quill = quillRef.value.getQuill();
+          if (quill) {
+            quill.setContents([]);
+            quill.clipboard.dangerouslyPasteHTML(article.content || '');
+          }
+        }
+      });
+    }
+  }
+});
+
+// Sync raw ↔ editor
+watch(useRawHtml, async (val) => {
+  if (val === 'editor') {
+    await nextTick();
+    const quill = quillRef.value?.getQuill();
+    if (quill) {
+      quill.setContents([]);
+      quill.clipboard.dangerouslyPasteHTML(content.value || '');
+    }
+  }
+});
+
+function onQuillTextChange() {
+  const quill = quillRef.value?.getQuill();
+  if (quill) content.value = quill.root.innerHTML;
+}
 
 function handleHeaderImage(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0] || null;
@@ -79,47 +193,112 @@ function handleHeaderImage(e: Event) {
 }
 
 async function submitArticle() {
+  if (!user.value) {
+    errorMsg.value = "You must be logged in.";
+    showErrorToast.value = true;
+    return;
+  }
+
   if (!title.value || !content.value) {
     alert('Title and content are required');
     return;
   }
 
   loading.value = true;
-
+  let newsId = editingId.value;
   let headerUrl = null;
+
+  // Step 1: Insert or update article (without image)
+  if (isEdit.value) {
+    const { error: updateError } = await supabase
+        .from('news')
+        .update({
+          title: title.value,
+          content: content.value,
+          updated_at: new Date()
+        })
+        .eq('id', editingId.value);
+
+    if (updateError) {
+      errorMsg.value = '❌ Failed to update: ' + updateError.message;
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+  } else {
+    const { data: insertResult, error: insertError } = await supabase
+        .from('news')
+        .insert({
+          title: title.value,
+          content: content.value,
+          created_at: new Date(),
+          author_id: user.value.id,
+          author_name: user.value.user_metadata.name,
+        })
+        .select()
+        .single();
+
+    if (insertError || !insertResult) {
+      errorMsg.value = '❌ ' + (insertError?.message || 'Insert failed.');
+      showErrorToast.value = true;
+      loading.value = false;
+      return;
+    }
+    newsId = insertResult.id;
+  }
+
+  // Step 2: Upload image if selected
   if (headerFile.value) {
-    const filePath = `news/${Date.now()}-${headerFile.value.name}`;
-    const { error } = await supabase.storage.from('news-images').upload(filePath, headerFile.value);
-    if (error) {
-      console.error('Image upload failed:', error.message);
+    const filePath = `${newsId}/${Date.now()}-${headerFile.value.name}`;
+    const { error: uploadError } = await supabase.storage
+        .from('news-images')
+        .upload(filePath, headerFile.value, { upsert: true });
+
+    if (uploadError) {
+      console.error('❌ Image upload failed:', uploadError.message);
     } else {
-      const { data: urlData } = supabase.storage.from('news-images').getPublicUrl(filePath);
-      headerUrl = urlData.publicUrl;
+      const { data: urlData } = supabase.storage
+          .from('news-images')
+          .getPublicUrl(filePath);
+
+      headerUrl = urlData?.publicUrl;
+
+      // Step 3: Update header_image field
+      if (headerUrl) {
+        const { error: imageUpdateError } = await supabase
+            .from('news')
+            .update({ header_image: headerUrl })
+            .eq('id', newsId);
+
+        if (imageUpdateError) {
+          console.error('❌ Failed to set image:', imageUpdateError.message);
+        }
+      }
     }
   }
 
-  const { error } = await supabase.from('news').insert({
-    title: title.value,
-    content: content.value,
-    header_image: headerUrl,
-    created_at: new Date(),
-  });
-
   loading.value = false;
+  toastMessage.value = isEdit.value ? '✅ Article updated!' : '✅ Article published!';
+  showToast.value = true;
 
-  if (error) {
-    alert('Error publishing article: ' + error.message);
-  } else {
-    alert('Article published successfully!');
-    title.value = '';
-    content.value = '';
-    headerFile.value = null;
-    headerPreview.value = null;
-  }
+  // Clear form or redirect
+  setTimeout(() => {
+    router.push(`/news/${newsId}`);
+  }, 1200);
 }
 </script>
 
+
 <style scoped>
+ion-toast {
+  margin-bottom: 80px;
+}
+
+.mode-toggle {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 .upload-section {
   margin-top: 1rem;
 }
@@ -145,10 +324,45 @@ async function submitArticle() {
   margin-top: 1rem;
 }
 
-.rich-editor {
-  min-height: 200px;
-  background: #fff;
-  border-radius: 8px;
+/* Scoped or global */
+:deep(.ql-toolbar) {
+  background-color: var(--ion-background-color-step-50);
+  border-radius: 8px 8px 0 0;
   padding: 0.5rem;
 }
+:deep(.ql-container) {
+  border-radius: 0 0 8px 8px;
+}
+
+:deep(.ql-editor.ql-blank::before) {
+  color: var(--ion-color-dark);
+}
+
+:deep(.ql-toolbar) {
+  background-color: var(--ion-background-color-step-300); /* or a custom dark color */
+  border-color: var(--ion-color-medium);
+}
+
+:deep(.ql-toolbar .ql-picker-label),
+:deep(.ql-toolbar .ql-picker-item),
+:deep(.ql-toolbar button) {
+  color: var(--ion-color-dark); /* Text/icon color */
+}
+
+:deep(.ql-toolbar button:hover),
+:deep(.ql-toolbar button.ql-active),
+:deep(.ql-toolbar .ql-picker-label:hover),
+:deep(.ql-toolbar .ql-picker-item:hover) {
+  color: var(--ion-color-primary); /* Hover/active highlight */
+}
+
+/* Optional: lighten SVG icons too */
+:deep(.ql-toolbar .ql-stroke) {
+  stroke: var(--ion-color-dark);
+}
+:deep(.ql-toolbar .ql-fill) {
+  fill: var(--ion-color-dark);
+}
+
+
 </style>
