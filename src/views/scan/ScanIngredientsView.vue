@@ -719,6 +719,8 @@ function extractProductName(text: string) {
 /** ---------- Highlighting + status ---------- */
 async function recheckHighlights() {
   const raw = ingredientsText.value.trim()
+
+  // If no text or no highlight config, clear & bail
   if (!raw || !allHighlights.value.length) {
     ingredientHighlights.value = []
     autoStatus.value = ''
@@ -726,10 +728,19 @@ async function recheckHighlights() {
   }
 
   const parts = raw.split(/\s*,\s*/).map(x => x.trim()).filter(Boolean)
-  const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
 
+  // If we have zero parsed ingredients, keep status empty
+  if (parts.length === 0) {
+    ingredientHighlights.value = []
+    autoStatus.value = ''
+    return
+  }
+
+  // Match highlights (same as before)
+  const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
   const found: IngredientHighlight[] = []
   const seen = new Set<string>()
+
   for (const ing of parts) {
     const low = ing.toLowerCase()
     const m = highlights.find(h =>
@@ -742,13 +753,19 @@ async function recheckHighlights() {
   }
   ingredientHighlights.value = found
 
-  // derive status by color priority
-  const colors = found.map(h => extractIonColor(h.color))
-  autoStatus.value =
-      colors.includes('danger') ? 'Haram' :
-          colors.includes('warning') ? 'Syubhah' :
-              colors.includes('primary') ? 'Muslim-friendly' :
-                  'Halal'
+  // Derive status with new default rule:
+  const hasHaram = found.some(h => extractIonColor(h.color) === 'danger')
+  const hasSyubhah = found.some(h => extractIonColor(h.color) === 'warning')
+  // const hasMuslimFriendly = found.some(h => extractIonColor(h.color) === 'primary') // optional
+
+  if (hasHaram) {
+    autoStatus.value = 'Haram'
+  } else if (hasSyubhah) {
+    autoStatus.value = 'Syubhah'
+  } else {
+    // ✅ default when no risky hits detected
+    autoStatus.value = 'Muslim-friendly'
+  }
 }
 
 function extractIonColor(full: string) {
