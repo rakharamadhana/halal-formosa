@@ -58,8 +58,27 @@
         </ion-header>
 
         <ion-content class="ion-padding">
-          <p>This scanner checks product ingredients against our curated database of English and Chinese keywords. Each match is highlighted by category:</p>
+          <p>
+            This scanner checks product ingredients using OCR (Optical Character Recognition) and our curated halal ingredient database.
+          </p>
 
+          <h3>Step-by-Step Process</h3>
+          <ol>
+            <li>
+              <strong>OCR Processing</strong> – The product image (taken by camera or uploaded from gallery) is sent to an OCR server, which reads and extracts the ingredient text from the image.
+            </li>
+            <li>
+              <strong>Translation</strong> – If the detected text is in Chinese, it is sent to Google Translation to be converted into English for consistent checking.
+            </li>
+            <li>
+              <strong>Database Matching</strong> – The translated English ingredient list is checked against our curated database of keywords for halal, Muslim-friendly, syubhah, and haram indicators.
+            </li>
+            <li>
+              <strong>Result Display</strong> – Any matches are highlighted by category with their status shown for your reference.
+            </li>
+          </ol>
+
+          <h3>Ingredient Categories</h3>
           <ion-list lines="none">
             <ion-item>
               <ion-label>
@@ -94,13 +113,16 @@
             </ion-item>
           </ion-list>
 
-          <p style="margin-top: 16px;">Results are for <strong>reference only</strong>. Always verify with trusted sources before consuming.</p>
+          <p style="margin-top: 16px;">
+            Results are for <strong>reference only</strong>. Always verify with trusted sources before consuming.
+          </p>
 
           <ion-button expand="block" color="carrot" @click="closeDetailedDisclaimer">
             Got It
           </ion-button>
         </ion-content>
       </ion-modal>
+
 
       <ion-card>
         <ion-card-content>
