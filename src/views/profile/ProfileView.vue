@@ -188,7 +188,7 @@
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
-import {onIonViewDidLeave, onIonViewWillEnter} from '@ionic/vue';
+import { onIonViewWillEnter} from '@ionic/vue';
 import {settingsOutline, documentTextOutline, personCircleOutline} from 'ionicons/icons';
 import {
   IonPage,
