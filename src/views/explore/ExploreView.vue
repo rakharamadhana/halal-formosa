@@ -117,6 +117,9 @@ import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { supabase } from '@/plugins/supabaseClient'
 import AppHeader from "@/components/AppHeader.vue";
+import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
+import { Cluster, Renderer } from "@googlemaps/markerclusterer"
+
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
@@ -198,6 +201,48 @@ const onImageError = (e: Event) => {
   img.onerror = null
   img.src = PLACEHOLDER
 }
+
+const carrotRippleClusterRenderer: Renderer = {
+  render: ({ count, position }: Cluster) => {
+    // Color based on count
+    let bg = "rgba(255, 159, 64, 1)" // light orange
+    if (count > 50) bg = "rgba(255, 87, 34, 1)" // carrot orange
+    if (count > 100) bg = "rgba(220, 53, 69, 1)" // red
+
+    const div = document.createElement("div")
+    div.style.background = bg
+    div.style.color = "white"
+    div.style.borderRadius = "50%"
+    div.style.display = "flex"
+    div.style.alignItems = "center"
+    div.style.justifyContent = "center"
+    div.style.width = "40px"
+    div.style.height = "40px"
+    div.style.fontSize = "14px"
+    div.style.fontWeight = "bold"
+    div.style.boxShadow = "0 0 0 8px rgba(255, 87, 34, 0.5)" // soft ripple glow
+    div.style.transition = "transform 0.3s ease"
+    div.textContent = String(count)
+
+    // Animate ripple
+    div.animate(
+        [
+          { boxShadow: "0 0 0 0 rgba(255, 87, 34, 0.4)" },
+          { boxShadow: "0 0 0 12px rgba(255, 87, 34, 0)" }
+        ],
+        {
+          duration: 1500,
+          iterations: Infinity
+        }
+    )
+
+    return new google.maps.marker.AdvancedMarkerElement({
+      position,
+      content: div
+    })
+  },
+}
+
 
 const buildInfoHtml = (p: Place) => `
   <div>
@@ -295,9 +340,11 @@ const initMap = async () => {
 
 const initMarkers = () => {
   if (!mapInstance || !advancedMarkerLib) return
-  // clear any previous markers if you ever refetch:
+
   markerMap.forEach(m => m.map = null)
   markerMap.clear()
+
+  const markerArray: google.maps.marker.AdvancedMarkerElement[] = []
 
   locations.value.forEach((loc) => {
     const iconHTML = document.createElement('div')
@@ -305,21 +352,30 @@ const initMarkers = () => {
 
     const marker = new advancedMarkerLib!.AdvancedMarkerElement({
       position: loc.position,
-      map: mapInstance!,
       content: iconHTML,
       title: `${loc.type}: ${loc.name}`
     })
 
     marker.addListener('click', () => {
       if (searchQuery.value && !loc.name.toLowerCase().includes(searchQuery.value.toLowerCase())) {
-        searchQuery.value = '' // clear filter so the card exists in the list
+        searchQuery.value = ''
       }
       selectPlace(loc)
     })
 
     markerMap.set(loc.id, marker)
+    markerArray.push(marker)
+  })
+
+  // ✅ Create cluster with custom carrot icons
+  new MarkerClusterer({
+    map: mapInstance!,
+    markers: markerArray,
+    renderer: carrotRippleClusterRenderer,
+    algorithm: new SuperClusterAlgorithm({ radius: 80 })
   })
 }
+
 
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {

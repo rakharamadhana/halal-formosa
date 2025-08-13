@@ -10,24 +10,120 @@
 
     <ion-content :fullscreen="true" class="ion-padding">
 
+      <ion-modal :is-open="showSimpleDisclaimer" backdrop-dismiss="false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Halal Scanner Disclaimer</ion-title>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="ion-padding">
+          <p style="margin-bottom: 12px;">
+            This scanner only checks ingredients based on a keyword database.
+            It does <strong>not</strong> provide an official halal ruling.
+            Please use your own judgment before consuming.
+          </p>
+
+          <blockquote style="font-size: 14px; color: var(--ion-color-success); border-left: 4px solid var(--ion-color-success); padding-left: 8px;">
+            <em>
+              "O mankind, eat from whatever is on earth [that is] lawful and good..."
+            </em> <br />
+            <small>— Qur'an 2:168</small>
+          </blockquote>
+
+          <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <!-- First row: Agree + Learn More -->
+            <div style="display: flex; gap: 8px; width: 100%;">
+              <ion-button style="flex: 1;" color="carrot" @click="acceptDisclaimer">
+                I Understand
+              </ion-button>
+              <ion-button style="flex: 1;" fill="outline" color="medium" @click="showDetails">
+                Learn More
+              </ion-button>
+            </div>
+
+            <!-- Second row: No want to use -->
+            <ion-button expand="block" fill="outline" color="medium" @click="declineDisclaimer">
+              No, I Don't Want to Use This Feature
+            </ion-button>
+          </div>
+        </ion-content>
+      </ion-modal>
+
+      <ion-modal :is-open="showDetailedDisclaimer" backdrop-dismiss="false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>How It Works</ion-title>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="ion-padding">
+          <p>This scanner checks product ingredients against our curated database of English and Chinese keywords. Each match is highlighted by category:</p>
+
+          <ion-list lines="none">
+            <ion-item>
+              <ion-label>
+                <h2 style="color: var(--ion-color-success); font-weight: bold;">Halal</h2>
+                <p>Has halal certification within the product.</p>
+                <small><em>Examples:</em> Halal BPJPH Indonesia, Halal CMA, Halal TGM, Halal Thailand</small>
+              </ion-label>
+            </ion-item>
+
+            <ion-item>
+              <ion-label>
+                <h2 style="color: var(--ion-color-primary); font-weight: bold;">Muslim-Friendly</h2>
+                <p>No <em>Syubhah</em> or <em>Haram</em> ingredients detected, but not officially halal certified.</p>
+                <small><em>Examples:</em> Lecithin (Soy), Soy Lecithin, Emulsifier (Sugar Cane), Fresh Cream</small>
+              </ion-label>
+            </ion-item>
+
+            <ion-item>
+              <ion-label>
+                <h2 style="color: var(--ion-color-warning); font-weight: bold;">Syubhah</h2>
+                <p>Doubtful or unclear ingredients that may need further checking.</p>
+                <small><em>Examples:</em> Unknown Emulsifier, Butter, Margarine, Vinegar</small>
+              </ion-label>
+            </ion-item>
+
+            <ion-item>
+              <ion-label>
+                <h2 style="color: var(--ion-color-danger); font-weight: bold;">Haram</h2>
+                <p>Prohibited ingredients.</p>
+                <small><em>Examples:</em> Pork, Gelatin, Alcohol, Lard, Wine</small>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+
+          <p style="margin-top: 16px;">Results are for <strong>reference only</strong>. Always verify with trusted sources before consuming.</p>
+
+          <ion-button expand="block" color="carrot" @click="closeDetailedDisclaimer">
+            Got It
+          </ion-button>
+        </ion-content>
+      </ion-modal>
+
       <ion-card>
         <ion-card-content>
-          <ion-button color="carrot" expand="block" @click="scanFromCamera" :disabled="ocrLoading">
-            <ion-icon :icon="cameraOutline" slot="start" />
-            Use Camera
-          </ion-button>
+          <!-- Big Buttons Row -->
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <!-- Camera Button -->
+            <div
+                @click="scanFromCamera"
+                style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+            >
+              <ion-icon :icon="cameraOutline" style="font-size: 48px; color: var(--ion-color-light);" />
+              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">Camera</span>
+            </div>
 
-          <ion-button
-              expand="block"
-              fill="outline"
-              class="ion-margin-top"
-              color="carrot"
-              @click="scanFromGallery"
-              :disabled="ocrLoading"
-          >
-            <ion-icon :icon="cloudUploadOutline" slot="start" />
-            Choose from Gallery
-          </ion-button>
+            <!-- Gallery Button -->
+            <div
+                @click="scanFromGallery"
+                style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+            >
+              <ion-icon :icon="cloudUploadOutline" style="font-size: 48px; color: var(--ion-color-light);" />
+              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">Gallery</span>
+            </div>
+          </div>
 
           <ion-progress-bar
               v-if="ocrLoading"
@@ -155,6 +251,7 @@
           :message="errMsg"
           :duration="2200"
           color="danger"
+          style="transform: translateY(-6%)"
           position="bottom"
           @did-dismiss="showErr=false"
       />
@@ -173,11 +270,11 @@
 import {
   IonPage, IonContent, IonButton, IonIcon, IonCard, IonCardContent, IonInput, IonItem,
   IonTextarea, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonToast,
-  IonSpinner, IonProgressBar, IonChip, IonLabel
+  IonSpinner, IonProgressBar, IonChip, IonLabel, onIonViewWillEnter, IonList
 } from '@ionic/vue'
 import {cameraOutline, cloudUploadOutline, copyOutline, scanOutline, shareOutline} from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
-import {ref, onMounted, nextTick, onUnmounted} from 'vue'
+import {ref, nextTick, onUnmounted} from 'vue'
 
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
@@ -190,6 +287,7 @@ import type { PluginListenerHandle } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 
 import { supabase } from '@/plugins/supabaseClient'
+import router from "@/router";
 
 /** ---------- State ---------- */
 const showCropper = ref(false)
@@ -207,12 +305,28 @@ const productName = ref('')
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
 
+const showSimpleDisclaimer = ref(false)
+const showDetailedDisclaimer = ref(false)
+
+const DISCLAIMER_ACK_KEY = 'disclaimerAccepted'
+const DISCLAIMER_COUNT_KEY = 'disclaimerScanCount'
+
 /** Highlights + status */
 interface IngredientHighlight {
   keyword: string
   keyword_zh?: string
   color: string
 }
+
+interface BlacklistPattern {
+  pattern: string
+}
+
+interface HighlightCache {
+  highlights: IngredientHighlight[]
+  blacklist: BlacklistPattern[]
+}
+
 const allHighlights = ref<IngredientHighlight[]>([])
 const ingredientHighlights = ref<IngredientHighlight[]>([])
 const blacklistPatterns = ref<RegExp[]>([])
@@ -221,19 +335,136 @@ const autoStatus = ref('')
 const originalPreviewUrl = ref<string | null>(null) // original file preview
 const croppedPreviewUrl  = ref<string | null>(null) // cropped area preview
 
+/** ---------- Show the Disclaimer of Usage ---------- */
+
+function maybeShowDisclaimer() {
+  const accepted = localStorage.getItem(DISCLAIMER_ACK_KEY) === 'true'
+  const count = parseInt(localStorage.getItem(DISCLAIMER_COUNT_KEY) || '0', 10)
+
+  if (!accepted || count >= 5) {
+    // reset reminder count if showing disclaimer again
+    if (count >= 5) localStorage.setItem(DISCLAIMER_COUNT_KEY, '0')
+    showSimpleDisclaimer.value = true
+    return true // means "modal is showing, wait for user action"
+  }
+  return false
+}
+
+function showDetails() {
+  showDetailedDisclaimer.value = true
+}
+
+function acceptDisclaimer() {
+  localStorage.setItem(DISCLAIMER_ACK_KEY, 'true')
+  localStorage.setItem(DISCLAIMER_COUNT_KEY, '0')
+  showSimpleDisclaimer.value = false
+}
+
+function closeDetailedDisclaimer() {
+  showDetailedDisclaimer.value = false
+}
+
+function declineDisclaimer() {
+  localStorage.removeItem(DISCLAIMER_ACK_KEY)
+  showSimpleDisclaimer.value = false
+  error('You must accept the disclaimer to use halal scanner feature.')
+  router.push('/home')
+}
+
+function incrementDisclaimerCount() {
+  let count = parseInt(localStorage.getItem(DISCLAIMER_COUNT_KEY) || '0', 10)
+  count++
+  localStorage.setItem(DISCLAIMER_COUNT_KEY, count.toString())
+}
 
 /** ---------- Boot: fetch highlight data ---------- */
 let resumeHandle: PluginListenerHandle | null = null
+const CACHE_KEY = 'highlightCache'
+const COUNT_KEY = 'highlightFetchCount'
 
-onMounted(async () => {
-  const [hl, bl] = await Promise.all([
-    supabase.from('ingredient_highlights').select('keyword, keyword_zh, color'),
-    supabase.from('ingredient_blacklist').select('pattern').eq('is_active', true)
-  ])
-  if (!hl.error && hl.data) allHighlights.value = hl.data
-  if (!bl.error && bl.data) blacklistPatterns.value = bl.data.map(
-      (row) => new RegExp(row.pattern, 'gi')   // 👈 global + case-insensitive
-  );
+// Load from cache
+// Load from cache
+function loadCachedHighlights(): HighlightCache | null {
+  const raw = localStorage.getItem(CACHE_KEY)
+  return raw ? JSON.parse(raw) as HighlightCache : null
+}
+
+// Save to cache
+function saveCachedHighlights(data: HighlightCache) {
+  localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+  localStorage.setItem(COUNT_KEY, '0') // reset usage count
+}
+
+// Increment usage counter
+function incrementUsageCount() {
+  let count = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10)
+  count++
+  localStorage.setItem(COUNT_KEY, count.toString())
+  console.log("Usage count: ",count)
+  return count
+}
+
+// Main fetch logic
+async function fetchHighlightsWithCache(force = false): Promise<HighlightCache | null> {
+  const count = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10)
+  console.log(`[HighlightCache] Usage count = ${count}, force = ${force}`)
+
+  // If we haven't reached 5 scans yet and not forced, use cache
+  if (!force && count < 5) {
+    const cached = loadCachedHighlights()
+    if (cached) {
+      console.log(`[HighlightCache] ✅ Using cached highlights (count = ${count})`, cached)
+      return cached
+    } else {
+      console.log(`[HighlightCache] ⚠ No cached data found, fetching from Supabase...`)
+    }
+  } else {
+    console.log(`[HighlightCache] 🔄 Count threshold reached (${count}) or force = true, fetching from Supabase...`)
+  }
+
+  try {
+    const [hl, bl] = await Promise.all([
+      supabase
+          .from('ingredient_highlights')
+          .select('keyword, keyword_zh, color'),
+      supabase
+          .from('ingredient_blacklist')
+          .select('pattern')
+          .eq('is_active', true)
+    ])
+
+    if (!hl.error && !bl.error && hl.data && bl.data) {
+      const data: HighlightCache = {
+        highlights: hl.data,
+        blacklist: bl.data
+      }
+      saveCachedHighlights(data)
+      console.log(`[HighlightCache] 📡 Fetched fresh data from Supabase`, data)
+      return data
+    } else {
+      console.error(`[HighlightCache] ❌ Error fetching from Supabase`, hl.error || bl.error)
+    }
+  } catch (err) {
+    console.error(`[HighlightCache] ❌ Supabase fetch failed, trying cache fallback`, err)
+    return loadCachedHighlights()
+  }
+
+  return null
+}
+
+onIonViewWillEnter(async () => {
+  if (maybeShowDisclaimer()) return
+
+  const data = await fetchHighlightsWithCache()
+  if (!data) {
+    console.warn('No cache and no internet — highlight system will be empty.')
+    return
+  }
+
+  allHighlights.value = data.highlights
+  blacklistPatterns.value = data.blacklist.map(
+      (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+  )
 })
 
 onUnmounted(() => {
@@ -590,6 +821,8 @@ async function runOcr(file: File) {
 
   const cleanedZh = cleanChineseOcrText(raw)
   const translated = await translateToEnglish(cleanedZh)
+  if (translated === null) return // Translation error already shown
+
   if (!translated.toLowerCase().includes('ingredient')) {
     return error('Ingredients not detected. Please crop the ingredients section.')
   }
@@ -601,6 +834,36 @@ async function runOcr(file: File) {
   await recheckHighlights()
 
   showOk.value = true
+
+  // ✅ Increment counters only after successful scan
+  incrementDisclaimerCount()
+  const count = incrementUsageCount()
+
+  // ✅ If count reached 5, fetch fresh data and reset counter
+  if (count >= 5) {
+    const data = await fetchHighlightsWithCache(true) // force refresh
+    if (data) {
+      allHighlights.value = data.highlights
+      blacklistPatterns.value = data.blacklist.map(
+          (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+      )
+    }
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms)
+    promise
+        .then((value) => {
+          clearTimeout(timer)
+          resolve(value)
+        })
+        .catch((err) => {
+          clearTimeout(timer)
+          reject(err)
+        })
+  })
 }
 
 async function extractTextFromImage(file: File) {
@@ -614,28 +877,73 @@ async function extractTextFromImage(file: File) {
     formData.append('scale', 'true')
     formData.append('OCREngine', '2')
 
-    const res = await fetch('https://api.ocr.space/parse/image', { method: 'POST', body: formData })
+    // Wrap fetch in timeout
+    const res = await withTimeout(
+        fetch('https://api.ocr.space/parse/image', {
+          method: 'POST',
+          body: formData
+        }),
+        10000 // 10 seconds
+    )
+
     const json = await res.json()
+
+    if (json?.IsErroredOnProcessing) {
+      const errMsgText = Array.isArray(json.ErrorMessage)
+          ? json.ErrorMessage.join(', ')
+          : (json.ErrorMessage || 'OCR server error')
+      error(`OCR Server is busy: ${errMsgText}`)
+      return ''
+    }
+
     return json?.ParsedResults?.[0]?.ParsedText || ''
-  } catch (e) {
+  } catch (e: any) {
+    if (e.message === 'timeout') {
+      error('OCR server is busy, please try again later.')
+    } else {
+      error('Failed to connect to OCR server. Please try again later.')
+    }
     console.error(e)
     return ''
   }
 }
 
+
 async function translateToEnglish(text: string) {
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string
-    const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: text, source: 'zh', target: 'en', format: 'text' }),
-    })
+
+    const res = await withTimeout(
+        fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            q: text,
+            source: 'zh',
+            target: 'en',
+            format: 'text'
+          }),
+        }),
+        10000
+    )
+
     const json = await res.json()
-    return json?.data?.translations?.[0]?.translatedText || ''
-  } catch (e) {
-    console.error(e)
-    return ''
+
+    if (!json?.data?.translations?.[0]?.translatedText) {
+      const errMsgText = json?.error?.message || 'Translation service returned no result'
+      error(`Translation server error: ${errMsgText}`)
+      return null // fail explicitly
+    }
+
+    return json.data.translations[0].translatedText
+
+  } catch (e: any) {
+    if (e.message === 'timeout') {
+      error('Translation server is busy, please try again later.')
+    } else {
+      error('Failed to connect to translation server. Please try again later.')
+    }
+    return null
   }
 }
 
@@ -913,4 +1221,21 @@ ion-card { border-radius: 12px; }
   background: var(--ion-color-light);
 }
 
+.category-item {
+  --min-height: auto;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.category-item h2 {
+  margin: 0 0 4px;
+}
+.category-item p {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.category-item small {
+  display: block;
+  color: var(--ion-color-medium);
+  font-size: 13px;
+}
 </style>
