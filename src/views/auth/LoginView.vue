@@ -121,10 +121,24 @@ const errorMsg = ref('');
 const loading = ref(false);
 const router = useRouter();
 const route = useRoute(); // ✅ This is what was missing
+const isDonor = ref(false);
 
 const rawRedirect = route.query.redirect as LocationQueryValue;
 const redirectTo: string =
     typeof rawRedirect === 'string' ? rawRedirect : '/';
+
+async function fetchDonorStatus(userId: string) {
+  const { data, error } = await supabase
+      .from('user_profiles')
+      .select('is_donor')
+      .eq('id', userId)
+      .single();
+
+  if (!error && data) {
+    isDonor.value = data.is_donor;
+    localStorage.setItem('is_donor', JSON.stringify(data.is_donor));
+  }
+}
 
 async function login() {
   loading.value = true;
@@ -140,9 +154,11 @@ async function login() {
   if (error) {
     errorMsg.value = error.message;
   } else if (data.session) {
+    await fetchDonorStatus(data.user.id); // ✅ get donor flag
     router.push(redirectTo as string);
   }
 }
+
 
 // ✅ Construct dynamic redirectUrl with `#next=...` for native OAuth login
 const redirectUrl = Capacitor.isNativePlatform()

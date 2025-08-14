@@ -1118,6 +1118,12 @@ async function copyResult() {
   showCopied.value = true
 }
 
+const shareCTA = `
+Join us and contribute to make Halal Formosa more beneficial for others 🌟
+Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalformosa
+(iOS coming soon)
+`;
+
 async function shareResult() {
   try {
     const imageBlob: Blob | null = originalFile.value
@@ -1160,10 +1166,13 @@ async function shareResult() {
         text: [
           productName.value ? `Product: ${productName.value}` : null,
           autoStatus.value ? `Status: ${autoStatus.value}` : null,
+          '', // empty line for spacing
+          shareCTA.trim()
         ].filter(Boolean).join('\n'),
         files: [uri],
         dialogTitle: 'Share ingredients'
       })
+
       return
     }
 
@@ -1188,10 +1197,17 @@ function shareTextFallback() {
     productName.value ? `Product: ${productName.value}` : null,
     autoStatus.value ? `Status: ${autoStatus.value}` : null,
     `Ingredients: ${ingredientsText.value}`,
-  ].filter(Boolean).join('\n')
-  if ((navigator as any).share) return (navigator as any).share({ title: 'Ingredients', text })
-  return Clipboard.write({ string: text }).then(() => (showCopied.value = true))
+    '',
+    shareCTA.trim()
+  ].filter(Boolean).join('\n');
+
+  if ((navigator as any).share)
+    return (navigator as any).share({ title: 'Ingredients', text });
+
+  return Clipboard.write({ string: text })
+      .then(() => (showCopied.value = true));
 }
+
 
 // Helper
 function blobToBase64(file: Blob): Promise<string> {

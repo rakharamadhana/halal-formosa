@@ -26,7 +26,15 @@
         </div>
 
         <ion-text v-if="userDisplayName" class="profile-name">
-          <h2>{{ userDisplayName }}</h2>
+          <h2>
+            {{ userDisplayName }}
+          </h2>
+          <ion-badge
+              :color="donorBadge.color"
+              style="margin-left: 6px;"
+          >
+            {{ donorBadge.emoji }} {{ donorBadge.label }}
+          </ion-badge>
         </ion-text>
 
         <ion-text v-if="userEmail" class="profile-email">
@@ -207,7 +215,9 @@ import {
     IonNote,
     IonCardTitle,
   IonCardHeader,
+    IonBadge
 } from '@ionic/vue';
+import { isDonor, donorType, donorBadge } from '@/composables/userProfile';
 
 export default defineComponent({
   components: {
@@ -226,7 +236,7 @@ export default defineComponent({
     IonCardContent,
     IonNote,
     IonCardTitle,
-    IonCardHeader,
+    IonCardHeader, IonBadge
   },
   setup() {
     const userEmail = ref('');
@@ -291,7 +301,8 @@ export default defineComponent({
       goToLegal,
       settingsOutline,
       documentTextOutline,
-      personCircleOutline
+      personCircleOutline,
+      isDonor, donorType, donorBadge
     }
   },
 });

@@ -51,18 +51,18 @@
       </ion-toolbar>
     </ion-header>
     <!-- Native (mobile) AdMob banner -->
-    <div v-if="isNative" id="ad-space-search" style="height:60px;"></div>
+    <!-- Native (mobile) AdMob banner -->
+    <div v-if="isNative && !isDonor" id="ad-space-search" style="height:60px;"></div>
 
     <!-- Web (desktop) AdSense banner -->
-    <div v-else id="ad-space-search" style="margin: 8px 0;">
-<!--      <ins class="adsbygoogle"-->
-<!--           style="display:block"-->
-<!--           data-ad-client="ca-pub-9588373061537955"-->
-<!--           data-ad-slot="9798462724"-->
-<!--           data-ad-format="auto"-->
-<!--           data-full-width-responsive="true"></ins>-->
+    <div v-else-if="!isNative && !isDonor" id="ad-space-search" style="margin: 8px 0;">
+      <!-- <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXX"
+           data-ad-slot="XXXXX"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins> -->
     </div>
-
 
     <ion-content :fullscreen="true">
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
@@ -331,6 +331,8 @@ dayjs.extend(relativeTime)
 import { computed } from 'vue'
 import AppHeader from "@/components/AppHeader.vue";
 import {Capacitor} from "@capacitor/core";
+
+import { isDonor } from '@/composables/userProfile';
 
 interface Product {
   barcode: string;
@@ -766,6 +768,7 @@ export default defineComponent({
       getStatusClass,
       searchOutline,
       isNative,
+      isDonor
     };
   },
 });

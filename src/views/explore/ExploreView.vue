@@ -1,17 +1,19 @@
 <template>
   <ion-page>
     <app-header title="Explore" :icon="compassOutline" :showProfile="true" />
-    <div v-if="isNative" id="ad-space-explore" style="height:60px;"></div>
+    <!-- Native AdMob banner -->
+    <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
 
     <!-- Web (desktop) AdSense banner -->
-    <div v-else id="ad-space-explore" style="margin: 8px 0;">
-<!--      <ins class="adsbygoogle"-->
-<!--           style="display:block"-->
-<!--           data-ad-client="ca-pub-9588373061537955"-->
-<!--           data-ad-slot="2307787840"-->
-<!--           data-ad-format="auto"-->
-<!--           data-full-width-responsive="true"></ins>-->
+    <div v-else-if="!isNative && !isDonor" id="ad-space-explore" style="margin: 8px 0;">
+      <!--      <ins class="adsbygoogle"-->
+      <!--           style="display:block"-->
+      <!--           data-ad-client="ca-pub-9588373061537955"-->
+      <!--           data-ad-slot="2307787840"-->
+      <!--           data-ad-format="auto"-->
+      <!--           data-full-width-responsive="true"></ins>-->
     </div>
+
     <!-- Map stays fixed -->
     <div style="position: relative;">
       <!-- Map container -->
@@ -119,7 +121,7 @@ import { supabase } from '@/plugins/supabaseClient'
 import AppHeader from "@/components/AppHeader.vue";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
 import { Cluster, Renderer } from "@googlemaps/markerclusterer"
-
+import { isDonor } from '@/composables/userProfile'
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }

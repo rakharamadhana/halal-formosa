@@ -24,10 +24,12 @@ import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { AppUpdate, AppUpdateAvailability } from '@capawesome/capacitor-app-update';
 import { AppReview } from '@capawesome/capacitor-app-review';
+import {setDonorStatus, loadDonorFromCache, setDonorType} from '@/composables/userProfile'
 
 const router = useRouter();
 const askedKey = 'askedLocationPermission';
 const showUpdateAlert = ref(false);
+
 
 const alertButtons = [
   {
@@ -119,18 +121,43 @@ const checkAndAskForReview = async () => {
   }
 };
 
+async function fetchDonorStatus(userId: string) {
+  const { data, error } = await supabase
+      .from('user_profiles')
+      .select('is_donor, donor_type')
+      .eq('id', userId)
+      .single();
+
+  if (!error && data) {
+    setDonorStatus(data.is_donor);
+    setDonorType(data.donor_type);
+  }
+}
+
 // ✅ Restore session on app mount (non-blocking)
 onMounted(async () => {
+  loadDonorFromCache(); // ✅ instant donor status from last session
+
   await restoreSession();
   await askGeolocationPermission();
   await checkAppUpdate();
   await checkAndAskForReview();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    await fetchDonorStatus(user.id);
+  }
 });
 
+
 // ✅ Logout handler
-supabase.auth.onAuthStateChange(async (event) => {
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session?.user) {
+    await fetchDonorStatus(session.user.id);
+  }
   if (event === 'SIGNED_OUT') {
     console.log('🔓 User signed out');
+    setDonorStatus(false); // reset donor flag
     router.push('/login');
   }
 });
