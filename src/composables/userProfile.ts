@@ -32,6 +32,7 @@ export const donorBadge = computed(() => {
         'Founding Supporter': { label: 'Founding Supporter', color: 'tertiary', emoji: '💖' },
         Supporter: { label: 'Supporter', color: 'primary', emoji: '💖' },
         Developer: { label: 'Developer', color: 'tertiary', emoji: '🛠️' },
+        Contributor: { label: 'Contributor', color: 'primary', emoji: '⭐️' },
 
     };
 
