@@ -13,7 +13,7 @@
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
-    <div v-if="isNative" id="ad-space-news-detail" style="height:60px;"></div>
+    <div v-if="isNative && !isDonor" id="ad-space-news-detail" style="height:60px;"></div>
 
     <ion-content class="ion-padding">
       <div v-if="loading">
@@ -61,6 +61,7 @@ import { supabase } from '@/plugins/supabaseClient';
 import type { User } from '@supabase/supabase-js'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import {createOutline} from "ionicons/icons";
+import { isDonor } from '@/composables/userProfile'
 
 const user = ref<User | null>(null)
 

@@ -86,7 +86,7 @@ import {
   IonButton,
   IonText,
   IonItem,
-  IonInputPasswordToggle,
+  IonInputPasswordToggle,IonItemGroup,
     IonContent
 } from '@ionic/vue';
 import { defineComponent } from 'vue';
@@ -102,7 +102,7 @@ export default defineComponent({
     IonText,
     IonItem,
     IonInputPasswordToggle,
-    IonContent
+    IonContent,IonItemGroup
   },
 });
 </script>
@@ -110,22 +110,20 @@ export default defineComponent({
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { supabase } from '@/plugins/supabaseClient'; // adjust path if needed
+import { supabase } from '@/plugins/supabaseClient';
 import { Capacitor } from '@capacitor/core';
-import {IonItemGroup} from "@ionic/vue";
-import type { LocationQueryValue } from 'vue-router';
 
+// form fields
 const email = ref('');
 const password = ref('');
 const errorMsg = ref('');
 const loading = ref(false);
+
+// router helpers
 const router = useRouter();
-const route = useRoute(); // ✅ This is what was missing
+const route = useRoute();
 
-const rawRedirect = route.query.redirect as LocationQueryValue;
-const redirectTo: string =
-    typeof rawRedirect === 'string' ? rawRedirect : '/';
-
+// email/password login
 async function login() {
   loading.value = true;
   errorMsg.value = '';
@@ -139,52 +137,46 @@ async function login() {
 
   if (error) {
     errorMsg.value = error.message;
-  } else if (data.session) {
-    router.push(redirectTo as string);
   }
+  // ❌ no redirect or donor fetch here
 }
-
-// ✅ Construct dynamic redirectUrl with `#next=...` for native OAuth login
-const redirectUrl = Capacitor.isNativePlatform()
-    ? 'myapp://callback'
-    : window.location.origin + redirectTo;
-
 
 async function loginWithGoogle() {
   errorMsg.value = '';
-  console.log('🔁 Starting Google login');
-  console.log('🔗 Redirect URL:', redirectUrl);
 
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        queryParams: {
-          next: redirectTo
-        }
-      },
-    });
+  // ✅ Type-safe normalization
+  const rawRedirect = route.query.redirect;
+  const safeRedirect =
+      typeof rawRedirect === 'string'
+          ? rawRedirect
+          : Array.isArray(rawRedirect) && rawRedirect.length > 0
+              ? rawRedirect[0]
+              : '/';
 
-    console.log('📡 signInWithOAuth response:', { data, error });
+  const redirectUrl = Capacitor.isNativePlatform()
+      ? 'myapp://callback'
+      : window.location.origin + safeRedirect;
 
-    if (error) {
-      errorMsg.value = error.message;
-      console.error('❌ OAuth error:', error.message);
-    } else {
-      console.log('✅ OAuth login initiated, waiting for redirect...');
-    }
-  } catch (err: any) {
-    errorMsg.value = err.message || 'An unexpected error occurred during Google login.';
-    console.error('💥 Unexpected error during OAuth login:', err);
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: redirectUrl,
+      queryParams: { next: safeRedirect },
+    },
+  });
+
+  if (error) {
+    errorMsg.value = error.message;
   }
+  // ❌ no redirect or donor fetch here
 }
+
 
 function goHome() {
-  router.push('/');  // Navigate to parent route that includes ion-tabs and ion-router-outlet
+  router.push('/');
 }
-
 </script>
+
 
 <style>
 ion-item {

@@ -23,6 +23,7 @@ import '@ionic/vue/css/palettes/dark.class.css'
 import './theme/variables.css'
 
 import { defineCustomElements } from '@ionic/pwa-elements/loader'
+import {setDonorStatus, setDonorType} from "@/composables/userProfile";
 defineCustomElements(window)
 
 /* Native-only setup */
@@ -68,19 +69,77 @@ if (Capacitor.isNativePlatform()) {
     })
 }
 
-/* OAuth redirect handler (unchanged) */
-CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
-    if (!url?.startsWith('myapp://callback')) return
-    const hash = new URL(url).hash.substring(1)
-    const params = new URLSearchParams(hash)
-    const access_token = params.get('access_token')
-    const refresh_token = params.get('refresh_token')
-    const next = new URL(url).searchParams.get('next') || '/profile'
-    if (access_token && refresh_token) {
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token })
-        if (!error) router.push(next)
+// Keep fetchDonorStatus exactly as you have it
+async function fetchDonorStatus(userId: string) {
+
+    try {
+        const { data, error } = await supabase
+            .from('user_profiles')
+            .select('is_donor, donor_type')
+            .eq('id', userId)
+            .maybeSingle(); // ✅ use maybeSingle() instead of single()
+
+        if (error) {
+            console.error('❌ Error fetching donor status:', error.message);
+            return;
+        }
+
+        if (data) {
+            setDonorStatus(data.is_donor);
+            setDonorType(data.donor_type);
+        } else {
+            console.warn('⚠️ No donor data found for userId:', userId);
+        }
+    } catch (err) {
+        console.error('💥 fetchDonorStatus failed:', err);
     }
-})
+}
+
+/* onAuthStateChange — single source of truth for redirect */
+supabase.auth.onAuthStateChange((event, session) => {
+
+    if (event === 'SIGNED_IN' && session?.user) {
+
+        // Fetch donor status
+        fetchDonorStatus(session.user.id).catch(err => {
+            console.error('💥 Error fetching donor status:', err);
+        });
+
+        // Only redirect if currently on login or signup page
+        if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
+            const rawRedirect = router.currentRoute.value.query.redirect;
+            const redirectTo =
+                typeof rawRedirect === 'string' && rawRedirect.trim() !== ''
+                    ? rawRedirect
+                    : '/profile';
+
+            router.push(redirectTo);
+        }
+    }
+
+    if (event === 'SIGNED_OUT') {
+        setDonorStatus(false);
+        setDonorType('');
+        router.push('/login');
+    }
+});
+
+/* appUrlOpen — only set session, no redirect */
+CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+    if (!url?.startsWith('myapp://callback')) return;
+
+    const hash = new URL(url).hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+
+    if (access_token && refresh_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (error) console.error('❌ Error setting session:', error.message);
+        // 🚫 No redirect here — onAuthStateChange will handle it
+    }
+});
+
 
 /* Start app + apply once for initial route */
 router.isReady().then(() => {

@@ -33,6 +33,7 @@
     "@capawesome/capacitor-app-update": "^7.0.1",
     "@google-cloud/translate": "^9.2.0",
     "@googlemaps/js-api-loader": "^1.16.10",
+    "@googlemaps/markerclusterer": "^2.6.2",
     "@ionic/pwa-elements": "^3.3.0",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",

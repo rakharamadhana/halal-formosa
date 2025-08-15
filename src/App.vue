@@ -29,6 +29,7 @@ const router = useRouter();
 const askedKey = 'askedLocationPermission';
 const showUpdateAlert = ref(false);
 
+
 const alertButtons = [
   {
     text: 'Later',
@@ -119,20 +120,14 @@ const checkAndAskForReview = async () => {
   }
 };
 
+
+
 // ✅ Restore session on app mount (non-blocking)
 onMounted(async () => {
   await restoreSession();
   await askGeolocationPermission();
   await checkAppUpdate();
   await checkAndAskForReview();
-});
-
-// ✅ Logout handler
-supabase.auth.onAuthStateChange(async (event) => {
-  if (event === 'SIGNED_OUT') {
-    console.log('🔓 User signed out');
-    router.push('/login');
-  }
 });
 </script>
 
