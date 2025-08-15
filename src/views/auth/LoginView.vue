@@ -144,13 +144,12 @@ async function login() {
 async function loginWithGoogle() {
   errorMsg.value = '';
 
-  // ✅ Type-safe normalization
-  const rawRedirect = route.query.redirect;
-  const safeRedirect =
-      typeof rawRedirect === 'string'
-          ? rawRedirect
-          : Array.isArray(rawRedirect) && rawRedirect.length > 0
-              ? rawRedirect[0]
+  const r = route.query.redirect;
+  const safeRedirect: string =
+      typeof r === 'string'
+          ? r
+          : Array.isArray(r) && r.length > 0
+              ? r[0] ?? '/'
               : '/';
 
   const redirectUrl = Capacitor.isNativePlatform()
@@ -168,9 +167,7 @@ async function loginWithGoogle() {
   if (error) {
     errorMsg.value = error.message;
   }
-  // ❌ no redirect or donor fetch here
 }
-
 
 function goHome() {
   router.push('/');
