@@ -221,7 +221,7 @@
                 <ion-icon slot="start" :icon="copyOutline" />
                 Copy
               </ion-button>
-              <ion-button size="small" fill="outline" @click="shareResult">
+              <ion-button size="small" fill="outline" @click="onShareClick">
                 <ion-icon slot="start" :icon="shareOutline" />
                 Share
               </ion-button>
@@ -296,20 +296,28 @@ import {
 } from '@ionic/vue'
 import {cameraOutline, cloudUploadOutline, copyOutline, scanOutline, shareOutline} from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
-import {ref, nextTick, onUnmounted} from 'vue'
+import {ref, onUnmounted} from 'vue'
 
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { Clipboard } from '@capacitor/clipboard'
-import { Share } from '@capacitor/share'
-import { Capacitor } from '@capacitor/core'
 import type { PluginListenerHandle } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
 
 import { supabase } from '@/plugins/supabaseClient'
-import router from "@/router";
+import useDisclaimer from "@/composables/useDisclaimer";
+import useShareCard from "@/composables/useShareCard";
+import type { IngredientHighlight } from '@/types/ingredients'
+import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
+
+const errorMsg = ref('')
+
+function setError(msg: string) {
+  errorMsg.value = msg
+}
+
+import useOcrPipeline from "@/composables/useOcrPipeline";
 
 /** ---------- State ---------- */
 const showCropper = ref(false)
@@ -317,28 +325,12 @@ const cropperSrc = ref<string | null>(null)
 const cropperRef = ref<any>(null)
 const ocrLoading = ref(false)
 
-const showOk = ref(false)
 const showErr = ref(false)
 const errMsg = ref('')
 const showCopied = ref(false)
 
-const ingredientsText = ref('')
-const productName = ref('')
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
-
-const showSimpleDisclaimer = ref(false)
-const showDetailedDisclaimer = ref(false)
-
-const DISCLAIMER_ACK_KEY = 'disclaimerAccepted'
-const DISCLAIMER_COUNT_KEY = 'disclaimerScanCount'
-
-/** Highlights + status */
-interface IngredientHighlight {
-  keyword: string
-  keyword_zh?: string
-  color: string
-}
 
 interface BlacklistPattern {
   pattern: string
@@ -349,62 +341,27 @@ interface HighlightCache {
   blacklist: BlacklistPattern[]
 }
 
-const allHighlights = ref<IngredientHighlight[]>([])
-const ingredientHighlights = ref<IngredientHighlight[]>([])
-const blacklistPatterns = ref<RegExp[]>([])
-const autoStatus = ref('')
-
 const originalPreviewUrl = ref<string | null>(null) // original file preview
 const croppedPreviewUrl  = ref<string | null>(null) // cropped area preview
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
-function maybeShowDisclaimer() {
-  const accepted = localStorage.getItem(DISCLAIMER_ACK_KEY) === 'true'
-  const count = parseInt(localStorage.getItem(DISCLAIMER_COUNT_KEY) || '0', 10)
-
-  if (!accepted || count >= 5) {
-    // reset reminder count if showing disclaimer again
-    if (count >= 5) localStorage.setItem(DISCLAIMER_COUNT_KEY, '0')
-    showSimpleDisclaimer.value = true
-    return true // means "modal is showing, wait for user action"
-  }
-  return false
-}
-
-function showDetails() {
-  showDetailedDisclaimer.value = true
-}
-
-function acceptDisclaimer() {
-  localStorage.setItem(DISCLAIMER_ACK_KEY, 'true')
-  localStorage.setItem(DISCLAIMER_COUNT_KEY, '0')
-  showSimpleDisclaimer.value = false
-}
-
-function closeDetailedDisclaimer() {
-  showDetailedDisclaimer.value = false
-}
-
-function declineDisclaimer() {
-  localStorage.removeItem(DISCLAIMER_ACK_KEY)
-  showSimpleDisclaimer.value = false
-  error('You must accept the disclaimer to use halal scanner feature.')
-  router.push('/home')
-}
-
-function incrementDisclaimerCount() {
-  let count = parseInt(localStorage.getItem(DISCLAIMER_COUNT_KEY) || '0', 10)
-  count++
-  localStorage.setItem(DISCLAIMER_COUNT_KEY, count.toString())
-}
+const {
+  showSimpleDisclaimer,
+  showDetailedDisclaimer,
+  maybeShowDisclaimer,
+  showDetails,
+  acceptDisclaimer,
+  closeDetailedDisclaimer,
+  declineDisclaimer,
+  incrementDisclaimerCount
+} = useDisclaimer()
 
 /** ---------- Boot: fetch highlight data ---------- */
 let resumeHandle: PluginListenerHandle | null = null
 const CACHE_KEY = 'highlightCache'
 const COUNT_KEY = 'highlightFetchCount'
 
-// Load from cache
 // Load from cache
 function loadCachedHighlights(): HighlightCache | null {
   const raw = localStorage.getItem(CACHE_KEY)
@@ -473,28 +430,6 @@ async function fetchHighlightsWithCache(force = false): Promise<HighlightCache |
 
   return null
 }
-
-onIonViewWillEnter(async () => {
-  if (maybeShowDisclaimer()) return
-
-  const data = await fetchHighlightsWithCache()
-  if (!data) {
-    console.warn('No cache and no internet — highlight system will be empty.')
-    return
-  }
-
-  allHighlights.value = data.highlights
-  blacklistPatterns.value = data.blacklist.map(
-      (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
-  )
-})
-
-onUnmounted(() => {
-  resumeHandle?.remove()
-  resumeHandle = null
-  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
-  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
-})
 
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
@@ -572,539 +507,59 @@ async function confirmCrop() {
   closeCropper()
 }
 
+/** ---------- OCR pipeline ---------- */
+const {
+  runOcr,
+  recheckHighlights,
+  allHighlights,
+  ingredientHighlights,
+  blacklistPatterns,
+  autoStatus,
+  productName,
+  ingredientsText,
+  showOk
+} = useOcrPipeline({
+  incrementDisclaimerCount,
+  incrementUsageCount,
+  fetchHighlightsWithCache,
+  setError
+})
+
 /** ---------- Share card ------------*/
 
-// --- helpers ---
-function loadImageFromFile(file: Blob): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
-    img.onerror = reject
-    img.src = url
-  })
-}
-function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = url
-  })
-}
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.min(r, w/2, h/2)
-  ctx.beginPath()
-  ctx.moveTo(x+rr, y)
-  ctx.arcTo(x+w, y, x+w, y+h, rr)
-  ctx.arcTo(x+w, y+h, x, y+h, rr)
-  ctx.arcTo(x, y+h, x, y, rr)
-  ctx.arcTo(x, y, x+w, y, rr)
-  ctx.closePath()
+const { shareResult } = useShareCard(
+    productName,
+    ingredientsText,
+    autoStatus,
+    ingredientHighlights
+)
+
+function onShareClick() {
+  shareResult(originalFile)
 }
 
-// --- main: makeShareCard ---
-/**
- * @param imageFile  cropped image (or original)
- * @param opts { productName, status, ingredients, logoUrl? }
- * @returns File (JPEG) ready to share
- */
-async function makeShareCard(
-    imageFile: Blob,
-    opts: {
-      productName?: string;
-      status?: string;
-      ingredients: string;
-      logoUrl?: string;
-      highlightMap?: Record<string, string>; // 👈 new
-    }
-): Promise<File> {
-  // --- Layout constants ---
-  const W = 1080;
-  const P = 48;
-  const cardR = 40;
-  const imageR = 36;
-  const headerH = 80;
-  const imgH = 580;
-  const nameRowH = 72;
-  const gapAfterName = 16;
-  const footerH = 72;
-  const lineH = 42;
+/** ---------- Lifecycle  ---------- */
+onIonViewWillEnter(async () => {
+  if (maybeShowDisclaimer()) return
 
-  const cardX = P / 2;
-  const cardY = P / 2;
-  const cardW = W - P;
-  const contentX = cardX + P;
-  const contentW = cardW - P * 2;
-
-  // Ion color name -> hex
-  const ionToHex = (ion?: string) => {
-    const c = (ion || '').match(/(danger|warning|primary|success|medium|dark)/i)?.[1]?.toLowerCase();
-    switch (c) {
-      case 'danger':  return '#eb445a';
-      case 'warning': return '#ffc409';
-      case 'primary': return '#3880ff';
-      case 'success': return '#2dd36f';
-      case 'medium':  return '#92949c';
-      case 'dark':    return '#222428';
-      default:        return '#333';
-    }
-  };
-
-  // Wrap + (optionally) draw highlighted items
-  function drawHighlightedItems(
-      ctx: CanvasRenderingContext2D,
-      items: string[],
-      x: number,
-      y: number,
-      maxW: number,
-      lineH: number,
-      draw: boolean,
-      cfg: { label?: string; highlightMap?: Record<string, string> } = {}
-  ): number {
-    const fontFor = (bold: boolean) =>
-        `${bold ? '700' : '400'} 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
-
-    // use the ionToHex you defined outside
-    const colorFor = (item: string) => ionToHex(cfg.highlightMap?.[item.toLowerCase()]);
-
-    let cx = x, cy = y;
-
-    // Label (bold)
-    if (cfg.label) {
-      ctx.font = fontFor(true);
-      const lw = ctx.measureText(cfg.label).width;
-      if (cx + lw > x + maxW) { cx = x; cy += lineH; }
-      if (draw) { ctx.fillStyle = '#111'; ctx.fillText(cfg.label, cx, cy); }
-      cx += lw;
-    }
-
-    const drawToken = (text: string, bold: boolean, color: string) => {
-      ctx.font = fontFor(bold);
-      const w = ctx.measureText(text).width;
-      if (cx + w > x + maxW) { cx = x; cy += lineH; }
-      if (draw) { ctx.fillStyle = color; ctx.fillText(text, cx, cy); }
-      cx += w;
-    };
-
-    items.forEach((raw, idx) => {
-      const item = raw.trim();
-      const isHi = !!cfg.highlightMap?.[item.toLowerCase()];
-      const color = colorFor(item);
-      if (idx > 0) drawToken(', ', false, '#666');
-      item.split(/\s+/).forEach((w, i, arr) =>
-          drawToken(w + (i < arr.length - 1 ? ' ' : ''), isHi, color)
-      );
-    });
-
-    return cy + lineH - y;
-  }
-
-  // Pre-measure ingredients block height
-  const measure = document.createElement('canvas').getContext('2d')!;
-  measure.font = '400 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-  const items = opts.ingredients
-      .replace(/，/g, ',')            // handle Chinese comma, if relevant
-      .split(/\s*,\s*/)
-      .map(s => s.trim())
-      .filter(Boolean);
-
-  const ingredientsYStart =
-      cardY + 20 + headerH + 16 + imgH + 24 + nameRowH + gapAfterName;
-
-  const blockH = drawHighlightedItems(
-      measure,            // <-- was measureCtx
-      items,
-      contentX,
-      ingredientsYStart,
-      contentW,
-      lineH,
-      false,
-      { label: 'Ingredients: ', highlightMap: opts.highlightMap ?? {} }
-  );
-
-
-  // Final canvas height so footer stays at the bottom
-  const H = Math.ceil(ingredientsYStart + blockH + 24 + footerH + cardY);
-
-  // --- Create canvas ---
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
-
-  // Background + card
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0,0,0,0.08)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 6;
-  roundRect(ctx, cardX, cardY, cardW, H - P, cardR);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-
-  // Header
-  let y = cardY + 20;
-  if (opts.logoUrl) {
-    try {
-      const logo = await loadImageFromUrl(opts.logoUrl);
-      const s = 42;
-      ctx.drawImage(logo, contentX, y + (headerH - s) / 2, s, s);
-    } catch { /* empty */ }
-  } else {
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#111';
-    roundRect(ctx, contentX, y + 18, 36, 36, 8);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#111';
-  ctx.font = '600 42px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-  ctx.textBaseline = 'top';
-  ctx.fillText('Halal Formosa', contentX + 56, y + 24);
-  y += headerH + 16;
-
-  // Main image
-  const img = await loadImageFromFile(imageFile);
-  ctx.save();
-  roundRect(ctx, contentX, y, contentW, imgH, imageR);
-  ctx.clip();
-  {
-    const ratio = img.width / img.height;
-    let drawW = contentW;
-    let drawH = Math.round(drawW / ratio);
-    if (drawH < imgH) { drawH = imgH; drawW = Math.round(drawH * ratio); }
-    const dx = contentX + Math.round((contentW - drawW) / 2);
-    const dy = y + Math.round((imgH - drawH) / 2);
-    ctx.drawImage(img, dx, dy, drawW, drawH);
-  }
-  ctx.restore();
-
-  // Name + status
-  y += imgH + 24;
-  ctx.fillStyle = '#111';
-  ctx.font = '700 44px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-  const name = (opts.productName || 'Product Name').trim();
-  const pillW = 240, pillH = 56;
-  const nameMaxW = contentW - pillW - 16;
-  ctx.fillText(name, contentX, y, nameMaxW);
-
-  if (opts.status) {
-    const status = opts.status;
-    const pillX = contentX + contentW - pillW;
-    const pillY = y - 8;
-    const pillColor: Record<string, string> = {
-      'Halal': '#2dd36f', 'Muslim-friendly': '#3880ff',
-      'Syubhah': '#ffc409', 'Haram': '#eb445a'
-    };
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = pillColor[status] || '#3880ff';
-    ctx.fillStyle = 'rgba(0,0,0,0)';
-    roundRect(ctx, pillX, pillY, pillW, pillH, 18);
-    ctx.stroke();
-    ctx.font = '600 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-    ctx.fillStyle = '#111';
-    const textW = ctx.measureText(status).width;
-    ctx.fillText(status, pillX + (pillW - textW) / 2, pillY + 12);
-  }
-
-  // Ingredients (highlighted)
-  y = ingredientsYStart;
-  drawHighlightedItems(
-      ctx,
-      items,
-      contentX,
-      y,
-      contentW,
-      lineH,
-      true,
-      { label: 'Ingredients: ', highlightMap: opts.highlightMap ?? {} }
-  );
-  y += blockH + 24;
-
-  // Footer
-  ctx.fillStyle = '#777';
-  ctx.font = '500 26px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-  ctx.textBaseline = 'alphabetic';
-  const year = new Date().getFullYear();
-  ctx.fillText(`Halal Formosa (c) ${year}`, contentX, H - P + 12 - 48);
-
-  // Export
-  const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92));
-  return new File([blob], `halal-formosa-card-${Date.now()}.jpg`, { type: 'image/jpeg' });
-}
-
-
-/** ---------- OCR pipeline ---------- */
-async function runOcr(file: File) {
-  const raw = await extractTextFromImage(file)
-  if (!raw) return error('OCR failed to detect any text.')
-
-  const cleanedZh = cleanChineseOcrText(raw)
-  const translated = await translateToEnglish(cleanedZh)
-  if (translated === null) return // Translation error already shown
-
-  if (!translated.toLowerCase().includes('ingredient')) {
-    return error('Ingredients not detected. Please crop the ingredients section.')
-  }
-
-  console.log(translated)
-  productName.value = extractProductName(translated) || ''
-  ingredientsText.value = cleanTranslatedIngredients(translated)
-  await nextTick()
-  await recheckHighlights()
-
-  showOk.value = true
-
-  // ✅ Increment counters only after successful scan
-  incrementDisclaimerCount()
-  const count = incrementUsageCount()
-
-  // ✅ If count reached 5, fetch fresh data and reset counter
-  if (count >= 5) {
-    const data = await fetchHighlightsWithCache(true) // force refresh
-    if (data) {
-      allHighlights.value = data.highlights
-      blacklistPatterns.value = data.blacklist.map(
-          (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
-      )
-    }
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms)
-    promise
-        .then((value) => {
-          clearTimeout(timer)
-          resolve(value)
-        })
-        .catch((err) => {
-          clearTimeout(timer)
-          reject(err)
-        })
-  })
-}
-
-async function extractTextFromImage(file: File) {
-  try {
-    const apiKey = import.meta.env.VITE_OCR_SPACE_API_KEY as string
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('apikey', apiKey)
-    formData.append('language', 'auto')
-    formData.append('isOverlayRequired', 'false')
-    formData.append('scale', 'true')
-    formData.append('OCREngine', '2')
-
-    // Wrap fetch in timeout
-    const res = await withTimeout(
-        fetch('https://api.ocr.space/parse/image', {
-          method: 'POST',
-          body: formData
-        }),
-        10000 // 10 seconds
-    )
-
-    const json = await res.json()
-
-    if (json?.IsErroredOnProcessing) {
-      const errMsgText = Array.isArray(json.ErrorMessage)
-          ? json.ErrorMessage.join(', ')
-          : (json.ErrorMessage || 'OCR server error')
-      error(`OCR Server is busy: ${errMsgText}`)
-      return ''
-    }
-
-    return json?.ParsedResults?.[0]?.ParsedText || ''
-  } catch (e: any) {
-    if (e.message === 'timeout') {
-      error('OCR server is busy, please try again later.')
-    } else {
-      error('Failed to connect to OCR server. Please try again later.')
-    }
-    console.error(e)
-    return ''
-  }
-}
-
-
-async function translateToEnglish(text: string) {
-  try {
-    const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string
-
-    const res = await withTimeout(
-        fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            q: text,
-            source: 'zh',
-            target: 'en',
-            format: 'text'
-          }),
-        }),
-        10000
-    )
-
-    const json = await res.json()
-
-    if (!json?.data?.translations?.[0]?.translatedText) {
-      const errMsgText = json?.error?.message || 'Translation service returned no result'
-      error(`Translation server error: ${errMsgText}`)
-      return null // fail explicitly
-    }
-
-    return json.data.translations[0].translatedText
-
-  } catch (e: any) {
-    if (e.message === 'timeout') {
-      error('Translation server is busy, please try again later.')
-    } else {
-      error('Failed to connect to translation server. Please try again later.')
-    }
-    return null
-  }
-}
-
-/** ---------- Cleaning helpers ---------- */
-function cleanChineseOcrText(text: string) {
-  let cleaned = text
-      .replace(/\r?\n+/g, ', ')
-      .replace(/[。、．]/g, ',')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/品\s*,?\s*名/gi, '品名')
-      .replace(/成\s*,?\s*分/gi, '成分')
-
-  for (const pattern of blacklistPatterns.value) {
-    cleaned = cleaned.replace(pattern, '').trim()
-  }
-  cleaned = cleaned.replace(/品名[:：].*?,/i, '')
-  cleaned = cleaned.replace(/成分[:：]/i, 'Ingredients: ')
-  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '')
-  return cleaned.trim()
-}
-
-function toProperCase(s: string) {
-  return s.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase())
-}
-
-function cleanTranslatedIngredients(text: string) {
-  const idx = text.toLowerCase().indexOf('ingredients:')
-  let extracted = idx !== -1 ? text.substring(idx + 'ingredients:'.length).trim() : text
-  extracted = extracted.replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ')
-  blacklistPatterns.value.forEach((p) => (extracted = extracted.replace(p, '').trim()))
-
-  let parts = extracted.split(',').map(p => p.trim()).filter(Boolean)
-  parts = parts.filter(p => !/^\d+\s*(g|kg|ml|毫升|公克)$/i.test(p))
-  if (parts.length && /^[A-Z][a-z]+.*\d+.*$/i.test(parts[0])) parts.shift()
-  parts = parts.filter(p => !/^[(),]+$/.test(p))
-
-  return parts.map(toProperCase).join(', ').replace(/[\s,]+$/g, '').replace(/\(\s*$/g, '')
-}
-
-function extractProductName(text: string) {
-  // Normalize common punctuation/spacing weirdness
-  const normalized = text
-      .replace(/：/g, ':')          // fullwidth colon -> normal
-      .replace(/\u3000/g, ' ')      // fullwidth space -> normal space
-      .replace(/\s+/g, ' ')         // collapse spaces
-      .replace(/\bEnd\.\s*/i, '')   // remove leading "End." noise if present
-      .trim()
-
-  const clean = (s: string) =>
-      toProperCase(
-          s
-              .replace(/[™®©]+/g, '')   // symbols
-              .replace(/\*+$/g, '')     // trailing asterisks
-              .trim()
-      )
-
-  // 1) Explicit label with colon anywhere: Name: ___  (or Product:, 品名:, etc.)
-  const m1 = /(product\s*name|product|name|item|品名|品項)\s*:\s*(.+?)(?=\s*(ingredients?\s*:|$|[.;\n\r]))/i.exec(normalized)
-  if (m1?.[2]) {
-    const cand = clean(m1[2])
-    if (cand.length > 2) return cand
-  }
-
-  // 2) Fallback: "Product <name>." before Ingredients:
-  const beforeIngredients = normalized.split(/ingredients?\s*:/i)[0] || ''
-  const m2 = /(?:^|\b)product\s+(.{3,120}?)(?=\s*(?:[.;\n]|$))/i.exec(beforeIngredients)
-  if (m2?.[1]) {
-    const cand = clean(m2[1])
-    if (cand.length > 2) return cand
-  }
-
-  // 3) Last resort: first sentence-like chunk before Ingredients (if it looks like a name)
-  if (beforeIngredients.trim()) {
-    const cand = clean(beforeIngredients.split(/[.;\n]/)[0])
-    if (/\w/.test(cand) && /\s/.test(cand) && cand.length > 2) return cand
-  }
-
-  return ''
-}
-
-/** ---------- Highlighting + status ---------- */
-async function recheckHighlights() {
-  const raw = ingredientsText.value.trim()
-
-  // If no text or no highlight config, clear & bail
-  if (!raw || !allHighlights.value.length) {
-    ingredientHighlights.value = []
-    autoStatus.value = ''
+  const data = await fetchHighlightsWithCache()
+  if (!data) {
+    console.warn('No cache and no internet — highlight system will be empty.')
     return
   }
 
-  const parts = raw.split(/\s*,\s*/).map(x => x.trim()).filter(Boolean)
+  allHighlights.value = data.highlights
+  blacklistPatterns.value = data.blacklist.map(
+      (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+  )
+})
 
-  // If we have zero parsed ingredients, keep status empty
-  if (parts.length === 0) {
-    ingredientHighlights.value = []
-    autoStatus.value = ''
-    return
-  }
-
-  // Match highlights (same as before)
-  const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
-  const found: IngredientHighlight[] = []
-  const seen = new Set<string>()
-
-  for (const ing of parts) {
-    const low = ing.toLowerCase()
-    const m = highlights.find(h =>
-        low === h.keyword.toLowerCase() || low.includes(h.keyword.toLowerCase())
-    )
-    if (m && !seen.has(m.keyword.toLowerCase())) {
-      seen.add(m.keyword.toLowerCase())
-      found.push({ keyword: ing, keyword_zh: m.keyword_zh, color: m.color })
-    }
-  }
-  ingredientHighlights.value = found
-
-  // Derive status with new default rule:
-  const hasHaram = found.some(h => extractIonColor(h.color) === 'danger')
-  const hasSyubhah = found.some(h => extractIonColor(h.color) === 'warning')
-  // const hasMuslimFriendly = found.some(h => extractIonColor(h.color) === 'primary') // optional
-
-  if (hasHaram) {
-    autoStatus.value = 'Haram'
-  } else if (hasSyubhah) {
-    autoStatus.value = 'Syubhah'
-  } else {
-    // ✅ default when no risky hits detected
-    autoStatus.value = 'Muslim-friendly'
-  }
-}
-
-function extractIonColor(full: string) {
-  const parts = full.split('-')
-  return parts[parts.length - 1] // e.g., 'warning'
-}
-function colorMeaning(c: string) {
-  return c === 'danger' ? 'Haram' : c === 'warning' ? 'Syubhah' : c === 'primary' ? 'Muslim-friendly' : 'Unknown'
-}
+onUnmounted(() => {
+  resumeHandle?.remove()
+  resumeHandle = null
+  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
+  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
+})
 
 /** ---------- Utility actions ---------- */
 async function copyResult() {
@@ -1116,107 +571,6 @@ async function copyResult() {
 
   await Clipboard.write({ string: lines })
   showCopied.value = true
-}
-
-const shareCTA = `
-Join us and contribute to make Halal Formosa more beneficial for others 🌟
-Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalformosa
-(iOS coming soon)
-`;
-
-async function shareResult() {
-  try {
-    const imageBlob: Blob | null = originalFile.value
-    if (!imageBlob) return shareTextFallback()
-
-    // Build map like: { "gelatin": "danger", "emulsifier": "warning", ... }
-    const highlightMap: Record<string, string> = Object.fromEntries(
-        ingredientHighlights.value.map(h => [
-          h.keyword.toLowerCase(),
-          extractIonColor(h.color)
-        ])
-    );
-
-    const card = await makeShareCard(imageBlob, {
-      productName: productName.value,
-      status: autoStatus.value,
-      ingredients: ingredientsText.value,
-      logoUrl: '/android-chrome-192x192.png',
-      highlightMap
-    });
-
-    if (Capacitor.getPlatform() !== 'web') {
-      const base64 = (await blobToBase64(card)).replace(/^data:image\/\w+;base64,/, '')
-      const path = `share/ingredients-${Date.now()}.jpg`
-
-      await Filesystem.writeFile({
-        path,
-        data: base64,
-        directory: Directory.Cache,
-        recursive: true,
-      })
-
-      const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
-
-      const can = await Share.canShare()
-      if (!can.value) return shareTextFallback()
-
-      await Share.share({
-        title: 'Ingredients',
-        text: [
-          productName.value ? `Product: ${productName.value}` : null,
-          autoStatus.value ? `Status: ${autoStatus.value}` : null,
-          '', // empty line for spacing
-          shareCTA.trim()
-        ].filter(Boolean).join('\n'),
-        files: [uri],
-        dialogTitle: 'Share ingredients'
-      })
-
-      return
-    }
-
-    if ((navigator as any).canShare?.({ files: [card] })) {
-      await (navigator as any).share({ title: 'Ingredients', files: [card] })
-      return
-    }
-
-    const url = URL.createObjectURL(card)
-    const a = document.createElement('a')
-    a.href = url; a.download = card.name
-    document.body.appendChild(a); a.click()
-    URL.revokeObjectURL(url); document.body.removeChild(a)
-  } catch (err) {
-    console.error('[shareResult] native share failed:', err)
-    await shareTextFallback()
-  }
-}
-
-function shareTextFallback() {
-  const text = [
-    productName.value ? `Product: ${productName.value}` : null,
-    autoStatus.value ? `Status: ${autoStatus.value}` : null,
-    `Ingredients: ${ingredientsText.value}`,
-    '',
-    shareCTA.trim()
-  ].filter(Boolean).join('\n');
-
-  if ((navigator as any).share)
-    return (navigator as any).share({ title: 'Ingredients', text });
-
-  return Clipboard.write({ string: text })
-      .then(() => (showCopied.value = true));
-}
-
-
-// Helper
-function blobToBase64(file: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(((r.result as string) || '').split(',')[1] || '')
-    r.onerror = reject
-    r.readAsDataURL(file)
-  })
 }
 
 function clearAll() {
