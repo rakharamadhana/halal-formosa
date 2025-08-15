@@ -296,7 +296,7 @@ import {
 } from '@ionic/vue'
 import {cameraOutline, cloudUploadOutline, copyOutline, scanOutline, shareOutline} from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
-import {ref, nextTick, onUnmounted} from 'vue'
+import {ref, onUnmounted} from 'vue'
 
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
@@ -311,19 +311,24 @@ import useShareCard from "@/composables/useShareCard";
 import type { IngredientHighlight } from '@/types/ingredients'
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 
+const errorMsg = ref('')
+
+function setError(msg: string) {
+  errorMsg.value = msg
+}
+
+import useOcrPipeline from "@/composables/useOcrPipeline";
+
 /** ---------- State ---------- */
 const showCropper = ref(false)
 const cropperSrc = ref<string | null>(null)
 const cropperRef = ref<any>(null)
 const ocrLoading = ref(false)
 
-const showOk = ref(false)
 const showErr = ref(false)
 const errMsg = ref('')
 const showCopied = ref(false)
 
-const ingredientsText = ref('')
-const productName = ref('')
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
 
@@ -335,11 +340,6 @@ interface HighlightCache {
   highlights: IngredientHighlight[]
   blacklist: BlacklistPattern[]
 }
-
-const allHighlights = ref<IngredientHighlight[]>([])
-const ingredientHighlights = ref<IngredientHighlight[]>([])
-const blacklistPatterns = ref<RegExp[]>([])
-const autoStatus = ref('')
 
 const originalPreviewUrl = ref<string | null>(null) // original file preview
 const croppedPreviewUrl  = ref<string | null>(null) // cropped area preview
@@ -362,7 +362,6 @@ let resumeHandle: PluginListenerHandle | null = null
 const CACHE_KEY = 'highlightCache'
 const COUNT_KEY = 'highlightFetchCount'
 
-// Load from cache
 // Load from cache
 function loadCachedHighlights(): HighlightCache | null {
   const raw = localStorage.getItem(CACHE_KEY)
@@ -431,28 +430,6 @@ async function fetchHighlightsWithCache(force = false): Promise<HighlightCache |
 
   return null
 }
-
-onIonViewWillEnter(async () => {
-  if (maybeShowDisclaimer()) return
-
-  const data = await fetchHighlightsWithCache()
-  if (!data) {
-    console.warn('No cache and no internet — highlight system will be empty.')
-    return
-  }
-
-  allHighlights.value = data.highlights
-  blacklistPatterns.value = data.blacklist.map(
-      (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
-  )
-})
-
-onUnmounted(() => {
-  resumeHandle?.remove()
-  resumeHandle = null
-  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
-  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
-})
 
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
@@ -530,6 +507,24 @@ async function confirmCrop() {
   closeCropper()
 }
 
+/** ---------- OCR pipeline ---------- */
+const {
+  runOcr,
+  recheckHighlights,
+  allHighlights,
+  ingredientHighlights,
+  blacklistPatterns,
+  autoStatus,
+  productName,
+  ingredientsText,
+  showOk
+} = useOcrPipeline({
+  incrementDisclaimerCount,
+  incrementUsageCount,
+  fetchHighlightsWithCache,
+  setError
+})
+
 /** ---------- Share card ------------*/
 
 const { shareResult } = useShareCard(
@@ -543,267 +538,28 @@ function onShareClick() {
   shareResult(originalFile)
 }
 
-/** ---------- OCR pipeline ---------- */
-async function runOcr(file: File) {
-  const raw = await extractTextFromImage(file)
-  if (!raw) return error('OCR failed to detect any text.')
+/** ---------- Lifecycle  ---------- */
+onIonViewWillEnter(async () => {
+  if (maybeShowDisclaimer()) return
 
-  const cleanedZh = cleanChineseOcrText(raw)
-  const translated = await translateToEnglish(cleanedZh)
-  if (translated === null) return // Translation error already shown
-
-  if (!translated.toLowerCase().includes('ingredient')) {
-    return error('Ingredients not detected. Please crop the ingredients section.')
-  }
-
-  console.log(translated)
-  productName.value = extractProductName(translated) || ''
-  ingredientsText.value = cleanTranslatedIngredients(translated)
-  await nextTick()
-  await recheckHighlights()
-
-  showOk.value = true
-
-  // ✅ Increment counters only after successful scan
-  incrementDisclaimerCount()
-  const count = incrementUsageCount()
-
-  // ✅ If count reached 5, fetch fresh data and reset counter
-  if (count >= 5) {
-    const data = await fetchHighlightsWithCache(true) // force refresh
-    if (data) {
-      allHighlights.value = data.highlights
-      blacklistPatterns.value = data.blacklist.map(
-          (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
-      )
-    }
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms)
-    promise
-        .then((value) => {
-          clearTimeout(timer)
-          resolve(value)
-        })
-        .catch((err) => {
-          clearTimeout(timer)
-          reject(err)
-        })
-  })
-}
-
-async function extractTextFromImage(file: File) {
-  try {
-    const apiKey = import.meta.env.VITE_OCR_SPACE_API_KEY as string
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('apikey', apiKey)
-    formData.append('language', 'auto')
-    formData.append('isOverlayRequired', 'false')
-    formData.append('scale', 'true')
-    formData.append('OCREngine', '2')
-
-    // Wrap fetch in timeout
-    const res = await withTimeout(
-        fetch('https://api.ocr.space/parse/image', {
-          method: 'POST',
-          body: formData
-        }),
-        10000 // 10 seconds
-    )
-
-    const json = await res.json()
-
-    if (json?.IsErroredOnProcessing) {
-      const errMsgText = Array.isArray(json.ErrorMessage)
-          ? json.ErrorMessage.join(', ')
-          : (json.ErrorMessage || 'OCR server error')
-      error(`OCR Server is busy: ${errMsgText}`)
-      return ''
-    }
-
-    return json?.ParsedResults?.[0]?.ParsedText || ''
-  } catch (e: any) {
-    if (e.message === 'timeout') {
-      error('OCR server is busy, please try again later.')
-    } else {
-      error('Failed to connect to OCR server. Please try again later.')
-    }
-    console.error(e)
-    return ''
-  }
-}
-
-
-async function translateToEnglish(text: string) {
-  try {
-    const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string
-
-    const res = await withTimeout(
-        fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            q: text,
-            source: 'zh',
-            target: 'en',
-            format: 'text'
-          }),
-        }),
-        10000
-    )
-
-    const json = await res.json()
-
-    if (!json?.data?.translations?.[0]?.translatedText) {
-      const errMsgText = json?.error?.message || 'Translation service returned no result'
-      error(`Translation server error: ${errMsgText}`)
-      return null // fail explicitly
-    }
-
-    return json.data.translations[0].translatedText
-
-  } catch (e: any) {
-    if (e.message === 'timeout') {
-      error('Translation server is busy, please try again later.')
-    } else {
-      error('Failed to connect to translation server. Please try again later.')
-    }
-    return null
-  }
-}
-
-/** ---------- Cleaning helpers ---------- */
-function cleanChineseOcrText(text: string) {
-  let cleaned = text
-      .replace(/\r?\n+/g, ', ')
-      .replace(/[。、．]/g, ',')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/品\s*,?\s*名/gi, '品名')
-      .replace(/成\s*,?\s*分/gi, '成分')
-
-  for (const pattern of blacklistPatterns.value) {
-    cleaned = cleaned.replace(pattern, '').trim()
-  }
-  cleaned = cleaned.replace(/品名[:：].*?,/i, '')
-  cleaned = cleaned.replace(/成分[:：]/i, 'Ingredients: ')
-  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '')
-  return cleaned.trim()
-}
-
-function toProperCase(s: string) {
-  return s.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase())
-}
-
-function cleanTranslatedIngredients(text: string) {
-  const idx = text.toLowerCase().indexOf('ingredients:')
-  let extracted = idx !== -1 ? text.substring(idx + 'ingredients:'.length).trim() : text
-  extracted = extracted.replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ')
-  blacklistPatterns.value.forEach((p) => (extracted = extracted.replace(p, '').trim()))
-
-  let parts = extracted.split(',').map(p => p.trim()).filter(Boolean)
-  parts = parts.filter(p => !/^\d+\s*(g|kg|ml|毫升|公克)$/i.test(p))
-  if (parts.length && /^[A-Z][a-z]+.*\d+.*$/i.test(parts[0])) parts.shift()
-  parts = parts.filter(p => !/^[(),]+$/.test(p))
-
-  return parts.map(toProperCase).join(', ').replace(/[\s,]+$/g, '').replace(/\(\s*$/g, '')
-}
-
-function extractProductName(text: string) {
-  // Normalize common punctuation/spacing weirdness
-  const normalized = text
-      .replace(/：/g, ':')          // fullwidth colon -> normal
-      .replace(/\u3000/g, ' ')      // fullwidth space -> normal space
-      .replace(/\s+/g, ' ')         // collapse spaces
-      .replace(/\bEnd\.\s*/i, '')   // remove leading "End." noise if present
-      .trim()
-
-  const clean = (s: string) =>
-      toProperCase(
-          s
-              .replace(/[™®©]+/g, '')   // symbols
-              .replace(/\*+$/g, '')     // trailing asterisks
-              .trim()
-      )
-
-  // 1) Explicit label with colon anywhere: Name: ___  (or Product:, 品名:, etc.)
-  const m1 = /(product\s*name|product|name|item|品名|品項)\s*:\s*(.+?)(?=\s*(ingredients?\s*:|$|[.;\n\r]))/i.exec(normalized)
-  if (m1?.[2]) {
-    const cand = clean(m1[2])
-    if (cand.length > 2) return cand
-  }
-
-  // 2) Fallback: "Product <name>." before Ingredients:
-  const beforeIngredients = normalized.split(/ingredients?\s*:/i)[0] || ''
-  const m2 = /(?:^|\b)product\s+(.{3,120}?)(?=\s*(?:[.;\n]|$))/i.exec(beforeIngredients)
-  if (m2?.[1]) {
-    const cand = clean(m2[1])
-    if (cand.length > 2) return cand
-  }
-
-  // 3) Last resort: first sentence-like chunk before Ingredients (if it looks like a name)
-  if (beforeIngredients.trim()) {
-    const cand = clean(beforeIngredients.split(/[.;\n]/)[0])
-    if (/\w/.test(cand) && /\s/.test(cand) && cand.length > 2) return cand
-  }
-
-  return ''
-}
-
-/** ---------- Highlighting + status ---------- */
-async function recheckHighlights() {
-  const raw = ingredientsText.value.trim()
-
-  // If no text or no highlight config, clear & bail
-  if (!raw || !allHighlights.value.length) {
-    ingredientHighlights.value = []
-    autoStatus.value = ''
+  const data = await fetchHighlightsWithCache()
+  if (!data) {
+    console.warn('No cache and no internet — highlight system will be empty.')
     return
   }
 
-  const parts = raw.split(/\s*,\s*/).map(x => x.trim()).filter(Boolean)
+  allHighlights.value = data.highlights
+  blacklistPatterns.value = data.blacklist.map(
+      (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+  )
+})
 
-  // If we have zero parsed ingredients, keep status empty
-  if (parts.length === 0) {
-    ingredientHighlights.value = []
-    autoStatus.value = ''
-    return
-  }
-
-  // Match highlights (same as before)
-  const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
-  const found: IngredientHighlight[] = []
-  const seen = new Set<string>()
-
-  for (const ing of parts) {
-    const low = ing.toLowerCase()
-    const m = highlights.find(h =>
-        low === h.keyword.toLowerCase() || low.includes(h.keyword.toLowerCase())
-    )
-    if (m && !seen.has(m.keyword.toLowerCase())) {
-      seen.add(m.keyword.toLowerCase())
-      found.push({ keyword: ing, keyword_zh: m.keyword_zh, color: m.color })
-    }
-  }
-  ingredientHighlights.value = found
-
-  // Derive status with new default rule:
-  const hasHaram = found.some(h => extractIonColor(h.color) === 'danger')
-  const hasSyubhah = found.some(h => extractIonColor(h.color) === 'warning')
-  // const hasMuslimFriendly = found.some(h => extractIonColor(h.color) === 'primary') // optional
-
-  if (hasHaram) {
-    autoStatus.value = 'Haram'
-  } else if (hasSyubhah) {
-    autoStatus.value = 'Syubhah'
-  } else {
-    // ✅ default when no risky hits detected
-    autoStatus.value = 'Muslim-friendly'
-  }
-}
+onUnmounted(() => {
+  resumeHandle?.remove()
+  resumeHandle = null
+  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
+  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
+})
 
 /** ---------- Utility actions ---------- */
 async function copyResult() {
