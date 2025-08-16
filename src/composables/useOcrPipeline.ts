@@ -1,4 +1,4 @@
-import { ref, nextTick } from 'vue'
+import { Ref, ref, nextTick } from 'vue'
 import type { IngredientHighlight } from '@/types/ingredients'
 import { extractIonColor } from '@/utils/ingredientHelpers'
 
@@ -7,6 +7,8 @@ export interface BlacklistPattern {
 }
 
 export interface OcrPipelineOptions {
+    allHighlights: Ref<IngredientHighlight[]>
+    blacklistPatterns: Ref<RegExp[]>
     incrementDisclaimerCount: () => void
     incrementUsageCount: () => number
     fetchHighlightsWithCache: (force?: boolean) => Promise<{
@@ -17,6 +19,8 @@ export interface OcrPipelineOptions {
 }
 
 export default function useOcrPipeline({
+                                           allHighlights,
+                                           blacklistPatterns,
                                            incrementDisclaimerCount,
                                            incrementUsageCount,
                                            fetchHighlightsWithCache,
@@ -24,8 +28,6 @@ export default function useOcrPipeline({
                                        }: OcrPipelineOptions) {
 
     // ✅ State lives inside composable now
-    const allHighlights = ref<IngredientHighlight[]>([])
-    const blacklistPatterns = ref<RegExp[]>([])
     const ingredientHighlights = ref<IngredientHighlight[]>([])
     const autoStatus = ref('')
     const productName = ref('')
@@ -33,44 +35,47 @@ export default function useOcrPipeline({
     const showOk = ref(false)
 
     async function runOcr(file: File) {
-        incrementDisclaimerCount()
-        incrementUsageCount()
-        const data = await fetchHighlightsWithCache()
-        if (data) {
-            allHighlights.value = data.highlights
-            blacklistPatterns.value = data.blacklist.map(b => new RegExp(b.pattern, 'gi'))
-        }
-
-        const raw = await extractTextFromImage(file)
-        if (!raw) return setError('OCR failed to detect any text.')
-
-        const cleanedZh = cleanChineseOcrText(raw)
-        const translated = await translateToEnglish(cleanedZh)
-        if (translated === null) return
-
-        if (!translated.toLowerCase().includes('ingredient')) {
-            return setError('Ingredients not detected. Please crop the ingredients section.')
-        }
-
-        productName.value = extractProductName(translated) || ''
-        ingredientsText.value = cleanTranslatedIngredients(translated)
-
-        await nextTick()
-        await recheckHighlights()
-
-        showOk.value = true
-        incrementDisclaimerCount()
-        const count = incrementUsageCount()
-
-        if (count >= 5) {
-            const fresh = await fetchHighlightsWithCache(true)
-            if (fresh) {
-                allHighlights.value = fresh.highlights
-                blacklistPatterns.value = fresh.blacklist.map(
-                    (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
-                )
+        try {
+            incrementDisclaimerCount()
+            const data = await fetchHighlightsWithCache()
+            if (data) {
+                allHighlights.value = data.highlights
+                blacklistPatterns.value = data.blacklist.map(b => new RegExp(b.pattern, 'gi'))
             }
+
+            const raw = await extractTextFromImage(file)
+            if (!raw) return setError('OCR failed to detect any text.')
+
+            const cleanedZh = cleanChineseOcrText(raw)
+            const translated = await translateToEnglish(cleanedZh)
+            if (translated === null) return
+
+            if (!translated.toLowerCase().includes('ingredient')) {
+                return setError('Ingredients not detected. Please crop the ingredients section.')
+            }
+
+            productName.value = extractProductName(translated) || ''
+            ingredientsText.value = cleanTranslatedIngredients(translated)
+
+            await nextTick()
+            await recheckHighlights()
+
+            const count = incrementUsageCount()
+
+            if (count >= 5) {
+                const fresh = await fetchHighlightsWithCache(true)
+                if (fresh) {
+                    allHighlights.value = fresh.highlights
+                    blacklistPatterns.value = fresh.blacklist.map(
+                        (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+                    )
+                }
+            }
+            showOk.value = true
+        } catch (e) {
+            setError('OCR failed.')
         }
+
     }
 
     function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -280,9 +285,7 @@ export default function useOcrPipeline({
     return {
         runOcr,
         recheckHighlights,
-        allHighlights,
         ingredientHighlights,
-        blacklistPatterns,
         autoStatus,
         productName,
         ingredientsText,

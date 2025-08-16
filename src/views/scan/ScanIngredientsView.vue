@@ -270,12 +270,12 @@
       />
       <ion-toast
           :is-open="showErr"
-          :message="errMsg"
+          :message="errorMsg"
           :duration="2200"
           color="danger"
           style="transform: translateY(-6%)"
           position="bottom"
-          @did-dismiss="showErr=false"
+          @did-dismiss="clearError()"
       />
       <ion-toast
           :is-open="showCopied"
@@ -305,41 +305,24 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { Clipboard } from '@capacitor/clipboard'
 import type { PluginListenerHandle } from '@capacitor/core'
 
-import { supabase } from '@/plugins/supabaseClient'
 import useDisclaimer from "@/composables/useDisclaimer";
 import useShareCard from "@/composables/useShareCard";
-import type { IngredientHighlight } from '@/types/ingredients'
-import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
-
-const errorMsg = ref('')
-
-function setError(msg: string) {
-  errorMsg.value = msg
-}
-
 import useOcrPipeline from "@/composables/useOcrPipeline";
+import useError from '@/composables/useError'
+import useHighlightCache from '@/composables/useHighlightCache'
+import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
+import {BlacklistPattern} from "@/types/ingredients";
 
 /** ---------- State ---------- */
 const showCropper = ref(false)
 const cropperSrc = ref<string | null>(null)
 const cropperRef = ref<any>(null)
 const ocrLoading = ref(false)
-
-const showErr = ref(false)
-const errMsg = ref('')
 const showCopied = ref(false)
+const { errorMsg, showErr, setError, clearError } = useError()
 
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
-
-interface BlacklistPattern {
-  pattern: string
-}
-
-interface HighlightCache {
-  highlights: IngredientHighlight[]
-  blacklist: BlacklistPattern[]
-}
 
 const originalPreviewUrl = ref<string | null>(null) // original file preview
 const croppedPreviewUrl  = ref<string | null>(null) // cropped area preview
@@ -359,77 +342,13 @@ const {
 
 /** ---------- Boot: fetch highlight data ---------- */
 let resumeHandle: PluginListenerHandle | null = null
-const CACHE_KEY = 'highlightCache'
-const COUNT_KEY = 'highlightFetchCount'
 
-// Load from cache
-function loadCachedHighlights(): HighlightCache | null {
-  const raw = localStorage.getItem(CACHE_KEY)
-  return raw ? JSON.parse(raw) as HighlightCache : null
-}
-
-// Save to cache
-function saveCachedHighlights(data: HighlightCache) {
-  localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-  localStorage.setItem(COUNT_KEY, '0') // reset usage count
-}
-
-// Increment usage counter
-function incrementUsageCount() {
-  let count = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10)
-  count++
-  localStorage.setItem(COUNT_KEY, count.toString())
-  console.log("Usage count: ",count)
-  return count
-}
-
-// Main fetch logic
-async function fetchHighlightsWithCache(force = false): Promise<HighlightCache | null> {
-  const count = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10)
-  console.log(`[HighlightCache] Usage count = ${count}, force = ${force}`)
-
-  // If we haven't reached 5 scans yet and not forced, use cache
-  if (!force && count < 5) {
-    const cached = loadCachedHighlights()
-    if (cached) {
-      console.log(`[HighlightCache] ✅ Using cached highlights (count = ${count})`, cached)
-      return cached
-    } else {
-      console.log(`[HighlightCache] ⚠ No cached data found, fetching from Supabase...`)
-    }
-  } else {
-    console.log(`[HighlightCache] 🔄 Count threshold reached (${count}) or force = true, fetching from Supabase...`)
-  }
-
-  try {
-    const [hl, bl] = await Promise.all([
-      supabase
-          .from('ingredient_highlights')
-          .select('keyword, keyword_zh, color'),
-      supabase
-          .from('ingredient_blacklist')
-          .select('pattern')
-          .eq('is_active', true)
-    ])
-
-    if (!hl.error && !bl.error && hl.data && bl.data) {
-      const data: HighlightCache = {
-        highlights: hl.data,
-        blacklist: bl.data
-      }
-      saveCachedHighlights(data)
-      console.log(`[HighlightCache] 📡 Fetched fresh data from Supabase`, data)
-      return data
-    } else {
-      console.error(`[HighlightCache] ❌ Error fetching from Supabase`, hl.error || bl.error)
-    }
-  } catch (err) {
-    console.error(`[HighlightCache] ❌ Supabase fetch failed, trying cache fallback`, err)
-    return loadCachedHighlights()
-  }
-
-  return null
-}
+const {
+  allHighlights,
+  blacklistPatterns,
+  fetchHighlightsWithCache,
+  incrementUsageCount
+} = useHighlightCache()
 
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
@@ -482,7 +401,7 @@ function closeCropper() {
 async function confirmCrop() {
   if (!cropperRef.value) return
   const result = cropperRef.value.getResult()
-  if (!result || !result.canvas) return error('No crop result available.')
+  if (!result || !result.canvas) return setError('No crop result available.')
 
   ocrLoading.value = true
   const blob = await new Promise<Blob | null>((resolve) =>
@@ -490,7 +409,7 @@ async function confirmCrop() {
   )
   if (!blob) {
     ocrLoading.value = false
-    return error('Failed to create image from crop.')
+    return setError('Failed to create image from crop.')
   }
 
   // ✅ keep a preview URL (for UI)
@@ -511,19 +430,20 @@ async function confirmCrop() {
 const {
   runOcr,
   recheckHighlights,
-  allHighlights,
   ingredientHighlights,
-  blacklistPatterns,
   autoStatus,
   productName,
   ingredientsText,
   showOk
 } = useOcrPipeline({
+  allHighlights,
+  blacklistPatterns,
   incrementDisclaimerCount,
   incrementUsageCount,
   fetchHighlightsWithCache,
   setError
 })
+
 
 /** ---------- Share card ------------*/
 
@@ -581,13 +501,14 @@ function clearAll() {
   originalFile.value = null
   croppedFile.value = null
 
-  if (originalPreviewUrl.value) { URL.revokeObjectURL(originalPreviewUrl.value); originalPreviewUrl.value = null }
-  if (croppedPreviewUrl.value)  { URL.revokeObjectURL(croppedPreviewUrl.value);  croppedPreviewUrl.value = null }
-}
-
-function error(m: string) {
-  errMsg.value = m
-  showErr.value = true
+  if (originalPreviewUrl.value) {
+    URL.revokeObjectURL(originalPreviewUrl.value);
+    originalPreviewUrl.value = null
+  }
+  if (croppedPreviewUrl.value) {
+    URL.revokeObjectURL(croppedPreviewUrl.value);
+    croppedPreviewUrl.value = null
+  }
 }
 </script>
 
