@@ -222,8 +222,8 @@
                   label="Translated Ingredients"
                   label-placement="stacked"
                   :auto-grow="true"
-                  @ionBlur="recheckHighlights"
                   readonly
+                  @ionBlur="() => recheckHighlights(ingredientsText)"
               />
             </ion-item>
 
