@@ -35,6 +35,7 @@ function incrementUsageCount() {
     let count = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10)
     count++
     localStorage.setItem(COUNT_KEY, count.toString())
+    console.log("COUNT_KEY: ", count.toString())
     return count
 }
 
@@ -66,6 +67,8 @@ async function fetchHighlightsWithCache(force = false): Promise<HighlightCache |
 
             allHighlights.value = data.highlights
             blacklistPatterns.value = data.blacklist.map(r => new RegExp(r.pattern, 'gi'))
+
+            console.log("Fetching new ingredients data succeed!")
 
             return data
         } else {

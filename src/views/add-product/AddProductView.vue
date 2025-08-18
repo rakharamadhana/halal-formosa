@@ -76,7 +76,7 @@
                   placeholder="Enter text or use camera/gallery"
                   :auto-grow="true"
                   @input="handleIngredientsInput"
-                  @blur="checkIngredientHighlights"
+                  @blur="recheckHighlights"
                   required
               />
               <ion-buttons slot="end">
@@ -89,6 +89,7 @@
               </ion-buttons>
             </ion-item>
 
+
             <ion-progress-bar
                 v-if="ocrLoading"
                 type="indeterminate"
@@ -100,8 +101,7 @@
                 v-if="checkingIngredients"
                 type="indeterminate"
                 color="primary"
-                style="margin-top: 10px;"
-            ></ion-progress-bar>
+            />
 
             <div v-if="ingredientHighlights.length" class="ion-no-padding">
               <div class="ion-padding-vertical">
@@ -112,12 +112,19 @@
                     class="ion-margin-end ion-margin-bottom"
                     :color="extractIonColor(highlight.color)"
                 >
-                  {{ highlight.keyword }}
-                  <template v-if="highlight.keyword_zh">
-                    ({{ highlight.keyword_zh }})
+                  <!-- Show keyword (English) if it exists -->
+                  <template v-if="highlight.keyword">
+                    {{ highlight.keyword }}
                   </template>
+
+                  <!-- Show the exact OCR-matched Chinese variant -->
+                  <template v-if="highlight.matchedVariant">
+                    ({{ highlight.matchedVariant }})
+                  </template>
+
                   - {{ getColorMeaning(extractIonColor(highlight.color)) }}
                 </ion-chip>
+
               </div>
             </div>
 
@@ -197,16 +204,6 @@
             position="bottom"
             @did-dismiss="showOcrToast = false"
         />
-
-        <!-- Toast for error -->
-        <ion-toast
-            :is-open="showErrorToast"
-            :message="errorMsg"
-            :duration="2500"
-            color="danger"
-            position="bottom"
-            @did-dismiss="showErrorToast = false"
-        ></ion-toast>
       </form>
     </ion-content>
   </ion-page>
@@ -247,17 +244,31 @@ import {Cropper} from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 import AppHeader from "@/components/AppHeader.vue";
 
-const checkingIngredients = ref(false)
+import useHighlightCache from '@/composables/useHighlightCache'
+import useOcrPipeline from '@/composables/useOcrPipeline'
+import useError from '@/composables/useError'
 
-interface IngredientHighlight {
-  keyword: string;
-  keyword_zh?: string; // optional for backward compatibility
-  color: string;
-}
+const { errorMsg, setError } = useError()
 
-const ingredientHighlights = ref<IngredientHighlight[]>([])
-const allHighlights = ref<IngredientHighlight[]>([]);
-const blacklistPatterns = ref<RegExp[]>([]);
+// highlight + OCR pipeline
+const { allHighlights, blacklistPatterns, fetchHighlightsWithCache, incrementUsageCount } =
+    useHighlightCache()
+
+const {
+  recheckHighlights,
+  ingredientHighlights,
+  ingredientsText,
+  autoStatus,
+  productName,
+  checkingIngredients,
+} = useOcrPipeline({
+  allHighlights,
+  blacklistPatterns,
+  incrementUsageCount,
+  fetchHighlightsWithCache,
+  setError,   // ✅ use composable directly
+
+})
 
 // ✅ Fetch highlights & blacklist once when component mounts
 onMounted(async () => {
@@ -274,28 +285,6 @@ onMounted(async () => {
   }
 });
 
-watch(ingredientHighlights, (newHighlights) => {
-  if (!newHighlights.length) {
-    form.value.status = 'Halal'; // default
-    return;
-  }
-
-  // Extract colors from highlights
-  const colors = newHighlights.map(h => extractIonColor(h.color));
-
-  // Determine status based on priority
-  if (colors.includes('danger')) {
-    form.value.status = 'Haram';
-  } else if (colors.includes('warning')) {
-    form.value.status = 'Syubhah';
-  } else if (colors.includes('primary')) {
-    form.value.status = 'Muslim-friendly';
-  } else {
-    form.value.status = 'Halal';
-  }
-
-  console.log('⚡ Auto-set status to:', form.value.status);
-});
 
 interface ProductForm {
   barcode: string;
@@ -313,6 +302,48 @@ const form = ref<ProductForm>({
   description: ''
 });
 
+// after your useOcrPipeline call
+watch([autoStatus, productName, ingredientsText],
+    ([newStatus, newName, newIngredients]) => {
+      if (newStatus) {
+        form.value.status = newStatus
+        console.log("⚡ AutoStatus applied:", newStatus)
+
+        // ✅ Auto-fill description based on status
+        switch (newStatus) {
+          case 'Muslim-friendly':
+            form.value.description = "Muslim-friendly ingredients, OK"
+            break
+          case 'Syubhah':
+            form.value.description = "Syubhah ingredients found"
+            break
+          case 'Haram':
+            form.value.description = "Haram ingredients found"
+            break
+          default:
+            form.value.description = "" // leave empty for Halal
+        }
+      }
+
+      if (newName && !form.value.name.trim()) {
+        form.value.name = newName
+        console.log("🏷 AutoProductName applied:", newName)
+      }
+      if (newIngredients) {
+        form.value.ingredients = newIngredients
+      }
+    }
+)
+
+watch(() => form.value.status, (newStatus) => {
+  switch (newStatus) {
+    case 'Muslim-friendly': form.value.description = "Muslim-friendly ingredients, OK"; break
+    case 'Syubhah': form.value.description = "Syubhah ingredients found"; break
+    case 'Haram': form.value.description = "Haram ingredients found"; break
+    default: form.value.description = ""
+  }
+})
+
 const frontFile = ref < File | null > (null)
 const backFile = ref < File | null > (null)
 const frontPreview = ref < string | null > (null) // For showing preview
@@ -323,7 +354,6 @@ const showToast = ref(false)
 const showOcrToast = ref(false);
 const showErrorToast = ref(false)
 const toastMessage = ref('')
-const errorMsg = ref('')
 const scanning = ref(false)
 let html5QrcodeScanner: Html5Qrcode | null = null
 
@@ -334,6 +364,10 @@ const cropperRef = ref<any>(null);
 function openCropper(file: File) {
   cropperSrc.value = URL.createObjectURL(file);
   showCropper.value = true;
+
+  // 🔹 Set as back image BEFORE crop
+  backPreview.value = cropperSrc.value;
+  backFile.value = file;
 }
 
 function closeCropper() {
@@ -342,83 +376,101 @@ function closeCropper() {
 }
 
 async function confirmCrop() {
-  console.log('✅ Confirm Crop button clicked');
-
   if (!cropperRef.value) {
-    console.error('❗ Cropper ref is null');
+    setError('❌ Cropper ref is null');
     return;
   }
 
   const result = cropperRef.value.getResult();
-  console.log('📐 Cropper result:', result);
-
   if (!result || !result.canvas) {
-    errorMsg.value = 'No crop result available.';
-    showErrorToast.value = true;
-    console.error('❌ No canvas returned from cropper');
+    setError('No crop result available.');
     return;
   }
 
-  // ✅ Start loading spinner
   ocrLoading.value = true;
 
   const { canvas } = result;
   const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((b: Blob | null) => {
-      console.log('🖼 Canvas to Blob finished. Blob size:', b?.size || 0);
-      resolve(b);
-    }, 'image/jpeg', 0.9);
+    canvas.toBlob((b: Blob | null) => resolve(b), 'image/jpeg', 0.9);
   });
 
   if (blob) {
     const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
       type: 'image/jpeg',
     });
-    console.log('📂 Cropped file ready:', croppedFile.name, croppedFile.size, 'bytes');
 
-    await runOcrOnFile(croppedFile); // OCR + translation
-  } else {
-    console.error('❌ Failed to create blob from canvas');
+    // 🔹 Only run OCR on cropped image
+    const resized = await resizeImage(URL.createObjectURL(croppedFile), 1000, 0.7)
+    await runOcrOnFile(resized)
+
   }
 
-  // ✅ Hide spinner & close modal
   ocrLoading.value = false;
   closeCropper();
 }
 
-
 const ocrLoading = ref(false);
 
-async function extractTextFromImage(file: File) {
-  console.log('🔍 Starting OCR for file:', file.name);
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms)
+    promise
+        .then((value) => {
+          clearTimeout(timer)
+          resolve(value)
+        })
+        .catch((err) => {
+          clearTimeout(timer)
+          reject(err)
+        })
+  })
+}
 
-  const apiKey = import.meta.env.VITE_OCR_SPACE_API_KEY as string; // replace with your OCR.Space API key
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('apikey', apiKey);
-  formData.append('language', 'auto'); // use 'chs' for Chinese
-  formData.append('isOverlayRequired', 'false');
-  formData.append('scale', 'true');        // 🔹 Use Engine 2
-  formData.append('OCREngine', '2');        // 🔹 Use Engine 2
-
+async function extractTextFromImage(file: File): Promise<string> {
   try {
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData,
-    });
+    const base64 = await fileToBase64(file);
 
-    const result = await response.json();
+    const res = await withTimeout(
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ocr`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageBase64: base64 }),
+        }),
+        15000 // 15s timeout
+    );
 
-    if (result?.ParsedResults?.length > 0) {
-      return result.ParsedResults[0].ParsedText;
-    } else {
-      console.error('❌ OCR failed to detect text');
+    const json = await res.json();
+
+    if (!res.ok || json.error) {
+      setError(`OCR failed: ${json.error || 'Google OCR server error'}`);
       return '';
     }
-  } catch (err) {
-    console.error('❌ OCR request error:', err);
+
+    return json.text || '';
+  } catch (e: any) {
+    if (e.message === 'timeout') {
+      setError('OCR server is busy, please try again later.');
+    } else {
+      setError('Failed to connect to OCR server. Please try again later.');
+    }
+    console.error('❌ OCR service error:', e);
     return '';
   }
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1]; // remove data URL prefix
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 async function scanIngredientsWithCamera() {
@@ -530,7 +582,7 @@ function cleanTranslatedIngredients(text: string): string {
   }
 
   // ✅ Remove incomplete items like "(" or ")" or ending commas
-  parts = parts.filter((p) => !/^[\(\)\,]+$/.test(p));
+  parts = parts.filter((p) => !/^[(),]+$/.test(p));
 
   // ✅ Join and remove trailing punctuation
   return parts.map(toProperCase).join(', ')
@@ -550,24 +602,22 @@ function extractProductName(text: string) {
   for (const keyword of nameKeywords) {
     const idx = lower.indexOf(keyword);
     if (idx !== -1) {
-      // Extract part after keyword
       let remainder = text.substring(idx + keyword.length).trim();
 
-      // ✅ Stop at "ingredients" or the first comma/parenthesis/newline
       remainder = remainder
-          .split(/ingredients?:/i)[0]  // stop before ingredients
-          .split(/[,(\n]/)[0]          // stop at first comma/parenthesis/newline
-          .replace(/[:：]/g, '')        // remove colon
+          .split(/ingredients?:/i)[0]
+          .split(/[,(\n]/)[0]
+          .replace(/[:：]/g, '')
           .trim();
 
-      // ✅ Avoid single words like "Sodium" being mistaken for product name
       if (remainder.length > 2 && /\s/.test(remainder)) {
         const productName = toProperCase(remainder);
         console.log('🏷 Extracted Product Name:', productName);
         form.value.name = productName;
-        return productName;
+        return productName; // ✅ return if valid
       } else {
         console.warn('⚠️ Potential product name found but skipped (too short or single word):', remainder);
+        return ''; // ✅ return here too so we don't fall through
       }
     }
   }
@@ -580,24 +630,21 @@ async function runOcrOnFile(file: File) {
   const ocrText = await extractTextFromImage(file);
 
   if (!ocrText) {
-    errorMsg.value = 'OCR failed to detect any text.';
-    showErrorToast.value = true;
+    setError('OCR failed to detect any text.')
     return;
   }
 
   // 1️⃣ Clean Chinese OCR first
   const cleanedChinese = cleanChineseOcrText(ocrText);
-  console.log('🔹 Cleaned Chinese OCR:', cleanedChinese);
+  console.log('✨ Cleaned Chinese OCR:', cleanedChinese);
 
   // 2️⃣ Translate to English
   const translatedText = await translateToEnglish(cleanedChinese);
-  console.log('🔹 Translated text:', translatedText);
 
   // 3️⃣ Check if translated text likely has ingredients
   const lowerTranslated = translatedText.toLowerCase();
   if (!lowerTranslated.includes('ingredient')) {
-    errorMsg.value = '⚠️ Ingredients not detected. Please crop the correct ingredients section.';
-    showErrorToast.value = true;
+    setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.')
     console.warn('⚠️ No ingredients section detected in OCR result.');
     return;
   }
@@ -607,11 +654,11 @@ async function runOcrOnFile(file: File) {
 
   // 5️⃣ Clean & extract only ingredients
   const readableText = cleanTranslatedIngredients(translatedText);
-  console.log('✨ Final Ingredients:', readableText);
 
   // 6️⃣ Populate form and highlight
-  form.value.ingredients = readableText;
-  checkIngredientHighlights();
+  form.value.ingredients = readableText
+  ingredientsText.value = readableText
+  await recheckHighlights(cleanedChinese)
 
   // Focus the ingredients textarea
   nextTick(() => {
@@ -619,7 +666,7 @@ async function runOcrOnFile(file: File) {
     if (textarea && (textarea as any).setFocus) {
       (textarea as any).setFocus();
     }
-  });
+  })
 
   // 7️⃣ Show OCR success toast
   showOcrToast.value = true;
@@ -638,8 +685,7 @@ function onBarcodeInput(event: Event) {
   if (numericValue.length >= 8) {
     const result = validateBarcode(numericValue);
     if (!result.isValid) {
-      errorMsg.value = result.message;
-      showErrorToast.value = true;
+      setError(result.message)
     } else {
       // ✅ Show toast for valid barcode
       toastMessage.value = result.message;
@@ -674,46 +720,6 @@ function getColorMeaning(color: string) {
 function extractIonColor(fullColor: string) {
   const parts = fullColor.split('-')
   return parts[parts.length - 1] // last part = "warning"
-}
-
-
-async function checkIngredientHighlights() {
-  const rawIngredients = form.value.ingredients.trim()
-  if (!rawIngredients || allHighlights.value.length === 0) {
-    ingredientHighlights.value = []
-    return
-  }
-
-  const ingredients = rawIngredients.split(/\s*,\s*/).map(i => i.trim()).filter(Boolean)
-  if (!ingredients.length) return
-
-  checkingIngredients.value = true
-  try {
-    const highlights = [...allHighlights.value].sort((a, b) => b.keyword.length - a.keyword.length)
-
-    const foundHighlights: IngredientHighlight[] = []
-    const addedKeywords = new Set<string>()
-
-    for (const ing of ingredients) {
-      const lowerIng = ing.toLowerCase()
-      const match = highlights.find(h =>
-          lowerIng === h.keyword.toLowerCase() || lowerIng.includes(h.keyword.toLowerCase())
-      )
-
-      if (match && !addedKeywords.has(match.keyword.toLowerCase())) {
-        addedKeywords.add(match.keyword.toLowerCase())
-        foundHighlights.push({
-          keyword: ing,
-          keyword_zh: match.keyword_zh, // ✅ now allowed
-          color: match.color
-        })
-      }
-    }
-
-    ingredientHighlights.value = foundHighlights
-  } finally {
-    checkingIngredients.value = false
-  }
 }
 
 async function startBarcodeScan() {
@@ -883,14 +889,13 @@ async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Prom
   })
 }
 
-let debounceTimer: NodeJS.Timeout | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleIngredientsInput(event: Event) {
   onIngredientsInput(event)
-
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    checkIngredientHighlights()
+    recheckHighlights()
   }, 800)
 }
 
@@ -955,8 +960,7 @@ async function handleSubmit() {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      errorMsg.value = 'You must be logged in to submit a product.'
-      showErrorToast.value = true
+      setError('You must be logged in to submit a product.')
       loading.value = false
       return
     }
@@ -967,50 +971,43 @@ async function handleSubmit() {
 
     const barcodeValidation = validateBarcode(barcode);
     if (!barcodeValidation.isValid) {
-      errorMsg.value = barcodeValidation.message;
-      showErrorToast.value = true;
+      setError(barcodeValidation.message)
       loading.value = false;
       return;
     }
 
     if (!form.value.name.trim()) {
-      errorMsg.value = 'Product name is required.';
-      showErrorToast.value = true;
+      setError('Product name is required.')
       loading.value = false;
       return;
     }
 
     if (!form.value.status) {
-      errorMsg.value = 'Product status is required.';
-      showErrorToast.value = true;
+      setError('Product status is required.')
       loading.value = false;
       return;
     }
 
     if (!form.value.ingredients.trim()) {
-      errorMsg.value = 'Ingredients are required.';
-      showErrorToast.value = true;
+      setError('Ingredients is required.')
       loading.value = false;
       return;
     }
 
     if (!form.value.description.trim()) {
-      errorMsg.value = 'Description is required.';
-      showErrorToast.value = true;
+      setError('Description is required.')
       loading.value = false;
       return;
     }
 
     if (!frontFile.value) {
-      errorMsg.value = 'Front image is required.';
-      showErrorToast.value = true;
+      setError('Front image is required.')
       loading.value = false;
       return;
     }
 
     if (!backFile.value) {
-      errorMsg.value = 'Back image is required.';
-      showErrorToast.value = true;
+      setError('Back image is required.')
       loading.value = false;
       return;
     }
@@ -1095,8 +1092,7 @@ async function handleSubmit() {
     ingredientHighlights.value = []
   } catch (err: any) {
     console.error('Submission error:', err)
-    errorMsg.value = err.message || 'An unexpected error occurred.'
-    showErrorToast.value = true
+    setError(err.message || 'An unexpected error occurred.')
   } finally {
     loading.value = false
   }

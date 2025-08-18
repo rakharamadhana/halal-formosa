@@ -4,22 +4,32 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Clipboard } from '@capacitor/clipboard'
 import { loadImageFromFile, loadImageFromUrl, roundRect, blobToBase64 } from '@/utils/imageHelpers'
 import type { Ref } from 'vue'
-import { ionToHex } from '@/utils/ingredientHelpers'
 import type { IngredientHighlight } from '@/types/ingredients'
+import { extractIonColor } from '@/utils/ingredientHelpers'
 
 interface ShareCardOptions {
     productName?: string
     status?: string
     ingredients: string
     logoUrl?: string
-    highlightMap?: Record<string, string>
+    highlightRules?: HighlightRule[]
+}
+
+type HighlightRule = {
+    regex: RegExp
+    color: string
+}
+
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export default function useShareCard(
     productNameRef: Ref<string>,
     ingredientsTextRef: Ref<string>,
     autoStatusRef: Ref<string>,
-    ingredientHighlightsRef: Ref<IngredientHighlight[]>
+    ingredientHighlightsRef: Ref<IngredientHighlight[]>,
+    ingredientsTextZhRef: Ref<string>
 ) {
     const shareCTA = `
 Join us and contribute to make Halal Formosa more beneficial for others 🌟
@@ -28,35 +38,49 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
 `
 
     /** Main card builder */
-    // --- main: makeShareCard ---
-    /**
-     * @param imageFile  cropped image (or original)
-     * @param opts { productName, status, ingredients, logoUrl? }
-     * @returns File (JPEG) ready to share
-     */
+    /** Main card builder */
     async function makeShareCard(
         imageFile: Blob,
         opts: ShareCardOptions
     ): Promise<File> {
-        // --- Layout constants ---
-        const W = 1080;
-        const P = 48;
-        const cardR = 40;
-        const imageR = 36;
-        const headerH = 80;
-        const imgH = 580;
-        const nameRowH = 72;
-        const gapAfterName = 16;
-        const footerH = 72;
-        const lineH = 42;
+        const W = 1080
+        const P = 48
+        const cardR = 40
+        const imageR = 36
+        const headerH = 80
+        const imgH = 580
+        const nameRowH = 72
+        const gapAfterName = 16
+        const footerH = 72
+        const lineH = 42
 
-        const cardX = P / 2;
-        const cardY = P / 2;
-        const cardW = W - P;
-        const contentX = cardX + P;
-        const contentW = cardW - P * 2;
+        const cardX = P / 2
+        const cardY = P / 2
+        const cardW = W - P
+        const contentX = cardX + P
+        const contentW = cardW - P * 2
 
-        // Wrap + (optionally) draw highlighted items
+        function resolveColor(name: string): string {
+            const map: Record<string, string> = {
+                danger: "#e53935",
+                warning: "#ff9800",
+                primary: "#1e88e5",
+                success: "#43a047",
+                default: "#111"
+            }
+            return map[name] || name || map.default
+        }
+
+        function colorToStatus(color: string): string {
+            switch (extractIonColor(color)) {
+                case 'danger': return 'Haram'
+                case 'warning': return 'Syubhah'
+                case 'primary': return 'Muslim-friendly'
+                default: return 'Unknown'
+            }
+        }
+
+        // --- Draw highlighted ingredients ---
         function drawHighlightedItems(
             ctx: CanvasRenderingContext2D,
             items: string[],
@@ -65,157 +89,187 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
             maxW: number,
             lineH: number,
             draw: boolean,
-            cfg: { label?: string; highlightMap?: Record<string, string> } = {}
+            cfg: { label?: string; highlightRules?: HighlightRule[] } = {}
         ): number {
             const fontFor = (bold: boolean) =>
-                `${bold ? '700' : '400'} 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+                `${bold ? '700' : '400'} 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`
 
-            // use the ionToHex you defined outside
-            const colorFor = (item: string) => ionToHex(cfg.highlightMap?.[item.toLowerCase()]);
+            let cx = x, cy = y
 
-            let cx = x, cy = y;
-
-            // Label (bold)
-            if (cfg.label) {
-                ctx.font = fontFor(true);
-                const lw = ctx.measureText(cfg.label).width;
-                if (cx + lw > x + maxW) { cx = x; cy += lineH; }
-                if (draw) { ctx.fillStyle = '#111'; ctx.fillText(cfg.label, cx, cy); }
-                cx += lw;
-            }
+            const drawnTokens: { text: string; color: string; bold: boolean; x: number; y: number }[] = []
 
             const drawToken = (text: string, bold: boolean, color: string) => {
-                ctx.font = fontFor(bold);
-                const w = ctx.measureText(text).width;
-                if (cx + w > x + maxW) { cx = x; cy += lineH; }
-                if (draw) { ctx.fillStyle = color; ctx.fillText(text, cx, cy); }
-                cx += w;
-            };
+                ctx.font = fontFor(bold)
+                const w = ctx.measureText(text).width
+                if (cx + w > x + maxW) { cx = x; cy += lineH }
+                if (draw) {
+                    ctx.fillStyle = resolveColor(color)
+                    ctx.fillText(text, cx, cy)
+                    drawnTokens.push({ text, color, bold, x: cx, y: cy })
+                }
+                cx += w
+            }
 
+            // Label
+            if (cfg.label) {
+                ctx.font = fontFor(true)
+                const lw = ctx.measureText(cfg.label).width
+                if (cx + lw > x + maxW) { cx = x; cy += lineH }
+                if (draw) {
+                    ctx.fillStyle = '#111'
+                    ctx.fillText(cfg.label, cx, cy)
+                    drawnTokens.push({ text: cfg.label, color: '#111', bold: true, x: cx, y: cy })
+                }
+                cx += lw
+            }
+
+            // For each ingredient item
             items.forEach((raw, idx) => {
-                const item = raw.trim();
-                const isHi = !!cfg.highlightMap?.[item.toLowerCase()];
-                const color = colorFor(item);
-                if (idx > 0) drawToken(', ', false, '#666');
-                item.split(/\s+/).forEach((w, i, arr) =>
-                    drawToken(w + (i < arr.length - 1 ? ' ' : ''), isHi, color)
-                );
-            });
+                const item = raw.trim()
+                if (!item) return
+                if (idx > 0) drawToken(', ', false, '#666')
 
-            return cy + lineH - y;
+                let remaining = item
+
+                while (remaining.length > 0) {
+                    const normRemaining = remaining.normalize('NFC').trim()
+                    let earliestIndex = Infinity
+                    let matchedRule: HighlightRule | null = null
+                    let matchedText = ''
+
+                    for (const rule of cfg.highlightRules || []) {
+                        const m = normRemaining.match(rule.regex)
+                        if (m && m.index! < earliestIndex) {
+                            earliestIndex = m.index!
+                            matchedRule = rule
+                            matchedText = m[0]
+                        }
+                    }
+
+                    if (matchedRule && matchedText) {
+                        const pos = normRemaining.indexOf(matchedText)
+                        const before = remaining.slice(0, pos)
+                        if (before) drawToken(before, false, '#111')
+
+                        drawToken(matchedText, true, matchedRule.color)
+                        remaining = remaining.slice(pos + matchedText.length)
+                    } else {
+                        drawToken(remaining, false, '#111')
+                        break
+                    }
+                }
+            })
+
+            return cy + lineH - y
         }
 
-        // Pre-measure ingredients block height
-        const measure = document.createElement('canvas').getContext('2d')!;
-        measure.font = '400 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+        // --- 1. Pre-measure ---
+        const measure = document.createElement('canvas').getContext('2d')!
+        measure.font = '400 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
         const items = opts.ingredients
-            .replace(/，/g, ',')            // handle Chinese comma, if relevant
+            .replace(/[，、（）()]/g, ',')
             .split(/\s*,\s*/)
             .map(s => s.trim())
-            .filter(Boolean);
+            .filter(Boolean)
 
-        const ingredientsYStart =
-            cardY + 20 + headerH + 16 + imgH + 24 + nameRowH + gapAfterName;
-
+        const ingredientsYStart = cardY + 20 + headerH + 16 + imgH + 24 + nameRowH + gapAfterName
         const blockH = drawHighlightedItems(
-            measure,            // <-- was measureCtx
+            measure,
             items,
             contentX,
             ingredientsYStart,
             contentW,
             lineH,
             false,
-            { label: 'Ingredients: ', highlightMap: opts.highlightMap ?? {} }
-        );
+            { label: 'Ingredients: ', highlightRules: opts.highlightRules ?? [] }
+        )
 
+        let cardH = 72
+        let gap = 12
+        const cardsBlockH = ingredientHighlightsRef.value.length > 0
+            ? ingredientHighlightsRef.value.length * (cardH + gap) - gap + 32
+            : 0
 
-        // Final canvas height so footer stays at the bottom
-        const H = Math.ceil(ingredientsYStart + blockH + 24 + footerH + cardY);
+        const H = Math.ceil(ingredientsYStart + blockH + cardsBlockH + footerH + cardY)
 
-        // --- Create canvas ---
-        const canvas = document.createElement('canvas');
-        canvas.width = W;
-        canvas.height = H;
-        const ctx = canvas.getContext('2d')!;
+        // --- 2. Create canvas & draw ---
+        const canvas = document.createElement('canvas')
+        canvas.width = W
+        canvas.height = H
+        const ctx = canvas.getContext('2d')!
 
-        // Background + card
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.08)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 6;
-        roundRect(ctx, cardX, cardY, cardW, H - P, cardR);
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
+        // Background
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, W, H)
+        ctx.fillStyle = '#ffffff'
+        ctx.shadowColor = 'rgba(0,0,0,0.08)'
+        ctx.shadowBlur = 24
+        ctx.shadowOffsetY = 6
+        roundRect(ctx, cardX, cardY, cardW, H - P, cardR)
+        ctx.fill()
+        ctx.shadowColor = 'transparent'
 
         // Header
-        let y = cardY + 20;
+        let y = cardY + 20
         if (opts.logoUrl) {
             try {
-                const logo = await loadImageFromUrl(opts.logoUrl);
-                const s = 42;
-                ctx.drawImage(logo, contentX, y + (headerH - s) / 2, s, s);
+                const logo = await loadImageFromUrl(opts.logoUrl)
+                const s = 42
+                ctx.drawImage(logo, contentX, y + (headerH - s) / 2, s, s)
             } catch { /* empty */ }
-        } else {
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#111';
-            roundRect(ctx, contentX, y + 18, 36, 36, 8);
-            ctx.stroke();
         }
-        ctx.fillStyle = '#111';
-        ctx.font = '600 42px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-        ctx.textBaseline = 'top';
-        ctx.fillText('Halal Formosa', contentX + 56, y + 24);
-        y += headerH + 16;
+        ctx.fillStyle = '#111'
+        ctx.font = '600 42px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+        ctx.textBaseline = 'top'
+        ctx.fillText('Halal Formosa', contentX + 56, y + 24)
+        y += headerH + 16
 
         // Main image
-        const img = await loadImageFromFile(imageFile);
-        ctx.save();
-        roundRect(ctx, contentX, y, contentW, imgH, imageR);
-        ctx.clip();
+        const img = await loadImageFromFile(imageFile)
+        ctx.save()
+        roundRect(ctx, contentX, y, contentW, imgH, imageR)
+        ctx.clip()
         {
-            const ratio = img.width / img.height;
-            let drawW = contentW;
-            let drawH = Math.round(drawW / ratio);
-            if (drawH < imgH) { drawH = imgH; drawW = Math.round(drawH * ratio); }
-            const dx = contentX + Math.round((contentW - drawW) / 2);
-            const dy = y + Math.round((imgH - drawH) / 2);
-            ctx.drawImage(img, dx, dy, drawW, drawH);
+            const ratio = img.width / img.height
+            let drawW = contentW
+            let drawH = Math.round(drawW / ratio)
+            if (drawH < imgH) { drawH = imgH; drawW = Math.round(drawH * ratio) }
+            const dx = contentX + Math.round((contentW - drawW) / 2)
+            const dy = y + Math.round((imgH - drawH) / 2)
+            ctx.drawImage(img, dx, dy, drawW, drawH)
         }
-        ctx.restore();
+        ctx.restore()
 
         // Name + status
-        y += imgH + 24;
-        ctx.fillStyle = '#111';
-        ctx.font = '700 44px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-        const name = (opts.productName || 'Product Name').trim();
-        const pillW = 240, pillH = 56;
-        const nameMaxW = contentW - pillW - 16;
-        ctx.fillText(name, contentX, y, nameMaxW);
+        y += imgH + 24
+        ctx.fillStyle = '#111'
+        ctx.font = '700 44px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+        const name = (opts.productName || 'Product Name').trim()
+        const pillW = 240, pillH = 56
+        const nameMaxW = contentW - pillW - 16
+        ctx.fillText(name, contentX, y, nameMaxW)
 
         if (opts.status) {
-            const status = opts.status;
-            const pillX = contentX + contentW - pillW;
-            const pillY = y - 8;
+            const status = opts.status
+            const pillX = contentX + contentW - pillW
+            const pillY = y - 8
             const pillColor: Record<string, string> = {
                 'Halal': '#2dd36f', 'Muslim-friendly': '#3880ff',
                 'Syubhah': '#ffc409', 'Haram': '#eb445a'
-            };
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = pillColor[status] || '#3880ff';
-            ctx.fillStyle = 'rgba(0,0,0,0)';
-            roundRect(ctx, pillX, pillY, pillW, pillH, 18);
-            ctx.stroke();
-            ctx.font = '600 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-            ctx.fillStyle = '#111';
-            const textW = ctx.measureText(status).width;
-            ctx.fillText(status, pillX + (pillW - textW) / 2, pillY + 12);
+            }
+            ctx.lineWidth = 4
+            ctx.strokeStyle = pillColor[status] || '#3880ff'
+            roundRect(ctx, pillX, pillY, pillW, pillH, 18)
+            ctx.stroke()
+            ctx.font = '600 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+            ctx.fillStyle = '#111'
+            const textW = ctx.measureText(status).width
+            ctx.fillText(status, pillX + (pillW - textW) / 2, pillY + 12)
         }
 
-        // Ingredients (highlighted)
-        y = ingredientsYStart;
-        drawHighlightedItems(
+        // Ingredients
+        y = ingredientsYStart
+       drawHighlightedItems(
             ctx,
             items,
             contentX,
@@ -223,23 +277,59 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
             contentW,
             lineH,
             true,
-            { label: 'Ingredients: ', highlightMap: opts.highlightMap ?? {} }
-        );
-        y += blockH + 24;
+            { label: 'Ingredients: ', highlightRules: opts.highlightRules ?? [] }
+        )
 
-        // Footer
-        ctx.fillStyle = '#777';
-        ctx.font = '500 26px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
-        ctx.textBaseline = 'alphabetic';
-        const year = new Date().getFullYear();
-        ctx.fillText(`Halal Formosa (c) ${year}`, contentX, H - P + 12 - 48);
+        // --- Highlighted Ingredient Cards Block ---
+        y += blockH + 22 // some space after ingredients
 
-        // Export
-        const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92));
-        return new File([blob], `halal-formosa-card-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        cardH = 72
+        gap = 12
+
+        ingredientHighlightsRef.value.forEach((h, idx) => {
+            const aliases: string[] = []
+            if (h.keyword) aliases.push(...h.keyword.split('|'))
+            if (h.keyword_zh) aliases.push(...h.keyword_zh.split('|'))
+
+            const ingText = (opts.ingredients || '').trim()
+            const matchedAlias = aliases.find(a =>
+                new RegExp(escapeRegex(a.trim()), 'i').test(ingText)
+            )
+
+            if (!matchedAlias) return // skip if nothing matched
+
+            const rawColor = extractIonColor(h.color)
+            const color = resolveColor(rawColor)
+            const status = colorToStatus(rawColor)
+
+            const cardY = y + idx * (cardH + gap)
+
+            // border
+            ctx.lineWidth = 3
+            ctx.strokeStyle = color
+            roundRect(ctx, contentX, cardY, contentW, cardH, 16)
+            ctx.stroke()
+
+            // text (only matched alias, not the whole list)
+            ctx.font = '500 30px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+            ctx.fillStyle = '#111'
+            ctx.fillText(`${matchedAlias} = ${h.keyword} — ${status}`, contentX + 20, cardY + 25)
+        })
+
+        // push y down for footer
+        y += ingredientHighlightsRef.value.length * (cardH + gap) + 12
+
+        // Footer (place relative to y, not just H)
+        ctx.fillStyle = '#777'
+        ctx.font = '500 26px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
+        const year = new Date().getFullYear()
+        ctx.fillText(`Halal Formosa (c) ${year}`, contentX, y)
+
+        const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92))
+        return new File([blob], `halal-formosa-card-${Date.now()}.jpg`, { type: 'image/jpeg' })
     }
 
-    /** Fallback share text if image share not possible */
+    /** Fallback share text */
     function shareTextFallback(): Promise<void> | void {
         const text = [
             productNameRef.value ? `Product: ${productNameRef.value}` : null,
@@ -247,9 +337,7 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
             `Ingredients: ${ingredientsTextRef.value}`,
             '',
             shareCTA.trim()
-        ]
-            .filter(Boolean)
-            .join('\n')
+        ].filter(Boolean).join('\n')
 
         if ((navigator as any).share) {
             return (navigator as any).share({ title: 'Ingredients', text })
@@ -263,32 +351,40 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
             const imageBlob: Blob | null = originalFile.value
             if (!imageBlob) return shareTextFallback()
 
-            const highlightMap: Record<string, string> = Object.fromEntries(
-                ingredientHighlightsRef.value.map(h => [
-                    h.keyword.toLowerCase(),
-                    h.color.split('-').pop() ?? ''
-                ])
-            )
+            // Build highlight rules
+            const highlightRules: HighlightRule[] = []
+            ingredientHighlightsRef.value.forEach(h => {
+                const aliases: string[] = []
+                if (h.keyword) aliases.push(...h.keyword.split('|'))
+                if (h.keyword_zh) aliases.push(...h.keyword_zh.split('|'))
+
+                // Find which alias actually exists in the ingredients text
+                const ingText = (ingredientsTextZhRef.value || ingredientsTextRef.value) || ''
+                const matchedAlias = aliases.find(a =>
+                    new RegExp(escapeRegex(a.trim()), 'i').test(ingText)
+                )
+
+                if (matchedAlias) {
+                    highlightRules.push({
+                        regex: new RegExp(escapeRegex(matchedAlias.trim()), 'i'),
+                        color: extractIonColor(h.color)
+                    })
+                }
+            })
 
             const card = await makeShareCard(imageBlob, {
                 productName: productNameRef.value,
                 status: autoStatusRef.value,
-                ingredients: ingredientsTextRef.value,
+                ingredients: ingredientsTextZhRef.value || ingredientsTextRef.value,
                 logoUrl: '/android-chrome-192x192.png',
-                highlightMap
+                highlightRules
             })
 
             if (Capacitor.getPlatform() !== 'web') {
                 const base64 = (await blobToBase64(card)).replace(/^data:image\/\w+;base64,/, '')
                 const path = `share/ingredients-${Date.now()}.jpg`
 
-                await Filesystem.writeFile({
-                    path,
-                    data: base64,
-                    directory: Directory.Cache,
-                    recursive: true
-                })
-
+                await Filesystem.writeFile({ path, data: base64, directory: Directory.Cache, recursive: true })
                 const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
 
                 const can = await Share.canShare()
@@ -305,7 +401,6 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
                     files: [uri],
                     dialogTitle: 'Share ingredients'
                 })
-
                 return
             }
 
@@ -328,10 +423,5 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
         }
     }
 
-    return {
-        makeShareCard,
-        shareResult,
-        shareTextFallback
-    }
-
+    return { makeShareCard, shareResult, shareTextFallback }
 }
