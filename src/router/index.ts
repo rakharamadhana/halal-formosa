@@ -50,6 +50,7 @@ router.beforeEach(async (to, from, next) => {
         '/profile',
         '/settings',
         '/legal',
+        '/credits',
         '/home',
         '/news'
     ]);

@@ -651,22 +651,27 @@ function cleanChineseOcrText(text: string): string {
       .replace(/\r?\n+/g, ', ')    // new lines -> commas
       .replace(/[。、．]/g, ',')   // Chinese punctuation -> commas
       .replace(/\s{2,}/g, ' ')     // multiple spaces
-      .replace(/品\s*,?\s*名/gi, '品名')  // merge fragmented
-      .replace(/成\s*,?\s*分/gi, '成分'); // merge fragmented
+      .replace(/品\s*,?\s*名/gi, '品名')
+      .replace(/成\s*,?\s*分/gi, '成分');
 
-  // ✅ Apply blacklist from DB
+  // 🟢 New fix: if product name and ingredients are glued together (飲料原料:)
+  cleaned = cleaned.replace(/(品名[:：][^,，:]{2,10}?)(原料|成分|配料|內容物|内容物)[:：]/gi,
+      (_, prod, marker) => `${_}\nIngredients: `);
+
+  // 🟢 Normalize markers
+  cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ');
+  cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ');
+
+  // remove duplicate commas
+  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
+
+  // blacklist cleanup
   for (const pattern of blacklistPatterns.value) {
     cleaned = cleaned.replace(pattern, '').trim();
   }
 
-  // ✅ Standardize product name & ingredients
-  cleaned = cleaned.replace(/品名[:：]/i, 'Product name: ');
-  cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/i, 'Ingredients: ');
-  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
-
   return cleaned.trim();
 }
-
 
 function cleanTranslatedIngredients(text: string): string {
   let extracted = text;
@@ -770,16 +775,28 @@ async function runOcrOnFile(file: File) {
 
   // 3️⃣ Check if translated text likely has ingredients
   const lowerTranslated = translatedText.toLowerCase();
-  if (!/(ingredient|material|raw material|contents)/.test(lowerTranslated)) {
+  if (!/(ingredient|ingredients|material|materials|content|contents)/.test(lowerTranslated)) {
     setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.');
-    return;
+    console.warn('⚠️ Ingredients keyword not detected, trying fallback extraction…');
   }
 
   // 4️⃣ Extract product name if available
   extractProductName(translatedText);
 
-  // 5️⃣ Clean & extract only ingredients
-  const readableText = cleanTranslatedIngredients(translatedText);
+  // 5️⃣ Extract ingredients text
+  let readableText = '';
+  const idx = translatedText.toLowerCase().indexOf('ingredients:');
+  if (idx !== -1) {
+    // normal path: found "Ingredients:"
+    readableText = translatedText.substring(idx + 'ingredients:'.length).trim();
+  } else {
+    // fallback: try after product name
+    const parts = translatedText.split(/product name:/i);
+    if (parts[1]) readableText = parts[1].slice(0, 400).trim();
+  }
+
+  // clean & normalize
+  readableText = cleanTranslatedIngredients(readableText);
 
   if (!readableText.trim()) {
     setError('⚠️ No valid ingredients detected after OCR. Please try cropping the ingredients section more precisely.');

@@ -104,7 +104,7 @@
             </ion-item>
             <ion-item>
               <ion-label>{{ $t('profile.appVersion') }}</ion-label>
-              <ion-note slot="end">1.2</ion-note>
+              <ion-note slot="end">1.2.1</ion-note>
             </ion-item>
           </ion-list>
         </ion-card-content>
