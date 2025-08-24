@@ -235,20 +235,39 @@ export default function useOcrPipeline({
         }
     }
 
-    function cleanChineseOcrText(text: string) {
+    function cleanChineseOcrText(text: string): string {
         let cleaned = text
             .replace(/\r?\n+/g, ', ')
-            .replace(/[。、．]/g, ',')
+            .replace(/[。、．。]/g, ',')
             .replace(/\s{2,}/g, ' ')
             .replace(/品\s*,?\s*名/gi, '品名')
-            .replace(/成\s*,?\s*分/gi, '成分')
+            .replace(/成\s*,?\s*分/gi, '成分');
+
+        // ✅ Catch glued case: 品名...原料:
+        cleaned = cleaned.replace(/(品名[:：][^,，]*)原料[:：]/gi, '$1, Ingredients: ');
+
+        // ✅ Catch normal case: 原料: / 成分: etc
+        cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ');
+
+        // ✅ Normalize product name
+        cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ');
+
+        // Remove duplicate commas
+        cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
+
+        console.log("🧹 Cleaned before blacklist:", cleaned);
+
         for (const pattern of blacklistPatterns.value) {
-            cleaned = cleaned.replace(pattern, '').trim()
+            const newCleaned = cleaned.replace(pattern, '').trim();
+            if (newCleaned.length > 5) {   // only accept if not wiping too much
+                cleaned = newCleaned;
+            } else {
+                console.warn("⚠️ Skipped blacklist pattern (too destructive):", pattern);
+            }
         }
-        cleaned = cleaned.replace(/品名[:：].*?,/i, '')
-        cleaned = cleaned.replace(/成分[:：]/i, 'Ingredients: ')
-        cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '')
-        return cleaned.trim()
+
+        console.log("🧹 Cleaned after blacklist:", cleaned);
+        return cleaned.trim();
     }
 
     function toProperCase(s: string) {
@@ -375,5 +394,6 @@ export default function useOcrPipeline({
         showOk,
         checkingIngredients,   // ✅ expose it
         detectedLanguage,
+        cleanChineseOcrText,
     }
 }

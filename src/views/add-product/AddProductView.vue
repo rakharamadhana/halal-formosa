@@ -270,7 +270,7 @@ import {
     IonAccordionGroup
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
-import {nextTick, onMounted, onUnmounted, ref, toRaw, watch} from 'vue'
+import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -306,6 +306,7 @@ const {
   autoStatus,
   productName,
   checkingIngredients,
+  cleanChineseOcrText
 } = useOcrPipeline({
   allHighlights,
   blacklistPatterns,
@@ -649,41 +650,6 @@ async function translateToEnglish(text: string) {
     console.error('Translation failed:', result);
     return '';
   }
-}
-
-function cleanChineseOcrText(text: string): string {
-  let cleaned = text
-      .replace(/\r?\n+/g, ', ')
-      .replace(/[。、．。]/g, ',')
-      .replace(/\s{2,}/g, ' ')
-      .replace(/品\s*,?\s*名/gi, '品名')
-      .replace(/成\s*,?\s*分/gi, '成分');
-
-  // ✅ Catch glued case: 品名...原料:
-  cleaned = cleaned.replace(/(品名[:：][^,，]*)原料[:：]/gi, '$1, Ingredients: ');
-
-  // ✅ Catch normal case: 原料: / 成分: etc
-  cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ');
-
-  // ✅ Normalize product name
-  cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ');
-
-  // Remove duplicate commas
-  cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
-
-  console.log("🧹 Cleaned before blacklist:", cleaned);
-
-  for (const pattern of blacklistPatterns.value) {
-    const newCleaned = cleaned.replace(pattern, '').trim();
-    if (newCleaned.length > 5) {   // only accept if not wiping too much
-      cleaned = newCleaned;
-    } else {
-      console.warn("⚠️ Skipped blacklist pattern (too destructive):", pattern);
-    }
-  }
-
-  console.log("🧹 Cleaned after blacklist:", cleaned);
-  return cleaned.trim();
 }
 
 function cleanTranslatedIngredients(text: string): string {
