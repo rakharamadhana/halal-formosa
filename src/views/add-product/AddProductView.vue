@@ -770,9 +770,8 @@ async function runOcrOnFile(file: File) {
 
   // 3️⃣ Check if translated text likely has ingredients
   const lowerTranslated = translatedText.toLowerCase();
-  if (!lowerTranslated.includes('ingredient')) {
+  if (!/(ingredient|material|raw material|contents)/.test(lowerTranslated)) {
     setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.');
-    console.warn('⚠️ No ingredients section detected in OCR result.');
     return;
   }
 
