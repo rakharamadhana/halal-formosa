@@ -270,7 +270,7 @@ import {
     IonAccordionGroup
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
-import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {nextTick, onMounted, onUnmounted, ref, toRaw, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -329,6 +329,8 @@ onMounted(async () => {
     blacklistPatterns.value = blacklistResult.data.map((row) => new RegExp(row.pattern, 'i'));
   }
 
+  // force fetch highlights & blacklist from DB and save to cache
+  await fetchHighlightsWithCache(true);
   await fetchCategoryRules();
   await fetchCategories();
 });
@@ -432,10 +434,13 @@ const fetchCategories = async () => {
 }
 
 const fetchCategoryRules = async () => {
-  const { data, error } = await supabase.from('category_rules').select('*')
+  const { data, error } = await supabase
+      .from("category_rules")
+      .select("keyword, category_id")
+
   if (!error && data) {
     categoryRules.value = data.reduce((acc, row) => {
-      acc[row.keyword.toLowerCase()] = row.category_id
+      acc[row.keyword.toLowerCase()] = row.category_id  // ✅ numeric FK
       return acc
     }, {} as Record<string, number>)
   }
@@ -648,28 +653,36 @@ async function translateToEnglish(text: string) {
 
 function cleanChineseOcrText(text: string): string {
   let cleaned = text
-      .replace(/\r?\n+/g, ', ')    // new lines -> commas
-      .replace(/[。、．]/g, ',')   // Chinese punctuation -> commas
-      .replace(/\s{2,}/g, ' ')     // multiple spaces
+      .replace(/\r?\n+/g, ', ')
+      .replace(/[。、．。]/g, ',')
+      .replace(/\s{2,}/g, ' ')
       .replace(/品\s*,?\s*名/gi, '品名')
       .replace(/成\s*,?\s*分/gi, '成分');
 
-  // 🟢 New fix: if product name and ingredients are glued together (飲料原料:)
-  cleaned = cleaned.replace(/(品名[:：][^,，:]{2,10}?)(原料|成分|配料|內容物|内容物)[:：]/gi,
-      (_, prod, marker) => `${_}\nIngredients: `);
+  // ✅ Catch glued case: 品名...原料:
+  cleaned = cleaned.replace(/(品名[:：][^,，]*)原料[:：]/gi, '$1, Ingredients: ');
 
-  // 🟢 Normalize markers
+  // ✅ Catch normal case: 原料: / 成分: etc
   cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ');
+
+  // ✅ Normalize product name
   cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ');
 
-  // remove duplicate commas
+  // Remove duplicate commas
   cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
 
-  // blacklist cleanup
+  console.log("🧹 Cleaned before blacklist:", cleaned);
+
   for (const pattern of blacklistPatterns.value) {
-    cleaned = cleaned.replace(pattern, '').trim();
+    const newCleaned = cleaned.replace(pattern, '').trim();
+    if (newCleaned.length > 5) {   // only accept if not wiping too much
+      cleaned = newCleaned;
+    } else {
+      console.warn("⚠️ Skipped blacklist pattern (too destructive):", pattern);
+    }
   }
 
+  console.log("🧹 Cleaned after blacklist:", cleaned);
   return cleaned.trim();
 }
 
