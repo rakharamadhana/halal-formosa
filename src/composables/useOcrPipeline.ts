@@ -51,64 +51,96 @@ export default function useOcrPipeline({
 
     async function runOcr(file: File) {
         try {
-            incrementDisclaimerCount!()
+            // Optional: increment disclaimer count if provided
+            if (incrementDisclaimerCount) {
+                incrementDisclaimerCount()
+            }
 
+            // ✅ Load highlights + blacklist
             const data = await fetchHighlightsWithCache()
             if (data) {
                 allHighlights.value = data.highlights
-                blacklistPatterns.value = data.blacklist.map(b => new RegExp(b.pattern, 'gi'))
+                blacklistPatterns.value = data.blacklist.map(
+                    b => new RegExp(b.pattern, 'gi')
+                )
             }
 
+            // ✅ OCR
             const raw = await extractTextFromImage(file)
-            if (!raw) return setError('OCR failed to detect any text.')
-            // console.log('📄 Raw OCR text detected:', raw)
+            if (!raw || !raw.trim()) {
+                return setError('OCR failed to detect any text.')
+            }
+
+            console.log('📄 Raw OCR text detected:', raw)
+
+            // 🚧 Guard: must look like ingredients section
+            const ingredientMarkerPattern =
+                /(ingredients?|成分|配料|原料|內容物|調味|味[:：]|配方)/i
+
+            if (!ingredientMarkerPattern.test(raw)) {
+                return setError('No ingredients section detected. Please crop the ingredient list only.')
+            }
 
             detectedLanguage.value = detectLanguage(raw)
-            // console.log('🌐 OCR detected language:', detectedLanguage.value)
+            console.log('🌐 OCR detected language:', detectedLanguage.value)
 
             let translated = ''
             let cleanedZh = raw
 
             if (detectedLanguage.value === 'english') {
+                // Directly use English OCR text
                 translated = raw
             } else {
+                // Cleanup + normalize Chinese OCR
                 cleanedZh = cleanChineseOcrText(raw)
-                cleanedZh = normalizeIngredients(cleanedZh) // 🔧 normalize splits
+                cleanedZh = normalizeIngredients(cleanedZh)
+
+                if (!cleanedZh.trim()) {
+                    return setError('OCR detected text but nothing meaningful remained after cleanup.')
+                }
+
                 ingredientsTextZh.value = cleanedZh
+                console.log('🀄 Cleaned Chinese OCR:', cleanedZh)
 
-                console.log('Cleaned Chinese: ', cleanedZh)
-
+                // ✅ Translate to English
                 const result = await translateToEnglish(cleanedZh)
                 if (result === null) return
                 translated = result
             }
 
-            // ✅ Check first, before processing further
+            // ✅ Guard: must contain "ingredients"
             if (!translated.toLowerCase().includes('ingredient')) {
                 return setError('Ingredients not detected. Please crop the ingredients section.')
             }
 
-            // Now safe to continue
+            // ✅ Clean translation into English ingredient list
             ingredientsText.value = cleanTranslatedIngredients(translated)
+
+            // Extract product name if present
             productName.value = extractProductName(translated) || ''
-            console.log("Translated Chinese: ", translated)
+            console.log("🌍 Translated Ingredients:", ingredientsText.value)
 
             await nextTick()
-            // ✅ Run dual highlight checks
+
+            // ✅ Run highlights check on Chinese (preferred source)
             await recheckHighlights(cleanedZh)
 
+            // ✅ Occasionally refresh cache
             const count = incrementUsageCount()
             if (count >= 5) {
                 const fresh = await fetchHighlightsWithCache(true)
                 if (fresh) {
                     allHighlights.value = fresh.highlights
                     blacklistPatterns.value = fresh.blacklist.map(
-                        (row: BlacklistPattern) => new RegExp(row.pattern, 'gi')
+                        row => new RegExp(row.pattern, 'gi')
                     )
                 }
             }
+
+            // ✅ If we reach here, OCR pipeline is successful
             showOk.value = true
         } catch (e) {
+            console.error(e)
             setError('OCR failed.')
         }
     }

@@ -1,0 +1,165 @@
+{
+  "main": {
+    "title": "Halal Formosa",
+    "scan": "Pindai Bahan",
+    "home": "Beranda",
+    "product": "Produk",
+    "explore": "Jelajahi",
+    "add": "Tambah Produk",
+    "news": "Berita"
+  },
+  "home": {
+    "title": "Halal Formosa",
+    "scan": "Pindai Bahan",
+    "scanBarcode": "Pindai Barcode",
+    "productStatus": "Status Produk",
+    "productsCount": "Produk",
+    "halalLocationsCount": "Lokasi Halal",
+    "news": "Berita Halal & Islam",
+    "viewMore": "Lihat Selengkapnya",
+    "mainFeature": "Menu Unggulan"
+  },
+  "scanIngredients": {
+    "title": "Pindai Bahan",
+    "disclaimer": {
+      "title": "Penafian Pemindai Halal",
+      "message": "Pemindai ini hanya memeriksa bahan berdasarkan basis data kata kunci. Tidak memberikan fatwa halal resmi. Harap gunakan pertimbangan Anda sendiri sebelum mengonsumsi.",
+      "verse": "\"Wahai manusia! Makanlah dari (makanan) yang halal lagi baik yang terdapat di bumi...\"",
+      "verseRef": "— Al-Qur'an 2:168",
+      "agree": "Saya Mengerti",
+      "learnMore": "Pelajari Lebih Lanjut",
+      "decline": "Tidak, Saya Tidak Ingin Menggunakan Fitur Ini"
+    },
+    "details": {
+      "title": "Cara Kerja",
+      "intro": "Pemindai ini memeriksa bahan produk menggunakan OCR (Pengenalan Karakter Optik) dan basis data bahan halal terkurasi.",
+      "stepsTitle": "Proses Langkah-demi-Langkah",
+      "steps": {
+        "ocr": "Pemrosesan OCR – Gambar produk (diambil dengan kamera atau diunggah dari galeri) dikirim ke server OCR, yang membaca dan mengekstrak teks bahan.",
+        "translate": "Terjemahan – Jika teks terdeteksi dalam bahasa Mandarin, akan diterjemahkan ke bahasa Inggris melalui Google Translate untuk pemeriksaan konsisten.",
+        "match": "Pencocokan Basis Data – Daftar bahan yang sudah diterjemahkan akan dicocokkan dengan basis data kata kunci halal, ramah Muslim, syubhat, dan haram.",
+        "display": "Tampilan Hasil – Kecocokan akan ditandai berdasarkan kategori dengan status yang ditampilkan."
+      },
+      "categories": {
+        "title": "Kategori Bahan",
+        "halal": {
+          "label": "Halal",
+          "desc": "Memiliki sertifikasi halal dalam produk.",
+          "examples": "Contoh: Halal BPJPH Indonesia, Halal CMA, Halal TGM, Halal Thailand"
+        },
+        "muslimFriendly": {
+          "label": "Ramah Muslim",
+          "desc": "Tidak ditemukan bahan syubhat atau haram, tetapi belum bersertifikat halal resmi.",
+          "examples": "Contoh: Lesitin (Kedelai), Soy Lecithin, Emulsifier (Tebu), Fresh Cream"
+        },
+        "syubhah": {
+          "label": "Syubhat",
+          "desc": "Bahan yang meragukan atau tidak jelas, perlu pemeriksaan lebih lanjut.",
+          "examples": "Contoh: Emulsifier tidak dikenal, Mentega, Margarin, Cuka"
+        },
+        "haram": {
+          "label": "Haram",
+          "desc": "Bahan yang dilarang.",
+          "examples": "Contoh: Babi, Gelatin, Alkohol, Minyak Babi, Anggur"
+        }
+      },
+      "disclaimerNote": "Hasil hanya sebagai referensi. Selalu verifikasi dengan sumber terpercaya sebelum mengonsumsi.",
+      "gotIt": "Mengerti"
+    },
+    "scan": {
+      "camera": "Kamera",
+      "gallery": "Galeri",
+      "reCrop": "Potong Ulang",
+      "productName": "Nama Produk Terdeteksi",
+      "ingredientsZh": "Bahan Terdeteksi (Mandarin)",
+      "ingredientsEn": "Bahan Terjemahan (Inggris)",
+      "originalImage": "Gambar Asli",
+      "share": "Bagikan",
+      "clear": "Hapus",
+      "cropTitle": "Potong Bahan",
+      "done": "Selesai",
+      "ocrProcessing": "Memproses OCR..."
+    },
+    "toast": {
+      "ok": "✅ Bahan berhasil diekstrak!",
+      "error": "Terjadi kesalahan.",
+      "copied": "Disalin ke clipboard"
+    }
+  },
+  "search": {
+    "title": "Produk",
+    "placeholder": "Cari (contoh: Teh)",
+    "registeredProductCount": "Jumlah",
+    "noProductFound": "Maaf, produk tidak ditemukan...",
+    "pullToRefresh": "Tarik untuk memuat ulang",
+    "showingResults": "Menampilkan {count} dari {total} produk terdaftar",
+    "details": {
+      "title": "Detail Produk",
+      "description": "Deskripsi",
+      "ingredients": "Bahan",
+      "report": "Laporkan Produk",
+      "no-item": "Produk tidak ditemukan",
+      "viewMore": "Lihat Semua",
+      "viewLess": "Lihat Ringkas",
+      "colorLegend": "Keterangan Warna",
+      "legend": {
+        "halal": "Bahan bersertifikat halal",
+        "muslimFriendly": "Bahan Ramah muslim, tapi tidak bersertifikat halal",
+        "syubhah": "Bahan syubhat, perlu hati-hati",
+        "haram": "Bahan haram"
+      }
+    },
+    "status": {
+      "Halal": "Halal",
+      "Muslim-friendly": "Ramah Muslim",
+      "Syubhah": "Syubhat",
+      "Haram": "Haram",
+      "Unknown": "Tidak Diketahui"
+    }
+  },
+  "explore": {
+    "title": "Jelajahi",
+    "placeholder": "Cari tempat (contoh: Masjid)",
+    "clear": "Hapus",
+    "showingPlace": "Menampilkan 1 tempat"
+  },
+  "news": {
+    "title": "Berita Halal & Islam",
+    "placeholder": "Cari berita..."
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "appearance": "Tampilan",
+    "darkMode": "Mode Gelap",
+    "language": "Bahasa (Eksperimen)"
+  },
+  "profile": {
+    "title": "Profil",
+    "logout": "Keluar",
+    "donor": "Status Donatur",
+    "noUserLogged": "Tidak ada pengguna yang masuk",
+    "login": "Masuk",
+    "settings": "Pengaturan",
+    "legal": "Legal",
+    "credits": "Kredit & Kontributor",
+    "support": "Dukung Halal Formosa ❤\uFE0F",
+    "supportDescription": "Jika Anda suka aplikasi ini, pertimbangkan untuk mendukung pengembangannya",
+    "bobaMe": "Traktir Boba!",
+    "supportThank": "Terima kasih atas dukungannya! 🙏",
+    "voluntary": "*Donasi bersifat sukarela dan tidak membuka fitur khusus.",
+    "appInfo": "Info Aplikasi",
+    "appNameTitle": "Nama Aplikasi",
+    "appName": "Halal Formosa",
+    "appVersion": "Versi"
+  },
+  "credits": {
+    "title": "Kredit & Kontributor",
+    "founder": "Founder & Pengembang Utama",
+    "coFounder": "Co-Founder",
+    "coDeveloper": "Co-Developer",
+    "uiUx": "Kontributor UI/UX",
+    "database": "Kontributor Basis Data",
+    "specialThanks": "Ucapan Terima Kasih",
+    "thankYou": "Kami mengucapkan terima kasih yang sebesar-besarnya kepada semua anggota komunitas, penguji, dan pendukung yang telah membantu mewujudkan Halal Formosa. Semoga Allah SWT membalas kebaikan rekan-rekan dengan pahala yang berlipat ganda."
+  }
+}

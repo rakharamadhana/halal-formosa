@@ -30,17 +30,20 @@
 
         <ion-item>
           <ion-select
-              v-model="form.type"
+              v-model.number="form.type_id"
               label="Type *"
               label-placement="stacked"
               interface="popover"
               placeholder="Select a type"
               required
           >
-            <ion-select-option value="Mosque">Mosque</ion-select-option>
-            <ion-select-option value="Prayer Room">Prayer Room</ion-select-option>
-            <ion-select-option value="Halal Restaurant">Halal Restaurant</ion-select-option>
-            <ion-select-option value="Muslim-friendly Restaurant">Muslim-friendly Restaurant</ion-select-option>
+            <ion-select-option
+                v-for="lt in locationTypes"
+                :key="lt.id"
+                :value="lt.id"
+            >
+              {{ lt.name }}
+            </ion-select-option>
           </ion-select>
         </ion-item>
 
@@ -151,6 +154,7 @@ const router = useRouter()
 /* -------------------- Role Gate -------------------- */
 const isAllowed = ref(false)
 const checkedRole = ref(false)
+const locationTypes = ref<{ id: number; name: string }[]>([])
 
 const loadRole = async () => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -166,16 +170,25 @@ const loadRole = async () => {
   checkedRole.value = true
 }
 
+// Fetch from Supabase
+const fetchLocationTypes = async () => {
+  const { data, error } = await supabase
+      .from('location_types')
+      .select('id, name')
+      .order('name', { ascending: true }) // alphabetic sort
+  if (!error && data) locationTypes.value = data
+}
+
 /* -------------------- Form State -------------------- */
 const form = ref<{
   name: string
-  type: string
+  type_id: number | null
   lat: number
   lng: number
   image: string | null
 }>({
   name: '',
-  type: '',
+  type_id: null,
   lat: DEFAULT_CENTER.lat,
   lng: DEFAULT_CENTER.lng,
   image: null
@@ -190,7 +203,7 @@ const toast = ref<{ open: boolean; message: string; color: string }>({
 
 const isValid = computed(() =>
     !!form.value.name &&
-    !!form.value.type &&
+    !!form.value.type_id &&
     form.value.lat !== null &&
     form.value.lng !== null &&
     (!!form.value.image || !!pendingFile.value) // allow deferred file
@@ -471,7 +484,7 @@ const submitPlace = async () => {
       name: form.value.name.trim(),
       lat: form.value.lat,
       lng: form.value.lng,
-      type: form.value.type,
+      type_id: form.value.type_id,  // 👈 use foreign key now
       image: String(form.value.image || '').trim()
     }
     if (user) payload.created_by = user.id
@@ -540,6 +553,7 @@ const centerOnUserOnce = async () => {
 
 onMounted(async () => {
   await loadRole()
+  await fetchLocationTypes()
 
   if (isAllowed.value) {
     try { await centerOnUserOnce() } catch { /* empty */ }

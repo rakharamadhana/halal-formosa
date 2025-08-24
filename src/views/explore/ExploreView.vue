@@ -1,19 +1,10 @@
 <template>
   <ion-page>
-    <app-header title="Explore" :icon="compassOutline" :showProfile="true" />
+    <ion-header>
+      <app-header :title="$t('explore.title')" :icon="compassOutline" :showProfile="true" />
+    </ion-header>
     <!-- Native AdMob banner -->
     <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
-
-    <!-- Web (desktop) AdSense banner -->
-    <div v-else-if="!isNative && !isDonor" id="ad-space-explore" style="margin: 8px 0;">
-      <!--      <ins class="adsbygoogle"-->
-      <!--           style="display:block"-->
-      <!--           data-ad-client="ca-pub-9588373061537955"-->
-      <!--           data-ad-slot="2307787840"-->
-      <!--           data-ad-format="auto"-->
-      <!--           data-full-width-responsive="true"></ins>-->
-    </div>
-
     <!-- Map stays fixed -->
     <div style="position: relative;">
       <!-- Map container -->
@@ -23,7 +14,7 @@
           vertical="bottom"
           horizontal="end"
           slot="fixed"
-          style="position: absolute; bottom: 20px; right: 20px; z-index: 10;"
+          style="position: absolute; bottom: 35px; right: 20px; z-index: 10;"
       >
         <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
@@ -31,14 +22,14 @@
       </ion-fab>
     </div>
 
-    <ion-toolbar style="--background: none;">
-      <div style="display: flex;">
+    <ion-toolbar class="explore-toolbar">
+      <div style="display: flex; ">
         <ion-searchbar
             class="search-explore"
             :debounce="1000"
             @ionInput="onSearchInput"
             style="flex-grow: 1; margin-right: 8px;"
-            placeholder="Search places (e.g. Mosque)"
+            :placeholder="$t('explore.placeholder')"
         ></ion-searchbar>
 
         <!-- Add Place button, only for contributors/admins -->
@@ -52,21 +43,48 @@
           <ion-icon :icon="addOutline" />
         </ion-button>
       </div>
-    </ion-toolbar>
 
-    <ion-toolbar v-if="focusedPlaceId !== null" style="--background: none;">
-      <div style="display:flex; align-items:center; gap:8px; padding:8px 16px;">
-        <span>Showing 1 place</span>
-        <ion-button size="small" fill="outline" @click="focusedPlaceId = null">Clear</ion-button>
+      <!-- ✅ Category bar right under search input -->
+      <div class="category-bar">
+        <ion-chip
+            v-for="cat in categories"
+            :key="cat"
+            :class="['category-chip', activeCategory === cat ? 'chip-carrot' : 'chip-medium']"
+            @click="toggleCategory(cat)"
+        >
+          <!-- If icon is emoji -->
+          <span v-if="typeof categoryIcons[cat] === 'string' && categoryIcons[cat].length === 2" style="margin-right:4px;">
+            {{ categoryIcons[cat] }}
+          </span>
+          <!-- If icon is Ionicon -->
+          <ion-icon
+              v-else
+              :icon="categoryIcons[cat]"
+              style="margin-right:4px;"
+          />
+
+          <ion-label>{{ cat }}</ion-label>
+        </ion-chip>
       </div>
     </ion-toolbar>
 
+    <ion-toolbar
+        v-if="focusedPlaceId !== null"
+        class="toolbar-inline"
+    >
+      <div class="toolbar-inline-content">
+        <span>{{ $t('explore.showingPlace') }}</span>
+        <ion-button size="small" fill="outline" @click="focusedPlaceId = null">
+          {{ $t('explore.clear') }}
+        </ion-button>
+      </div>
+    </ion-toolbar>
 
     <!-- Place list scrolls -->
-    <ion-content ref="contentRef">
+    <ion-content class="ion-padding" style="margin-top:0; --padding-top:0; " ref="contentRef">
       <div class="place-list">
         <ion-card
-            v-for="place in sortedLocations"
+            v-for="place in displayedLocations"
             :key="place.id"
             :ref="setCardRef(place.id)"
             :class="{ 'active-card': selectedPlace?.id === place.id }"
@@ -108,10 +126,15 @@ declare global { interface Window { adsbygoogle: any[] } }
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter
+  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter, IonHeader, IonLabel, IonChip
 } from '@ionic/vue'
-import { compassOutline, navigateCircleOutline, addOutline } from 'ionicons/icons'
-import {ref, computed, nextTick, onMounted} from 'vue'
+import {
+  compassOutline,
+  navigateCircleOutline,
+  addOutline,
+  restaurant, restaurantOutline
+} from 'ionicons/icons'
+import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader } from '@googlemaps/js-api-loader'
@@ -125,12 +148,25 @@ import { isDonor } from '@/composables/userProfile'
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
+type LocationType = { id: number; name: string }
+
 type Place = {
   id: number
   name: string
-  type: string
-  position: LatLng
+  position: { lat: number; lng: number }
   image?: string | null
+  typeId: number
+  type: string
+}
+
+type LocationRow = {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  image?: string | null
+  type_id: number
+  location_types: { name: string } | null
 }
 
 // Local type for ion-content (no external import needed)
@@ -166,7 +202,25 @@ let infoWindow: google.maps.InfoWindow | null = null
 const markerMap = new Map<number, google.maps.marker.AdvancedMarkerElement>()
 const userMarker = ref<google.maps.marker.AdvancedMarkerElement | null>(null)
 
-let lastPanTime = 0
+const locationTypes = ref<LocationType[]>([])
+let clusterer: MarkerClusterer | null = null
+
+
+const fetchLocationTypes = async () => {
+  const { data, error } = await supabase.from('location_types').select('id, name')
+  if (error) { console.error(error); return }
+  locationTypes.value = data || []
+}
+
+const categoryIcons: Record<string, any> = {
+  "Halal Restaurant": restaurant,
+  "Muslim-friendly Restaurant": "🥗",
+  "Halal Kitchen": restaurantOutline,
+  "Muslim-friendly Environment": "🌿",
+  "Mosque": "🕌",
+  "Prayer Room": "🙏",
+  "Butcher Shop": "🥩",
+}
 
 /* ---------------- Utilities ---------------- */
 const loader = new Loader({
@@ -191,6 +245,15 @@ const getDistanceInKm = (locPos: LatLng) => {
       Math.sin(dLon / 2) ** 2
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
+
+const displayedLocations = computed(() => {
+  // if one place is focused → only show that
+  if (focusedPlaceId.value !== null) {
+    return sortedLocations.value.filter(l => l.id === focusedPlaceId.value)
+  }
+  return sortedLocations.value
+})
+
 
 const setCardRef = (id: number): VNodeRef =>
     ((el: Element | ComponentPublicInstance | null) => {
@@ -309,18 +372,45 @@ const loadRole = async () => {
 const fetchLocations = async () => {
   const { data, error } = await supabase
       .from('locations')
-      .select('id,name,type,lat,lng,image')
+      .select(`
+    id, name, lat, lng, image, type_id,
+    location_types(name)
+  `) as unknown as { data: LocationRow[]; error: any }
+
   if (error) { console.error(error); return }
 
-  locations.value = (data ?? []).map((loc) => ({
+  locations.value = (data ?? []).map(loc => ({
     id: loc.id,
     name: loc.name,
-    type: loc.type,
     position: { lat: loc.lat, lng: loc.lng },
-    image: loc.image
+    image: loc.image,
+    typeId: loc.type_id,
+    type: loc.location_types?.name ?? ''   // use "type" not "typeName"
   }))
 
   initMarkers() // after map ready
+}
+
+const categories = computed(() => {
+  return locationTypes.value.map(t => t.name) // from DB, not only existing places
+})
+
+const activeCategory = ref<string | null>(null)
+
+const toggleCategory = (cat: string) => {
+  // ✅ clear focus whenever category changes
+  focusedPlaceId.value = null
+
+  // ✅ reset search bar
+  searchQuery.value = ''
+
+  // ✅ toggle active category
+  activeCategory.value = activeCategory.value === cat ? null : cat
+
+  // ✅ close map popup
+  if (infoWindow) {
+    infoWindow.close()
+  }
 }
 
 /* ---------------- Map ---------------- */
@@ -340,15 +430,23 @@ const initMap = async () => {
   infoWindow = new google.maps.InfoWindow()
 }
 
-const initMarkers = () => {
+const initMarkers = (places: Place[] = locations.value) => {
   if (!mapInstance || !advancedMarkerLib) return
 
+  // clear old markers
   markerMap.forEach(m => m.map = null)
   markerMap.clear()
 
+  // clear previous cluster
+  if (clusterer) {
+    clusterer.clearMarkers()
+    clusterer.setMap(null)
+    clusterer = null
+  }
+
   const markerArray: google.maps.marker.AdvancedMarkerElement[] = []
 
-  locations.value.forEach((loc) => {
+  places.forEach((loc) => {
     const iconHTML = document.createElement('div')
     iconHTML.innerHTML = `<div class="custom-pin"></div><div class="custom-pin-dot"></div>`
 
@@ -369,40 +467,54 @@ const initMarkers = () => {
     markerArray.push(marker)
   })
 
-  // ✅ Create cluster with custom carrot icons
-  new MarkerClusterer({
-    map: mapInstance!,
-    markers: markerArray,
-    renderer: carrotRippleClusterRenderer,
-    algorithm: new SuperClusterAlgorithm({ radius: 80 })
-  })
+  // ✅ only cluster when no filter
+  if (!activeCategory.value) {
+    clusterer = new MarkerClusterer({
+      map: mapInstance!,
+      markers: markerArray,
+      renderer: carrotRippleClusterRenderer,
+      algorithm: new SuperClusterAlgorithm({ radius: 80 })
+    })
+  } else {
+    // just put markers on map directly
+    markerArray.forEach(m => (m.map = mapInstance!))
+  }
 }
+
+
+watch([activeCategory, locations, focusedPlaceId], () => {
+  let filtered = [...locations.value]
+
+  if (focusedPlaceId.value !== null) {
+    // focus mode → show only that marker
+    filtered = filtered.filter(l => l.id === focusedPlaceId.value)
+  } else if (activeCategory.value) {
+    // otherwise filter by category
+    filtered = filtered.filter(l => l.type === activeCategory.value)
+  }
+
+  initMarkers(filtered)
+})
+
 
 
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {
-  focusedPlaceId.value = place.id
+  focusedPlaceId.value = place.id   // 🔑 triggers watcher
   selectedPlace.value = place
   scrollCardIntoView(place.id)
 
   if (!mapInstance) return
-
-  lastPanTime = Date.now()
   mapInstance.panTo(place.position)
-  const myPan = lastPanTime
 
-  setTimeout(() => {
-    if (myPan !== lastPanTime || !mapInstance) return
-    mapInstance.setZoom(15)
-
-    const m = markerMap.get(place.id)
-    if (m && infoWindow) {
-      infoWindow.setContent(buildInfoHtml(place))
-      infoWindow.open(mapInstance, m)
-      setTimeout(applyInfoWindowDarkClass, 50)
-    }
-  }, 400)
+  const m = markerMap.get(place.id)
+  if (m && infoWindow) {
+    infoWindow.setContent(buildInfoHtml(place))
+    infoWindow.open(mapInstance, m)
+    setTimeout(applyInfoWindowDarkClass, 50)
+  }
 }
+
 
 const centerOnUser = async () => {
   try {
@@ -453,6 +565,10 @@ const searchPlace = () => {
   const matched = locations.value.find(loc => loc.name.toLowerCase().includes(q))
   if (!matched) return
 
+  focusedPlaceId.value = matched.id   // 🔑 markers also filtered
+  selectedPlace.value = matched
+  scrollCardIntoView(matched.id)
+
   mapInstance.panTo(matched.position)
   const marker = markerMap.get(matched.id)
   if (marker && infoWindow) {
@@ -460,32 +576,30 @@ const searchPlace = () => {
     infoWindow.open(mapInstance, marker)
     setTimeout(applyInfoWindowDarkClass, 50)
   }
-  selectedPlace.value = matched
-  scrollCardIntoView(matched.id)
 }
 
 /* ---------------- Derived ---------------- */
 const sortedLocations = computed(() => {
-  // Focused mode: show only the selected place
-  if (focusedPlaceId.value != null) {
-    const p = locations.value.find(x => x.id === focusedPlaceId.value)
-    return p ? [p] : []
+  let base = [...locations.value]
+
+  // ✅ filter by category
+  if (activeCategory.value) {
+    base = base.filter(l => l.type === activeCategory.value)
   }
 
+  // search
   const q = searchQuery.value?.toLowerCase().trim()
-  const base = q
-      ? [
-        ...locations.value.filter(l => l.name.toLowerCase().includes(q)),
-        ...locations.value.filter(l => !l.name.toLowerCase().includes(q))
-      ]
-      : [...locations.value]
+  if (q) {
+    base = base.filter(l => l.name.toLowerCase().includes(q))
+  }
 
-  // Distance sort only if we know userLocation
+  // sort by distance if userLocation available
   if (userLocation.value) {
     base.sort((a, b) => getDistanceInKm(a.position) - getDistanceInKm(b.position))
   }
   return base
 })
+
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
@@ -499,6 +613,7 @@ onMounted(async () => {
 
 onIonViewWillEnter(async () => {
   await initMap()
+  await fetchLocationTypes()   // ✅ now used
   await fetchLocations()
   await centerOnUser()
   await loadRole()
@@ -518,9 +633,6 @@ const goToAddPlace = async () => {
 
 
 <style>
-.place-list {
-  padding: 0 16px 80px; /* padding bottom to prevent being hidden behind tabs */
-}
 
 .title-text {
   font-size: 21px;
@@ -539,19 +651,16 @@ const goToAddPlace = async () => {
   border: 2px solid var(--ion-color-carrot);
 }
 
-.place-list {
-  padding: 4px;
-}
-
 #map {
-  margin: 16px 16px 0;
-  padding: 10px;
-  height: 40vh;
-  border-radius: 12px;
+  margin: 0;                /* remove extra margins */
+  width: 100%;              /* full width */
+  height: 45vh;             /* take ~60% of screen height */
+  border-radius: 0;         /* remove rounding if you want edge-to-edge */
   overflow: hidden;
   position: relative;
   z-index: 1;
 }
+
 
 .gm-style {
   font: var(--ion-font-family);
@@ -628,5 +737,51 @@ button.gm-ui-hover-effect > span {
   --box-shadow: 0 4px 12px rgba(124, 124, 124, 0.05);
 }
 
+.explore-toolbar {
+  --background: var(--ion-background-color); /* or your toolbar bg color */
+  border-top-left-radius: 25px;
+  border-top-right-radius: 25px;
+  overflow: hidden; /* ensures child bg doesn’t spill over */
+  margin-top: -30px; /* pull it up to overlap the map cleanly */
+  z-index: 2;
+}
+
+.category-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 6px;
+
+  /* Hide scrollbar */
+  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  /* IE/Edge */
+}
+
+.category-bar::-webkit-scrollbar {
+  display: none;  /* Chrome/Safari */
+}
+
+.category-chip {
+  font-size: 13px;
+  flex-shrink: 0;         /* keep width based on content, don’t shrink */
+  width: auto;            /* ✅ ensures chip fits content */
+}
+
+/* make toolbar auto height */
+.toolbar-inline {
+  --min-height: auto;  /* remove Ionic's fixed min height */
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: none;
+}
+
+.toolbar-inline-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px; /* smaller padding so height = content */
+}
 </style>
 

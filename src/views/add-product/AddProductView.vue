@@ -1,8 +1,10 @@
 <template>
   <ion-page>
-    <app-header title="Add product" :icon="addOutline" :showProfile="true" />
+    <ion-header>
+      <app-header title="Add product" :icon="addOutline" :showProfile="true" />
+    </ion-header>
 
-    <ion-content :fullscreen="true" class="ion-padding" >
+    <ion-content class="ion-padding" >
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
         <ion-header>
           <ion-toolbar>
@@ -37,15 +39,15 @@
                   label="Barcode *"
                   label-placement="floating"
                   placeholder="Enter digits only"
-                  @input="onBarcodeInput"
+                  @ionInput="onBarcodeInput"
               />
+
               <ion-button slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
                 <ion-icon :icon="barcodeOutline" />
               </ion-button>
             </ion-item>
 
-            <div v-if="scanning" id="reader"></div>
-            <ion-button v-if="scanning" color="danger" @click="stopScan">Stop Scan</ion-button>
+            <div v-if="scanning && !Capacitor.isNativePlatform()" id="reader"></div>
 
             <ion-item>
               <ion-input
@@ -89,6 +91,20 @@
               </ion-buttons>
             </ion-item>
 
+            <ion-accordion-group v-if="rawChineseOcr" class="ion-margin-top ion-margin-horizontal">
+              <ion-accordion value="rawOcr">
+                <ion-item slot="header">
+                  <ion-label>🔎 Detected Text</ion-label>
+                </ion-item>
+                <div slot="content" >
+                  <ion-textarea
+                      v-model="rawChineseOcr"
+                      readonly
+                      style="width: 100%; background: var(--ion-background-color-step-50); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; padding: 8px; --padding: 8px; min-height: 60px;"
+                  ></ion-textarea>
+                </div>
+              </ion-accordion>
+            </ion-accordion-group>
 
             <ion-progress-bar
                 v-if="ocrLoading"
@@ -103,30 +119,38 @@
                 color="primary"
             />
 
-            <div v-if="ingredientHighlights.length" class="ion-no-padding">
-              <div class="ion-padding-vertical">
-                <ion-chip
-                    v-for="(highlight, idx) in ingredientHighlights"
-                    :key="idx"
-                    outline
-                    class="ion-margin-end ion-margin-bottom"
-                    :color="extractIonColor(highlight.color)"
-                >
-                  <!-- Show keyword (English) if it exists -->
-                  <template v-if="highlight.keyword">
-                    {{ highlight.keyword }}
-                  </template>
-
-                  <!-- Show the exact OCR-matched Chinese variant -->
-                  <template v-if="highlight.matchedVariant">
-                    ({{ highlight.matchedVariant }})
-                  </template>
-
-                  - {{ getColorMeaning(extractIonColor(highlight.color)) }}
-                </ion-chip>
-
-              </div>
+            <div v-if="ingredientHighlights.length" class="ion-padding-horizontal">
+              <ion-chip
+                  v-for="(highlight, idx) in ingredientHighlights"
+                  :key="idx"
+                  class="ion-margin-top"
+                  :class="['chip-' + extractIonColor(highlight.color)]"
+              >
+                <template v-if="highlight.keyword">
+                  {{ highlight.keyword }}
+                </template>
+                <template v-if="highlight.matchedVariant">
+                  ({{ highlight.matchedVariant }})
+                </template>
+                — {{ getColorMeaning(extractIonColor(highlight.color)) }}
+              </ion-chip>
             </div>
+
+            <ion-item>
+              <ion-select v-model.number="form.product_category_id" interface="popover" required>
+                <div slot="label">
+                  Category <ion-text color="danger">*</ion-text>
+                </div>
+
+                <ion-select-option
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    :value="cat.id"
+                >
+                  {{ cat.name }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
 
 
             <ion-item>
@@ -204,6 +228,16 @@
             position="bottom"
             @did-dismiss="showOcrToast = false"
         />
+
+        <!-- Error Toast -->
+        <ion-toast
+            :is-open="!!errorMsg"
+            :message="errorMsg"
+            color="danger"
+            position="bottom"
+            :duration="2500"
+            @did-dismiss="errorMsg = ''"
+        />
       </form>
     </ion-content>
   </ion-page>
@@ -231,12 +265,23 @@ import {
   IonTextarea,
   IonTitle,
   IonToast,
-  IonToolbar
+  IonToolbar,
+    IonAccordion,
+    IonAccordionGroup
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
 import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
-import {Html5Qrcode, Html5QrcodeSupportedFormats} from 'html5-qrcode'
+import { Capacitor } from '@capacitor/core'
+import {
+  CapacitorBarcodeScanner,
+  CapacitorBarcodeScannerAndroidScanningLibrary,
+  CapacitorBarcodeScannerCameraDirection,
+  CapacitorBarcodeScannerScanOrientation,
+  CapacitorBarcodeScannerTypeHintALLOption
+} from '@capacitor/barcode-scanner'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
+
 
 // Import Camera plugin and types
 import {Camera, CameraResultType, CameraSource} from '@capacitor/camera'
@@ -283,45 +328,50 @@ onMounted(async () => {
   if (!blacklistResult.error && blacklistResult.data) {
     blacklistPatterns.value = blacklistResult.data.map((row) => new RegExp(row.pattern, 'i'));
   }
+
+  await fetchCategoryRules();
+  await fetchCategories();
 });
 
-
 interface ProductForm {
-  barcode: string;
-  name: string;
-  status: string;
-  ingredients: string;
-  description: string;
+  barcode: string
+  name: string
+  status: string
+  product_category_id: number | null
+  ingredients: string
+  description: string
 }
 
 const form = ref<ProductForm>({
   barcode: '',
   name: '',
-  status: 'Halal',
+  status: 'Muslim-friendly',
+  product_category_id: null,
   ingredients: '',
   description: ''
-});
+})
+
+// ✅ rules fetched from DB
+const categoryRules = ref<Record<string, number>>({})
+
+// central mapping
+const statusDescriptions: Record<string, string> = {
+  'Halal': "Halal certified.",
+  'Muslim-friendly': "Muslim-friendly ingredients, OK.",
+  'Syubhah': "Syubhah ingredients found.",
+  'Haram': "Haram ingredients found."
+}
 
 // after your useOcrPipeline call
 watch([autoStatus, productName, ingredientsText],
-    ([newStatus, newName, newIngredients]) => {
+    ([newStatus, newName]) => {
       if (newStatus) {
         form.value.status = newStatus
         console.log("⚡ AutoStatus applied:", newStatus)
 
-        // ✅ Auto-fill description based on status
-        switch (newStatus) {
-          case 'Muslim-friendly':
-            form.value.description = "Muslim-friendly ingredients, OK"
-            break
-          case 'Syubhah':
-            form.value.description = "Syubhah ingredients found"
-            break
-          case 'Haram':
-            form.value.description = "Haram ingredients found"
-            break
-          default:
-            form.value.description = "" // leave empty for Halal
+        // only set description if still empty
+        if (!form.value.description?.trim()) {
+          form.value.description = statusDescriptions[newStatus] ?? ""
         }
       }
 
@@ -329,18 +379,24 @@ watch([autoStatus, productName, ingredientsText],
         form.value.name = newName
         console.log("🏷 AutoProductName applied:", newName)
       }
-      if (newIngredients) {
-        form.value.ingredients = newIngredients
+
+      if (form.value.name && !form.value.product_category_id) {
+        const lower = form.value.name.toLowerCase()
+        for (const keyword in categoryRules.value) {
+          if (lower.includes(keyword)) {
+            form.value.product_category_id = categoryRules.value[keyword]
+            console.log(`📂 AutoCategory applied: "${form.value.product_category_id}" (matched "${keyword}")`)
+            break
+          }
+        }
       }
     }
 )
 
+// watch for *manual* status changes
 watch(() => form.value.status, (newStatus) => {
-  switch (newStatus) {
-    case 'Muslim-friendly': form.value.description = "Muslim-friendly ingredients, OK"; break
-    case 'Syubhah': form.value.description = "Syubhah ingredients found"; break
-    case 'Haram': form.value.description = "Haram ingredients found"; break
-    default: form.value.description = ""
+  if (newStatus && !form.value.description?.trim()) {
+    form.value.description = statusDescriptions[newStatus] ?? ""
   }
 })
 
@@ -355,18 +411,41 @@ const showOcrToast = ref(false);
 const showErrorToast = ref(false)
 const toastMessage = ref('')
 const scanning = ref(false)
-let html5QrcodeScanner: Html5Qrcode | null = null
 
 const showCropper = ref(false);
 const cropperSrc = ref<string | null>(null);
 const cropperRef = ref<any>(null);
+const rawChineseOcr = ref('')  // keep original OCR before cleaning
+const scannedOnce = ref(false);
+
+const categories = ref<{ id: number; name: string }[]>([])
+
+const fetchCategories = async () => {
+  const { data, error } = await supabase
+      .from("product_categories")
+      .select("id, name")
+      .order("name")
+
+  if (!error && data) {
+    categories.value = data
+  }
+}
+
+const fetchCategoryRules = async () => {
+  const { data, error } = await supabase.from('category_rules').select('*')
+  if (!error && data) {
+    categoryRules.value = data.reduce((acc, row) => {
+      acc[row.keyword.toLowerCase()] = row.category_id
+      return acc
+    }, {} as Record<string, number>)
+  }
+}
 
 function openCropper(file: File) {
   cropperSrc.value = URL.createObjectURL(file);
   showCropper.value = true;
 
-  // 🔹 Set as back image BEFORE crop
-  backPreview.value = cropperSrc.value;
+  // 🟢 Save the original file temporarily for later resizing
   backFile.value = file;
 }
 
@@ -389,20 +468,37 @@ async function confirmCrop() {
 
   ocrLoading.value = true;
 
+  // 🟢 OCR: cropped image
   const { canvas } = result;
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((b: Blob | null) => resolve(b), 'image/jpeg', 0.9);
-  });
+  const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b: Blob | null) => resolve(b), 'image/jpeg', 0.9)
+  );
 
   if (blob) {
     const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
       type: 'image/jpeg',
     });
 
-    // 🔹 Only run OCR on cropped image
-    const resized = await resizeImage(URL.createObjectURL(croppedFile), 1000, 0.7)
-    await runOcrOnFile(resized)
+    const resizedCropped = await resizeImage(
+        URL.createObjectURL(croppedFile),
+        1000,
+        0.7
+    );
 
+    // Run OCR on the cropped+resized image
+    await runOcrOnFile(resizedCropped);
+  }
+
+  // 🟢 Back image: resize the original (not cropped)
+  if (backFile.value) {
+    const resizedOriginal = await resizeImage(
+        URL.createObjectURL(backFile.value),
+        1200, // maybe bigger, since it's background
+        0.7
+    );
+
+    backPreview.value = URL.createObjectURL(resizedOriginal);
+    backFile.value = resizedOriginal;
   }
 
   ocrLoading.value = false;
@@ -474,7 +570,16 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 async function scanIngredientsWithCamera() {
+  scannedOnce.value = false;  // reset here
   console.log('📸 Taking picture from camera...');
+
+  // 🟢 Clear old values before new scan
+  form.value.ingredients = '';
+  form.value.product_category_id = null;
+  form.value.description = '';
+  ingredientHighlights.value = [];
+  rawChineseOcr.value = '';
+
   const image = await Camera.getPhoto({
     quality: 90,
     allowEditing: false,
@@ -491,7 +596,16 @@ async function scanIngredientsWithCamera() {
 }
 
 function scanIngredientsFromGallery() {
-    const input = document.createElement('input');
+  scannedOnce.value = false;  // reset here too
+
+  // 🟢 Clear old values before new scan
+  form.value.ingredients = '';
+  form.value.product_category_id = null;
+  form.value.description = '';
+  ingredientHighlights.value = [];
+  rawChineseOcr.value = '';
+
+  const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
   input.onchange = (event: Event) => {
@@ -526,6 +640,7 @@ async function translateToEnglish(text: string) {
   if (result.data?.translations?.[0]) {
     return result.data.translations[0].translatedText;
   } else {
+    setError('Translation failed, please try again later.')
     console.error('Translation failed:', result);
     return '';
   }
@@ -545,8 +660,8 @@ function cleanChineseOcrText(text: string): string {
   }
 
   // ✅ Standardize product name & ingredients
-  cleaned = cleaned.replace(/品名[:：].*?,/i, '');        // remove product name
-  cleaned = cleaned.replace(/成分[:：]/i, 'Ingredients: '); // normalize
+  cleaned = cleaned.replace(/品名[:：]/i, 'Product name: ');
+  cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/i, 'Ingredients: ');
   cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
 
   return cleaned.trim();
@@ -610,7 +725,7 @@ function extractProductName(text: string) {
           .replace(/[:：]/g, '')
           .trim();
 
-      if (remainder.length > 2 && /\s/.test(remainder)) {
+      if (remainder.length > 1) {
         const productName = toProperCase(remainder);
         console.log('🏷 Extracted Product Name:', productName);
         form.value.name = productName;
@@ -622,6 +737,7 @@ function extractProductName(text: string) {
     }
   }
 
+  setError('⚠️ Could not detect product name, please enter manually.')
   console.warn('⚠️ Product name could not be extracted from OCR text.');
   return '';
 }
@@ -630,21 +746,32 @@ async function runOcrOnFile(file: File) {
   const ocrText = await extractTextFromImage(file);
 
   if (!ocrText) {
-    setError('OCR failed to detect any text.')
+    setError('OCR failed to detect any text.');
     return;
   }
 
+  rawChineseOcr.value = ocrText   // 🟢 store the raw Chinese OCR here
+  console.log("🈶 Raw OCR assigned:", ocrText);
+
   // 1️⃣ Clean Chinese OCR first
   const cleanedChinese = cleanChineseOcrText(ocrText);
+  if (!cleanedChinese) {
+    setError("⚠️ OCR returned no usable text after cleaning");
+    return;
+  }
   console.log('✨ Cleaned Chinese OCR:', cleanedChinese);
 
   // 2️⃣ Translate to English
   const translatedText = await translateToEnglish(cleanedChinese);
+  if (!translatedText) {
+    setError("⚠️ Translation failed or returned empty text");
+    return;
+  }
 
   // 3️⃣ Check if translated text likely has ingredients
   const lowerTranslated = translatedText.toLowerCase();
   if (!lowerTranslated.includes('ingredient')) {
-    setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.')
+    setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.');
     console.warn('⚠️ No ingredients section detected in OCR result.');
     return;
   }
@@ -655,10 +782,19 @@ async function runOcrOnFile(file: File) {
   // 5️⃣ Clean & extract only ingredients
   const readableText = cleanTranslatedIngredients(translatedText);
 
+  if (!readableText.trim()) {
+    setError('⚠️ No valid ingredients detected after OCR. Please try cropping the ingredients section more precisely.');
+    return;
+  }
+
   // 6️⃣ Populate form and highlight
-  form.value.ingredients = readableText
-  ingredientsText.value = readableText
-  await recheckHighlights(cleanedChinese)
+  if (readableText.trim()) {
+    form.value.ingredients = toProperCase(readableText) // apply ProperCase here once
+    ingredientsText.value = form.value.ingredients
+    scannedOnce.value = true   // mark as processed
+    await recheckHighlights(cleanedChinese)
+    showOcrToast.value = true
+  }
 
   // Focus the ingredients textarea
   nextTick(() => {
@@ -672,25 +808,33 @@ async function runOcrOnFile(file: File) {
   showOcrToast.value = true;
 }
 
-function onBarcodeInput(event: Event) {
-  const input = event.target as HTMLInputElement;
-  let numericValue = input.value.replace(/\D/g, '');
+function onBarcodeInput(event: CustomEvent) {
+  // Ionic's value comes from event.detail.value
+  const rawValue = (event.detail?.value as string) || ''
+
+  // Keep only digits
+  let numericValue = rawValue.replace(/\D/g, '')
 
   // Limit to max 14 digits
-  if (numericValue.length > 14) numericValue = numericValue.slice(0, 14);
+  if (numericValue.length > 14) {
+    numericValue = numericValue.slice(0, 14)
+  }
 
-  form.value.barcode = numericValue;
-  input.value = numericValue;
+  // Update form state
+  form.value.barcode = numericValue
 
+  // Also push back into input (needed for manual correction)
+  event.target && ((event.target as HTMLIonInputElement).value = numericValue)
+
+  // Validate if length is enough
   if (numericValue.length >= 8) {
-    const result = validateBarcode(numericValue);
+    const result = validateBarcode(numericValue)
     if (!result.isValid) {
       setError(result.message)
     } else {
-      // ✅ Show toast for valid barcode
-      toastMessage.value = result.message;
-      showToast.value = true;
-      console.log(result.message);
+      toastMessage.value = result.message
+      showToast.value = true
+      console.log(result.message)
     }
   }
 }
@@ -698,13 +842,22 @@ function onBarcodeInput(event: Event) {
 
 function onProductNameInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
-  input.value = toProperCase(input.value);
+
+  if (!scannedOnce.value) {
+    input.value = toProperCase(input.value);
+  }
+
   form.value.name = input.value;
 }
 
 function onIngredientsInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
-  input.value = toProperCase(input.value);
+
+  if (!scannedOnce.value) {
+    // before scan: normalize (maybe if user types all-caps by mistake)
+    input.value = toProperCase(input.value);
+  }
+
   form.value.ingredients = input.value;
 }
 
@@ -725,55 +878,34 @@ function extractIonColor(fullColor: string) {
 async function startBarcodeScan() {
   if (scanning.value) return
   scanning.value = true
-
-  await nextTick()
-
-  html5QrcodeScanner = new Html5Qrcode("reader")
-
-  const formatsToSupport = [
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.ITF,
-  ]
+  console.log('📸 Starting barcode scan...')
 
   try {
-    await html5QrcodeScanner.start({
-          facingMode: "environment"
-        }, {
-          fps: 10,
-          qrbox: {
-            width: 250,
-            height: 100
-          },
-          formatsToSupport,
-        } as any,
-        (decodedText) => {
-          console.log("Barcode detected:", decodedText)
-          form.value.barcode = decodedText
-          stopScan()
-        },
-        (errorMessage) => {
-          console.log(errorMessage)
-        }
-    )
-  } catch (err) {
-    console.error("Unable to start scanning:", err)
+    const result = await CapacitorBarcodeScanner.scanBarcode({
+      hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
+      scanInstructions: 'Align the barcode within the frame',
+      cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
+      scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
+      android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
+      web: { showCameraSelection: true, scannerFPS: 15 }
+    })
+
+    if (result?.ScanResult) {
+      await Haptics.impact({ style: ImpactStyle.Medium })  // small vibration
+      console.log('✅ Barcode detected:', result.ScanResult)
+      form.value.barcode = result.ScanResult
+    } else {
+      console.warn('⚠️ Scan finished but no barcode detected')
+    }
+  } catch (err: any) {
+    console.error('❌ Barcode scan failed:', err);
+    setError('❌ Barcode scan failed: ' + (err.message || 'Unknown error'));
+  } finally {
     scanning.value = false
+    console.log('🛑 Scanning session ended')
   }
 }
 
-async function stopScan() {
-  if (html5QrcodeScanner) {
-    await html5QrcodeScanner.stop()
-    await html5QrcodeScanner.clear()
-    html5QrcodeScanner = null
-  }
-  scanning.value = false
-}
 
 let isUnmounted = false
 onUnmounted(() => {
@@ -796,6 +928,7 @@ async function takeFrontPicture() {
 
   } catch (error) {
     console.error('Error taking front photo:', error);
+    setError('❌ Failed to capture front image.');
   }
 }
 
@@ -878,14 +1011,15 @@ async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Prom
     canvas.toBlob(
         (compressedBlob) => {
           if (compressedBlob) {
-            resolve(new File([compressedBlob], `img-${Date.now()}.jpg`, {
-              type: 'image/jpeg'
-            }))
+            resolve(new File([compressedBlob], 'image.jpg', { type: 'image/jpeg' }));
+          } else {
+            setError('❌ Failed to compress image, please try again.');
           }
         },
         'image/jpeg',
         quality
-    )
+    );
+
   })
 }
 
@@ -894,9 +1028,14 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 function handleIngredientsInput(event: Event) {
   onIngredientsInput(event)
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    recheckHighlights()
-  }, 800)
+  debounceTimer = setTimeout(async () => {
+    try {
+      await recheckHighlights();
+    } catch (err: any) {
+      setError('❌ Failed to recheck highlights.');
+      console.error(err);
+    }
+  }, 800);
 }
 
 function validateBarcode(barcode: string) {
@@ -994,6 +1133,12 @@ async function handleSubmit() {
       return;
     }
 
+    if (!form.value.product_category_id) {
+      setError('Product category is required.')
+      loading.value = false
+      return
+    }
+
     if (!form.value.description.trim()) {
       setError('Description is required.')
       loading.value = false;
@@ -1025,8 +1170,10 @@ async function handleSubmit() {
             upsert: true
           })
 
-      if(error) {
-        console.log(error)
+      if (error) {
+        console.log(error);
+        setError('❌ Failed to upload front image.');
+        return;
       }
 
       const {
@@ -1049,7 +1196,11 @@ async function handleSubmit() {
             upsert: true
           })
 
-      if (error) throw error
+      if (error) {
+        console.log(error);
+        setError('❌ Failed to upload back image.');
+        return;
+      }
 
       const {
         data: publicUrl
@@ -1081,7 +1232,8 @@ async function handleSubmit() {
     form.value = {
       barcode: '',
       name: '',
-      status: 'Halal',
+      status: 'Muslim-friendly',
+      product_category_id: null,
       ingredients: '',
       description: ''
     }

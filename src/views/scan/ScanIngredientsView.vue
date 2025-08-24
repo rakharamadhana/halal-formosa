@@ -1,50 +1,49 @@
 <template>
   <ion-page>
-    <app-header
-        title="Scan Ingredients"
-        :icon="scanOutline"
-        :showBack="true"
-        backRoute="/home"
-    />
+    <ion-header>
+      <app-header
+          :title="$t('scanIngredients.title')"
+          :icon="scanOutline"
+          :showBack="true"
+          backRoute="/home"
+      />
+    </ion-header>
 
-
-    <ion-content :fullscreen="true" class="ion-padding">
+    <ion-content class="ion-padding">
 
       <ion-modal :is-open="showSimpleDisclaimer" backdrop-dismiss="false">
         <ion-header>
           <ion-toolbar>
-            <ion-title>Halal Scanner Disclaimer</ion-title>
+            <ion-title>{{ $t('scanIngredients.disclaimer.title') }}</ion-title>
           </ion-toolbar>
         </ion-header>
 
         <ion-content class="ion-padding">
           <p style="margin-bottom: 12px;">
-            This scanner only checks ingredients based on a keyword database.
-            It does <strong>not</strong> provide an official halal ruling.
-            Please use your own judgment before consuming.
+            {{ $t('scanIngredients.disclaimer.message') }}
           </p>
 
           <blockquote style="font-size: 14px; color: var(--ion-color-success); border-left: 4px solid var(--ion-color-success); padding-left: 8px;">
             <em>
-              "O mankind, eat from whatever is on earth [that is] lawful and good..."
+              {{ $t('scanIngredients.disclaimer.verse') }}
             </em> <br />
-            <small>— Qur'an 2:168</small>
+            <small>{{ $t('scanIngredients.disclaimer.verseRef') }}</small>
           </blockquote>
 
           <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px;">
             <!-- First row: Agree + Learn More -->
             <div style="display: flex; gap: 8px; width: 100%;">
               <ion-button style="flex: 1;" color="carrot" @click="acceptDisclaimer">
-                I Understand
+                {{ $t('scanIngredients.disclaimer.agree') }}
               </ion-button>
               <ion-button style="flex: 1;" fill="outline" color="medium" @click="showDetails">
-                Learn More
+                {{ $t('scanIngredients.disclaimer.learnMore') }}
               </ion-button>
             </div>
 
             <!-- Second row: No want to use -->
             <ion-button expand="block" fill="outline" color="medium" @click="declineDisclaimer">
-              No, I Don't Want to Use This Feature
+              {{ $t('scanIngredients.disclaimer.decline') }}
             </ion-button>
           </div>
         </ion-content>
@@ -53,38 +52,38 @@
       <ion-modal :is-open="showDetailedDisclaimer" backdrop-dismiss="false">
         <ion-header>
           <ion-toolbar>
-            <ion-title>How It Works</ion-title>
+            <ion-title>{{ $t('scanIngredients.details.title') }}</ion-title>
           </ion-toolbar>
         </ion-header>
 
         <ion-content class="ion-padding">
           <p>
-            This scanner checks product ingredients using OCR (Optical Character Recognition) and our curated halal ingredient database.
+            {{ $t('scanIngredients.details.intro') }}
           </p>
 
-          <h3>Step-by-Step Process</h3>
+          <h3>{{ $t('scanIngredients.details.stepsTitle') }}</h3>
           <ol>
             <li>
-              <strong>OCR Processing</strong> – The product image (taken by camera or uploaded from gallery) is sent to an OCR server, which reads and extracts the ingredient text from the image.
+              {{ $t('scanIngredients.details.steps.ocr') }}
             </li>
             <li>
-              <strong>Translation</strong> – If the detected text is in Chinese, it is sent to Google Translation to be converted into English for consistent checking.
+              {{ $t('scanIngredients.details.steps.translate') }}
             </li>
             <li>
-              <strong>Database Matching</strong> – The translated English ingredient list is checked against our curated database of keywords for halal, Muslim-friendly, syubhah, and haram indicators.
+              {{ $t('scanIngredients.details.steps.match') }}
             </li>
             <li>
-              <strong>Result Display</strong> – Any matches are highlighted by category with their status shown for your reference.
+              {{ $t('scanIngredients.details.steps.display') }}
             </li>
           </ol>
 
-          <h3>Ingredient Categories</h3>
+          <h3>{{ $t('scanIngredients.details.categories.title') }}</h3>
           <ion-list lines="none">
             <ion-item>
               <ion-label>
-                <h2 style="color: var(--ion-color-success); font-weight: bold;">Halal</h2>
-                <p>Has halal certification within the product.</p>
-                <small><em>Examples:</em> Halal BPJPH Indonesia, Halal CMA, Halal TGM, Halal Thailand</small>
+                <h2 style="color: var(--ion-color-success); font-weight: bold;">{{ $t('scanIngredients.details.categories.halal.label') }}</h2>
+                <p>{{ $t('scanIngredients.details.categories.halal.desc') }}</p>
+                <small>{{ $t('scanIngredients.details.categories.halal.examples') }}</small>
               </ion-label>
             </ion-item>
 
@@ -114,11 +113,11 @@
           </ion-list>
 
           <p style="margin-top: 16px;">
-            Results are for <strong>reference only</strong>. Always verify with trusted sources before consuming.
+            {{ $t('scanIngredients.details.disclaimerNote') }}
           </p>
 
           <ion-button expand="block" color="carrot" @click="closeDetailedDisclaimer">
-            Got It
+            {{ $t('scanIngredients.details.gotIt') }}
           </ion-button>
         </ion-content>
       </ion-modal>
@@ -134,7 +133,7 @@
                 style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
             >
               <ion-icon :icon="cameraOutline" style="font-size: 48px; color: var(--ion-color-light);" />
-              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">Camera</span>
+              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">{{ $t('scanIngredients.scan.camera') }}</span>
             </div>
 
             <!-- Gallery Button -->
@@ -143,7 +142,7 @@
                 style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
             >
               <ion-icon :icon="cloudUploadOutline" style="font-size: 48px; color: var(--ion-color-light);" />
-              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">Gallery</span>
+              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">{{ $t('scanIngredients.scan.gallery') }}</span>
             </div>
           </div>
 
@@ -157,7 +156,7 @@
           <ion-accordion-group v-if="originalPreviewUrl">
             <ion-accordion value="original">
               <ion-item slot="header" color="light">
-                <ion-label>Original Image</ion-label>
+                <ion-label>{{ $t('scanIngredients.scan.originalImage') }}</ion-label>
               </ion-item>
               <div slot="content">
                 <img :src="originalPreviewUrl" alt="Original" class="preview-img" />
@@ -168,7 +167,7 @@
                     expand="block"
                     @click="recrop"
                 >
-                  Re-crop
+                  {{ $t('scanIngredients.scan.reCrop') }}
                 </ion-button>
               </div>
             </ion-accordion>
@@ -184,22 +183,22 @@
           <ion-chip
               v-if="autoStatus"
               class="ion-margin-top"
-              :color="
-                    autoStatus === 'Halal' ? 'success'
-                    : autoStatus === 'Muslim-friendly' ? 'primary'
-                    : autoStatus === 'Syubhah' ? 'warning'
-                    : autoStatus === 'Haram' ? 'danger'
-                    : 'medium'
-                  "
-              style="align-self: flex-start; border-radius: 12px; font-size: 14px; font-weight: 500;"
+              :class="{
+    'chip-success': autoStatus === 'Halal',
+    'chip-primary': autoStatus === 'Muslim-friendly',
+    'chip-warning': autoStatus === 'Syubhah',
+    'chip-danger': autoStatus === 'Haram',
+    'chip-medium': !['Halal', 'Muslim-friendly', 'Syubhah', 'Haram'].includes(autoStatus)
+  }"
           >
             {{ autoStatus }}
           </ion-chip>
 
+
           <ion-item class="ion-margin-top">
             <ion-input
                 v-model="productName"
-                label="Detected Product Name"
+                :label="$t('scanIngredients.scan.productName')"
                 label-placement="stacked"
                 readonly
             />
@@ -209,7 +208,7 @@
             <ion-item lines="full" class="ion-margin-top">
               <ion-textarea
                   v-model="ingredientsTextZh"
-                  label="Detected Ingredients (Chinese)"
+                  :label="$t('scanIngredients.scan.ingredientsZh')"
                   label-placement="stacked"
                   :auto-grow="true"
                   readonly
@@ -219,7 +218,7 @@
             <ion-item lines="full">
               <ion-textarea
                   v-model="ingredientsText"
-                  label="Translated Ingredients"
+                  :label="$t('scanIngredients.scan.ingredientsEn')"
                   label-placement="stacked"
                   :auto-grow="true"
                   readonly
@@ -232,9 +231,8 @@
               <ion-chip
                   v-for="(h, idx) in ingredientHighlights"
                   :key="idx"
-                  outline
                   class="ion-margin-end ion-margin-bottom"
-                  :color="extractIonColor(h.color)"
+                  :class="['chip-' + extractIonColor(h.color)]"
               >
                 {{ h.keyword }}
                 <template v-if="h.matchedVariant">
@@ -242,16 +240,17 @@
                 </template>
                 — {{ colorMeaning(extractIonColor(h.color)) }}
               </ion-chip>
+
             </div>
 
             <div v-if="ingredientsText" class="actions">
               <ion-button size="small" fill="outline" @click="onShareClick">
                 <ion-icon slot="start" :icon="shareOutline" />
-                Share
+                {{ $t('scanIngredients.scan.share') }}
               </ion-button>
               <ion-button size="small" color="medium" fill="outline" @click="clearAll">
                 <ion-icon slot="start" :icon="refreshOutline" /> <!-- optional different icon -->
-                Clear
+                {{ $t('scanIngredients.scan.clear') }}
               </ion-button>
             </div>
           </div>
@@ -262,9 +261,9 @@
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
         <ion-header>
           <ion-toolbar>
-            <ion-title>Crop Ingredients</ion-title>
+            <ion-title>{{ $t('scanIngredients.scan.cropTitle') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="confirmCrop">Done</ion-button>
+              <ion-button @click="confirmCrop">{{ $t('scanIngredients.scan.done') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -279,7 +278,7 @@
           />
           <div v-if="ocrLoading" class="ion-text-center ion-padding">
             <ion-spinner name="crescent"></ion-spinner>
-            <p>Processing OCR...</p>
+            <p>{{ $t('scanIngredients.scan.ocrProcessing') }}</p>
           </div>
         </ion-content>
       </ion-modal>
@@ -287,7 +286,7 @@
       <!-- Toasts -->
       <ion-toast
           :is-open="showOk"
-          message="✅ Ingredients extracted!"
+          :message="$t('scanIngredients.toast.ok')"
           :duration="1600"
           color="success"
           position="bottom"

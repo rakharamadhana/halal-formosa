@@ -1,11 +1,13 @@
 <template>
   <ion-page>
-    <app-header title="Product details" show-back back-route="/search" :icon="bagOutline" />
+    <ion-header>
+      <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline" />
+    </ion-header>
 
     <!-- If this page should show ads, include this slot and set meta.adSpaceId above -->
     <div v-if="isNative && showAds" id="ad-space-item-details" style="height:60px;"></div>
 
-    <ion-content class="ion-padding">
+    <ion-content>
       <div v-if="loading">
         <ion-skeleton-text animated style="width:100%;height:200px" />
         <ion-skeleton-text animated style="width:70%;height:20px;margin-top:10px" />
@@ -13,63 +15,96 @@
 
       <div v-else-if="item">
         <!-- Swiper carousel for images -->
-        <swiper
+        <Swiper
             v-if="item.photo_front_url || item.photo_back_url"
             :modules="modules"
             :scrollbar="true"
             :zoom="true"
             :slides-per-view="1"
             :pagination="{ clickable: true }"
-            style="width: 100%; height: 300px; border-radius: 8px; overflow: hidden;"
+            class="product-swiper"
         >
-          <swiper-slide v-if="item.photo_front_url">
+          <SwiperSlide  v-if="item.photo_front_url">
             <img
                 :src="item.photo_front_url"
                 alt="Front Image"
                 style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
             />
-          </swiper-slide>
-          <swiper-slide v-if="item.photo_back_url">
+          </SwiperSlide >
+          <SwiperSlide  v-if="item.photo_back_url">
             <img
                 :src="item.photo_back_url"
                 alt="Back Image"
                 style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
             />
-          </swiper-slide>
-        </swiper>
+          </SwiperSlide >
+        </Swiper>
 
         <!-- Details below the slider -->
-        <div style="margin-top: 1rem;">
+        <div style="margin-top: 1rem; padding-top: 0" class="ion-padding">
           <h2 style="margin-bottom: 0;">{{ item.name }}</h2>
           <p style="margin-top: 3px; margin-bottom: 0;"><small>{{ item.barcode }}</small></p>
-          <p style="margin-top: 10px"><ion-chip :color="statusColor(item.status)">{{ item.status }}</ion-chip></p>
+          <p style="margin-top: 10px">
+            <ion-chip :class="statusToChipClass(item.status)">
+              {{ $t(`search.status.${item.status}`) }}
+            </ion-chip>
+          </p>
 
-          <p class="ion-margin-top"><strong><small>Description</small></strong></p>
+          <p class="ion-margin-top"><strong><small>{{ $t('search.details.description') }}</small></strong></p>
           <h5 class="ion-no-margin" style="margin-top: 2px">{{ item.description }}</h5>
 
-          <p class="ion-margin-top"><strong><small>Ingredients</small></strong></p>
-          <h5 class="ion-no-margin" style="margin-top: 2px">
-            <template v-if="item.status !== 'Halal'">
-              <span v-html="highlightedIngredients"></span>
-            </template>
-            <template v-else>
-              {{ item.ingredients }}
-            </template>
+          <p class="ion-margin-top">
+            <strong><small>{{ $t('search.details.ingredients') }}</small></strong>
+          </p>
+
+          <ul style="margin:0; padding-left:1.2rem">
+            <li v-for="(ing, idx) in visibleIngredients"
+                :key="idx"
+                v-html="ing.html">
+            </li>
+          </ul>
+
+          <!-- Toggle button -->
+          <div v-if="highlightedIngredients.length > maxVisible" class="ion-margin-top">
+            <ion-button
+                fill="clear"
+                size="small"
+                @click="showAllIngredients = !showAllIngredients"
+            >
+              {{ !showAllIngredients ? $t('search.details.viewMore') : $t('search.details.viewLess') }}
+            </ion-button>
+          </div>
+
+          <h5 v-else class="ion-no-margin" style="margin-top: 2px">
+            {{ item.ingredients }}
           </h5>
+
+          <!-- Color Legend -->
+          <div v-if="usedColors.length" class="ion-margin-top ingredient-legend">
+            <p><strong>{{ $t('search.details.colorLegend') }}</strong></p>
+
+            <ion-chip
+                v-for="color in usedColors"
+                :key="color"
+                :class="colorToChipClass(color)"
+            >
+              {{ $t(colorLabels[color]) }}
+            </ion-chip>
+          </div>
+
+
+          <ion-button
+              v-if="item"
+              class="ion-margin-top"
+              expand="block"
+              color="medium"
+              @click="goToReport(item.barcode)"
+          >
+            {{ $t('search.details.report') }}
+          </ion-button>
         </div>
-
-        <ion-button
-            v-if="item"
-            class="ion-margin-top"
-            expand="block"
-            color="medium"
-            @click="goToReport(item.barcode)"
-        >
-          Report Product
-        </ion-button>
       </div>
-
-      <p v-else class="ion-text-center ion-margin-top">❌ Item not found.</p>
+      <p v-else class="ion-text-center ion-margin-top">❌ {{ $t('search.details.no-item') }}</p>
     </ion-content>
   </ion-page>
 </template>
@@ -99,6 +134,9 @@ const loading = ref(true)
 const isNative = ref(Capacitor.isNativePlatform())
 const modules = [Pagination, Zoom];
 
+const showAllIngredients = ref(false)
+const maxVisible = 5
+
 const ingredientDictionary = ref<Record<string, string>>({});
 
 interface Product {
@@ -118,12 +156,19 @@ const item = ref<Product | null>(null)
 // If you used meta:{noAds:true} you can leave the slot out and keep showAds = false.
 const showAds = false // set true only if meta.adSpaceId is configured
 
-function statusColor(s: string) {
-  return s === 'Halal' ? 'success'
-      : s === 'Muslim-friendly' ? 'primary'
-          : s === 'Syubhah' ? 'warning'
-              : s === 'Haram' ? 'danger'
-                  : 'medium'
+function statusToChipClass(status: string): string {
+  switch (status) {
+    case 'Halal':
+      return 'chip-success'
+    case 'Muslim-friendly':
+      return 'chip-primary'
+    case 'Syubhah':
+      return 'chip-warning'
+    case 'Haram':
+      return 'chip-danger'
+    default:
+      return 'chip-medium'
+  }
 }
 
 function goToReport(barcode: string) {
@@ -134,22 +179,35 @@ function goToReport(barcode: string) {
   }, 300)
 }
 
-const highlightedIngredients = computed(() => {
-  if (!item.value || !item.value.ingredients) return ''
+const visibleIngredients = computed(() => {
+  if (!highlightedIngredients.value) return []
+  return showAllIngredients.value
+      ? highlightedIngredients.value
+      : highlightedIngredients.value.slice(0, maxVisible)
+})
 
+const highlightedIngredients = computed(() => {
+  if (!item.value || !item.value.ingredients) return []
+
+  // 🚫 If product is Halal → return plain ingredients (no highlighting)
   if (item.value.status === 'Halal') {
     return item.value.ingredients
+        .split(',')
+        .map((p: string) => ({ html: p.trim(), highlighted: false }))
+        .filter((p) => p.html.length > 0)
   }
 
+  // ✅ Otherwise, do the highlight logic
   const rawIngredients: string = item.value.ingredients ?? ''
   const parts: string[] = rawIngredients
       .split(',')
-      .map((p: string) => p.trim())        // 👈 typed
+      .map((p: string) => p.trim())
+      .filter((p: string) => p.length > 0)
 
   const sortedKeys: string[] = Object.keys(ingredientDictionary.value)
       .sort((a: string, b: string) => b.length - a.length)
 
-  const highlightedParts = parts.map((part: string) => {   // 👈 typed
+  const processed = parts.map((part: string) => {
     const lowerPart = part.toLowerCase()
     let matchedKey: string | null = null
 
@@ -162,14 +220,58 @@ const highlightedIngredients = computed(() => {
 
     if (matchedKey) {
       const color = ingredientDictionary.value[matchedKey]
-      return `<span style="font-weight:600;color:var(${color});">${part}</span>`
+      return {
+        html: `<span style="font-weight:600;color:var(${color});">${part}</span>`,
+        highlighted: true
+      }
     } else {
-      return part
+      return { html: part, highlighted: false }
     }
   })
 
-  return highlightedParts.join(', ')
+  processed.sort((a, b) => Number(b.highlighted) - Number(a.highlighted))
+  return processed
 })
+
+
+const usedColors = computed(() => {
+  if (!highlightedIngredients.value) return []
+  // 🚫 Skip if Halal
+  if (item.value?.status === 'Halal') return []
+
+  const colorSet = new Set<string>()
+  highlightedIngredients.value.forEach(ing => {
+    if (ing.highlighted) {
+      const match = ing.html.match(/var\((--ion-color-[^)]+)\)/)
+      if (match) colorSet.add(match[1])
+    }
+  })
+  return Array.from(colorSet)
+})
+
+// Map CSS colors to translation keys
+const colorLabels: Record<string, string> = {
+  '--ion-color-success': 'search.details.legend.halal',
+  '--ion-color-primary': 'search.details.legend.muslimFriendly',
+  '--ion-color-warning': 'search.details.legend.syubhah',
+  '--ion-color-danger': 'search.details.legend.haram'
+}
+
+function colorToChipClass(color: string): string {
+  switch (color) {
+    case '--ion-color-success':
+      return 'chip-success'
+    case '--ion-color-primary':
+      return 'chip-primary'
+    case '--ion-color-warning':
+      return 'chip-warning'
+    case '--ion-color-danger':
+      return 'chip-danger'
+    default:
+      return 'chip-medium'
+  }
+}
+
 
 onMounted(async () => {
   loading.value = true
@@ -207,3 +309,24 @@ onMounted(async () => {
 })
 
 </script>
+
+<style>
+.product-swiper {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  height: 300px; /* adjust as needed */
+  border-radius: 0; /* full edge-to-edge */
+}
+
+.ingredient-legend {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ingredient-legend .legend-text {
+  margin-left: 8px;
+  color: var(--ion-color-medium);
+}
+
+</style>

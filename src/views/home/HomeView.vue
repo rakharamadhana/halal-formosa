@@ -1,31 +1,17 @@
 <template>
   <ion-page>
-    <app-header title="Halal Formosa" :showProfile="true" />
+    <ion-header>
+      <app-header :title="$t('home.title')" :showProfile="true" />
+    </ion-header>
     <ion-content class="ion-padding">
 
       <!-- Combined Product Status + Stats Card -->
-      <ion-card class="chart-card">
+      <ion-card class="featured-card">
         <ion-card-header>
-          <ion-card-title>Product Status</ion-card-title>
+          <ion-card-title>{{ $t('home.mainFeature') }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
-          <div class="chart-flex">
-            <DoughnutChart ref="doughnutRef" :data="statusChartData" :options="chartOptions" />
-          </div>
-
-          <div class="stats-row">
-            <div class="stat-box" @click="$router.push('/search')">
-              <h2>{{ totalProducts }}</h2>
-              <p>Products</p>
-            </div>
-
-            <div class="stat-box" @click="$router.push('/explore')">
-              <h2>{{ totalLocations }}</h2>
-              <p>Halal Locations</p>
-            </div>
-          </div>
-
           <div class="scan-row">
             <ion-button
                 expand="block"
@@ -33,69 +19,43 @@
                 @click="goScan"
             >
               <ion-icon :icon="scanOutline" slot="start" />
-              Scan Ingredients
+              {{ $t('home.scan') }}
             </ion-button>
+          </div>
 
+          <div class="scan-row">
+            <ion-button
+                expand="block"
+                color="carrot"
+                @click="goToSearchAndScan"
+            >
+              <ion-icon :icon="barcodeOutline" slot="start" />
+              {{ $t('home.scanBarcode') }}
+            </ion-button>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-box" @click="$router.push('/search')">
+              <h2>{{ totalProducts }}</h2>
+              <p>{{ $t('home.productsCount') }}</p>
+            </div>
+
+            <div class="stat-box" @click="$router.push('/explore')">
+              <h2>{{ totalLocations }}</h2>
+              <p>{{ $t('home.halalLocationsCount') }}</p>
+            </div>
           </div>
         </ion-card-content>
       </ion-card>
 
-      <!-- Halal & Islam News -->
-      <ion-card class="news-card">
+
+      <ion-card>
         <ion-card-header>
-          <ion-card-title>Halal & Islam News</ion-card-title>
+          <ion-card-title>{{ $t('home.productStatus') }}</ion-card-title>
         </ion-card-header>
-        <ion-card-content>
-          <ion-list>
-            <ion-item
-                v-for="(item, idx) in news"
-                :key="idx"
-                button
-                detail
-                class="news-item"
-                @click="router.push(`/news/${item.id}`)"
-            >
-              <div class="news-thumbnail">
-                <img :src="item.thumbnail" loading="lazy" alt="News Thumbnail" />
-              </div>
-              <ion-label>
-                <h2>{{ item.title }}</h2>
-                <p style="color: var(--ion-background-color-step-800)">{{ item.summary }}</p>
-                <p><small>{{ fromNowToTaipei(item.created_at) }}</small></p>
-              </ion-label>
-            </ion-item>
-          </ion-list>
-
-          <template v-if="loadingNews">
-            <ion-list>
-              <ion-item v-for="n in 3" :key="n" class="news-item">
-                <!-- Skeleton thumbnail -->
-                <div class="news-thumbnail">
-                  <ion-skeleton-text animated style="width: 100%; height: 100%; border-radius: 6px;" />
-                </div>
-
-                <!-- Skeleton text placeholders -->
-                <ion-label>
-                  <ion-skeleton-text animated style="width: 80%; height: 18px; margin-bottom: 6px;" />
-                  <ion-skeleton-text animated style="width: 60%; height: 14px; margin-bottom: 6px;" />
-                  <ion-skeleton-text animated style="width: 40%; height: 12px;" />
-                </ion-label>
-              </ion-item>
-            </ion-list>
-          </template>
-
-          <!-- ✅ View More Button -->
-          <div class="view-more-container">
-            <ion-button
-                fill="clear"
-                size="small"
-                color="primary"
-                @click="goToNewsPage"
-            >
-              View More →
-            </ion-button>
-          </div>
-        </ion-card-content>
+        <div class="chart-flex">
+          <DoughnutChart ref="doughnutRef" :data="statusChartData" :options="chartOptions" />
+        </div>
       </ion-card>
     </ion-content>
   </ion-page>
@@ -106,8 +66,7 @@ import { ref, onMounted, nextTick } from 'vue';
 import {
   IonPage, IonContent,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonItem, IonLabel, IonList, IonSkeletonText,
-  IonButton, IonIcon
+  IonButton, IonIcon, IonHeader, onIonViewWillEnter
 } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js';
@@ -129,17 +88,12 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import {scanOutline} from "ionicons/icons";
+import {barcodeOutline, scanOutline} from "ionicons/icons";
 
 // Extend dayjs
 dayjs.extend(utc)
 dayjs.extend(timezone)
 dayjs.extend(relativeTime)
-
-function fromNowToTaipei(dateString?: string) {
-  if (!dateString) return ''
-  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
-}
 
 const ionColorDark = getComputedStyle(document.documentElement)
     .getPropertyValue('--ion-color-dark')
@@ -182,6 +136,10 @@ onMounted(async () => {
   await fetchNews();
 });
 
+onIonViewWillEnter(async () => {
+  await fetchStats()
+})
+
 function goScan() {
   router.push('/scan')
 }
@@ -207,10 +165,6 @@ function generateSummary(content: string, title: string, wordLimit = 20) {
 
   // Only add ellipsis if original text is longer than limit
   return truncatedWords.join(' ') + (allWords.length > wordLimit ? '…' : '');
-}
-
-function goToNewsPage() {
-  router.push('/news');
 }
 
 async function fetchNews() {
@@ -262,13 +216,21 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
     chart.update('active');
   });
 }
+
+function goToSearchAndScan() {
+  router.push({ path: '/search', query: { scan: 'true' } })
+}
 </script>
 
 <style scoped>
 /* === Chart === */
-.chart-card {
+.featured-card {
   cursor: auto;
+  display: flex;             /* enable flexbox */
+  flex-direction: column;    /* stack children vertically */
+  justify-content: center;   /* center them vertically */
 }
+
 
 .chart-flex {
   display: flex;
@@ -276,7 +238,8 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   align-items: center;
   width: 100%;
   height: 100%;  /* ✅ taller to fit larger donut */
-  padding-bottom: 10px;
+  padding-bottom: 20px;
+  padding-top: 20px;
 }
 
 .chart-flex canvas {
@@ -287,6 +250,7 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 
 /* === Stats Row === */
 .stats-row {
+  margin-top: 10px;
   display: flex;
   justify-content: center;
   gap: 1rem;
@@ -295,13 +259,13 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 }
 
 .scan-row {
+  margin-top: 5px;
   display: flex;
-  justify-content: space-between; /* or space-around / space-evenly */
+  justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
   min-height: 60px;
-  width: 100%; /* make it fill the card width */
-  /* Override Ionic default */
+  width: 100%;
   text-transform: none;
 }
 
@@ -311,9 +275,9 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 
 .scan-row ion-button {
   text-transform: none;
+  font-size: 1.2rem;   /* 🔹 increase base text size */
+  font-weight: 500;    /* optional: make it a bit bolder */
 }
-
-
 
 .stat-box {
   cursor: pointer;
@@ -337,13 +301,13 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 
 .stat-box h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   font-weight: 600;
 }
 
 .stat-box p {
   margin: 2px 0;
-  font-size: 0.9rem;
+  font-size: 1.0rem;
   color: var(--ion-color-medium);
 }
 
@@ -352,36 +316,6 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
   .stats-row {
     justify-content: space-evenly;
   }
-}
-
-/* === News Section === */
-.news-card {
-  cursor: auto;
-}
-
-.news-item {
-  display: flex;
-  align-items: center; /* Vertical center */
-}
-
-.news-thumbnail {
-  width: 100px;
-  height: 125px;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-right: 12px;
-  flex-shrink: 0;
-}
-
-.news-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.view-more-container {
-  text-align: center;
-  margin-top: 8px;
 }
 
 /* If your style block is scoped, use :deep(); if not scoped, drop :deep() */

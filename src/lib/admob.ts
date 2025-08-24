@@ -41,6 +41,7 @@ export async function moveBanner(adId: string, spaceId: string, isTesting: boole
 
     // let layout settle so top offset is correct
     await new Promise<void>(r => requestAnimationFrame(() => r()))
+    await delay(120) // 120ms to let Ionic header animate in
     const rect = el.getBoundingClientRect()
     const topOffset = Math.max(0, Math.round(rect.top + window.scrollY))
 

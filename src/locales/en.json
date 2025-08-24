@@ -1,0 +1,166 @@
+{
+  "main": {
+    "title": "Halal Formosa",
+    "scan": "Scan Ingredients",
+    "home": "Home",
+    "product": "Product",
+    "explore": "Explore",
+    "add": "Add Products",
+    "news": "News"
+  },
+  "home": {
+    "title": "Halal Formosa",
+    "scan": "Scan Ingredients",
+    "scanBarcode": "Scan Barcode",
+    "productStatus": "Product Status",
+    "productsCount": "Products",
+    "halalLocationsCount": "Halal Locations",
+    "news": "Halal & Islam News",
+    "viewMore": "View More",
+    "mainFeature": "Featured Menu"
+  },
+  "scanIngredients" :
+  {
+    "title": "Scan Ingredients",
+    "disclaimer": {
+      "title": "Halal Scanner Disclaimer",
+      "message": "This scanner only checks ingredients based on a keyword database. It does not provide an official halal ruling. Please use your own judgment before consuming.",
+      "verse": "\"O mankind, eat from whatever is on earth [that is] lawful and good...\"",
+      "verseRef": "— Qur'an 2:168",
+      "agree": "I Understand",
+      "learnMore": "Learn More",
+      "decline": "No, I Don't Want to Use This Feature"
+    },
+    "details": {
+      "title": "How It Works",
+      "intro": "This scanner checks product ingredients using OCR (Optical Character Recognition) and our curated halal ingredient database.",
+      "stepsTitle": "Step-by-Step Process",
+      "steps": {
+        "ocr": "OCR Processing – The product image (taken by camera or uploaded from gallery) is sent to an OCR server, which reads and extracts the ingredient text from the image.",
+        "translate": "Translation – If the detected text is in Chinese, it is sent to Google Translation to be converted into English for consistent checking.",
+        "match": "Database Matching – The translated English ingredient list is checked against our curated database of keywords for halal, Muslim-friendly, syubhah, and haram indicators.",
+        "display": "Result Display – Any matches are highlighted by category with their status shown for your reference."
+      },
+      "categories": {
+        "title": "Ingredient Categories",
+        "halal": {
+          "label": "Halal",
+          "desc": "Has halal certification within the product.",
+          "examples": "Examples: Halal BPJPH Indonesia, Halal CMA, Halal TGM, Halal Thailand"
+        },
+        "muslimFriendly": {
+          "label": "Muslim-Friendly",
+          "desc": "No Syubhah or Haram ingredients detected, but not officially halal certified.",
+          "examples": "Examples: Lecithin (Soy), Soy Lecithin, Emulsifier (Sugar Cane), Fresh Cream"
+        },
+        "syubhah": {
+          "label": "Syubhah",
+          "desc": "Doubtful or unclear ingredients that may need further checking.",
+          "examples": "Examples: Unknown Emulsifier, Butter, Margarine, Vinegar"
+        },
+        "haram": {
+          "label": "Haram",
+          "desc": "Prohibited ingredients.",
+          "examples": "Examples: Pork, Gelatin, Alcohol, Lard, Wine"
+        }
+      },
+      "disclaimerNote": "Results are for reference only. Always verify with trusted sources before consuming.",
+      "gotIt": "Got It"
+    },
+    "scan": {
+      "camera": "Camera",
+      "gallery": "Gallery",
+      "reCrop": "Re-crop",
+      "productName": "Detected Product Name",
+      "ingredientsZh": "Detected Ingredients (Chinese)",
+      "ingredientsEn": "Translated Ingredients (English)",
+      "originalImage": "Original Image",
+      "share": "Share",
+      "clear": "Clear",
+      "cropTitle": "Crop Ingredients",
+      "done": "Done",
+      "ocrProcessing": "Processing OCR..."
+    },
+    "toast": {
+      "ok": "✅ Ingredients extracted!",
+      "error": "Something went wrong.",
+      "copied": "Copied to clipboard"
+    }
+  },
+  "search": {
+    "title": "Product",
+    "placeholder": "Search (e.g. Tea)",
+    "registeredProductCount": "Count",
+    "noProductFound": "Sorry, no product found...",
+    "pullToRefresh": "Pull to refresh",
+    "showingResults": "Showing {count} of {total} registered products",
+    "details": {
+      "title": "Product Details",
+      "description": "Description",
+      "ingredients": "Ingredients",
+      "report": "Report Product",
+      "no-item": "No product found",
+      "viewMore": "View All",
+      "viewLess": "View Short",
+      "colorLegend": "Color Legend",
+      "legend": {
+        "halal": "Certified halal ingredient",
+        "muslimFriendly": "Permissible ingredient, but no halal certification",
+        "syubhah": "Questionable (syubhah) ingredient, use caution",
+        "haram": "Haram ingredient"
+      }
+    },
+    "status": {
+      "Halal": "Halal",
+      "Muslim-friendly": "Muslim-friendly",
+      "Syubhah": "Syubhah",
+      "Haram": "Haram",
+      "Unknown": "Unknown"
+    }
+  },
+  "explore": {
+    "title": "Explore",
+    "placeholder": "Search places (e.g. Mosque)",
+    "clear": "Clear",
+    "showingPlace": "Showing 1 place"
+  },
+  "news": {
+    "title": "Halal & Islam News",
+    "placeholder": "Search news..."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "language": "Language (Experimental)"
+  },
+  "profile": {
+    "title": "Profile",
+    "logout": "Logout",
+    "donor": "Donor Status",
+    "noUserLogged": "No user logged in",
+    "login": "Login",
+    "settings": "Settings",
+    "legal": "Legal",
+    "credits": "Credits & Contributor",
+    "support": "Support Halal Formosa ❤\uFE0F",
+    "supportDescription": "If you like this app, consider supporting its development",
+    "bobaMe": "Give me a Boba!",
+    "supportThank": "Thank you for your support! 🙏",
+    "voluntary": "*Donations are voluntary and do not unlock in-app features.",
+    "appInfo": "App Info",
+    "appNameTitle": "App Name",
+    "appName": "Halal Formosa",
+    "appVersion": "Version"
+  },
+  "credits": {
+    "title": "Credits & Contributor",
+    "founder": "Founder & Main Developer",
+    "coFounder": "Co-Founder",
+    "coDeveloper": "Co-Developer",
+    "uiUx": "UI/UX Contributor",
+    "database": "Database Contributor",
+    "specialThanks": "Special Thanks",
+    "thankYou": "We sincerely thank all community members, testers, and supporters who helped make Halal Formosa possible. May Allah SWT reward your contributions with abundant goodness."
+  }
+}

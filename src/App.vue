@@ -1,5 +1,5 @@
 <template>
-  <ion-app>
+  <ion-app class="safe-area">
     <ion-router-outlet />
   </ion-app>
   <ion-alert

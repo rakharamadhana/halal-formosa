@@ -7,17 +7,22 @@
       <ion-tab-bar slot="bottom" id="footer-tabs">
         <ion-tab-button tab="home" href="/home">
           <ion-icon :icon="homeOutline" />
-          <ion-label>Home</ion-label>
+          <ion-label>{{ $t('main.home') }}</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="search" href="/search">
-          <ion-icon :icon="searchOutline" />
-          <ion-label>Search</ion-label>
+          <ion-icon :icon="gridOutline" />
+          <ion-label>{{ $t('main.product') }}</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="explore" href="/explore">
           <ion-icon :icon="compassOutline" />
-          <ion-label>Explore</ion-label>
+          <ion-label>{{ $t('main.explore') }}</ion-label>
+        </ion-tab-button>
+
+        <ion-tab-button tab="news" href="/news">
+          <ion-icon :icon="newspaperOutline" />
+          <ion-label>{{ $t('main.news') }}</ion-label>
         </ion-tab-button>
 
         <ion-tab-button
@@ -26,7 +31,7 @@
             href="/add"
         >
           <ion-icon :icon="cameraOutline" />
-          <ion-label>Add Products</ion-label>
+          <ion-label>{{ $t('main.add') }}</ion-label>
         </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
@@ -40,9 +45,8 @@ import {
 } from '@ionic/vue';
 import {
   cameraOutline,
-  searchOutline,
   compassOutline,
-  homeOutline
+  homeOutline, newspaperOutline, gridOutline
 } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
 

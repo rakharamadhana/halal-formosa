@@ -5,12 +5,46 @@
  * http://ionicframework.com/docs/theming/
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+/* Import Roboto instead of Nunito */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 /* This sets a different item border color for the default theme on ios and md */
 :root {
-    --ion-font-family: 'Nunito', sans-serif;
+    --ion-font-family: 'Roboto', sans-serif;
 
+    /* Success (Halal green) */
+    --ion-color-success: #2ecc71;
+    --ion-color-success-rgb: 46, 204, 113;
+    --ion-color-success-contrast: #ffffff;
+    --ion-color-success-contrast-rgb: 255, 255, 255;
+    --ion-color-success-shade: #27ae60;
+    --ion-color-success-tint: #58d68d;
+
+    /* Warning (Yellow) */
+    --ion-color-warning: #f1c40f;
+    --ion-color-warning-rgb: 241, 196, 15;
+    --ion-color-warning-contrast: #000000;
+    --ion-color-warning-contrast-rgb: 0, 0, 0;
+    --ion-color-warning-shade: #d4ac0d;
+    --ion-color-warning-tint: #f4d03f;
+
+    /* Danger (Red) */
+    --ion-color-danger: #e74c3c;
+    --ion-color-danger-rgb: 231, 76, 60;
+    --ion-color-danger-contrast: #ffffff;
+    --ion-color-danger-contrast-rgb: 255, 255, 255;
+    --ion-color-danger-shade: #c0392b;
+    --ion-color-danger-tint: #ec7063;
+
+    /* Primary (Blue) */
+    --ion-color-primary: #3498db;
+    --ion-color-primary-rgb: 52, 152, 219;
+    --ion-color-primary-contrast: #ffffff;
+    --ion-color-primary-contrast-rgb: 255, 255, 255;
+    --ion-color-primary-shade: #2c80b4;
+    --ion-color-primary-tint: #5dade2;
+
+    /* ✅ Carrot */
     --ion-color-carrot: #e67e22;
     --ion-color-carrot-rgb: 230,126,34;
     --ion-color-carrot-contrast: #000000;
@@ -20,6 +54,13 @@
 
     /* existing variables */
     --ion-item-border-color: var(--ion-background-color-step-200);
+
+    /* ✅ Safe area fallbacks */
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+
 }
 
 /* This sets a different background and item background for the default theme on ios */
@@ -33,6 +74,20 @@
 :root.md {
     --ion-background-color: var(--ion-background-color-step-100, #f9f9f9);
     --ion-item-background: #fff;
+}
+
+/* Match the actual <ion-app> element */
+.safe-area {
+    padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
+    box-sizing: border-box;
+}
+
+.safe-area ion-header {
+    padding-top: var(--safe-area-inset-top);
+}
+
+.safe-area ion-tab-bar {
+    padding-bottom: calc(var(--safe-area-inset-bottom) - (var(--safe-area-inset-bottom) / 1.75));
 }
 
 /* This sets a different item background when dark mode is enabled on ios and md */
@@ -49,6 +104,52 @@ ion-title.title-brand {
 ion-title.title-large {
     font-size: 20px;
     font-weight: 1000;
+    display: flex;
+    align-items: center;   /* ✅ vertical centering */
+}
+
+ion-title.title-large img,
+ion-title.title-large ion-icon {
+    vertical-align: middle;
+}
+
+/* ✅ Then classes just reference the root vars */
+.ion-color-primary {
+    --background: var(--ion-color-primary) !important;
+    --ion-color-base: var(--ion-color-primary) !important;
+    --ion-color-base-rgb: var(--ion-color-primary-rgb) !important;
+    --ion-color-contrast: var(--ion-color-primary-contrast) !important;
+    --ion-color-contrast-rgb: var(--ion-color-primary-contrast-rgb) !important;
+    --ion-color-shade: var(--ion-color-primary-shade) !important;
+    --ion-color-tint: var(--ion-color-primary-tint) !important;
+    --color: var(--ion-color-primary-contrast) !important;
+}
+
+.ion-color-success {
+    --ion-color-base: var(--ion-color-success) !important;
+    --ion-color-base-rgb: var(--ion-color-success-rgb) !important;
+    --ion-color-contrast: var(--ion-color-success-contrast) !important;
+    --ion-color-contrast-rgb: var(--ion-color-success-contrast-rgb) !important;
+    --ion-color-shade: var(--ion-color-success-shade) !important;
+    --ion-color-tint: var(--ion-color-success-tint) !important;
+}
+
+.ion-color-warning {
+    --ion-color-base: var(--ion-color-warning) !important;
+    --ion-color-base-rgb: var(--ion-color-warning-rgb) !important;
+    --ion-color-contrast: var(--ion-color-warning-contrast) !important;
+    --ion-color-contrast-rgb: var(--ion-color-warning-contrast-rgb) !important;
+    --ion-color-shade: var(--ion-color-warning-shade) !important;
+    --ion-color-tint: var(--ion-color-warning-tint) !important;
+}
+
+.ion-color-danger {
+    --ion-color-base: var(--ion-color-danger) !important;
+    --ion-color-base-rgb: var(--ion-color-danger-rgb) !important;
+    --ion-color-contrast: var(--ion-color-danger-contrast) !important;
+    --ion-color-contrast-rgb: var(--ion-color-danger-contrast-rgb) !important;
+    --ion-color-shade: var(--ion-color-danger-shade) !important;
+    --ion-color-tint: var(--ion-color-danger-tint) !important;
 }
 
 .ion-color-carrot {
@@ -65,6 +166,36 @@ ion-tab-button {
     --color-focused: var(--ion-color-carrot-shade);
     --color-selected: var(--ion-color-carrot-shade);
     --ripple-color: var(--ion-color-carrot-tint)
+}
+
+ion-chip.chip-success {
+    --background: var(--ion-color-success);
+    --color: var(--ion-color-success-contrast);
+}
+
+ion-chip.chip-primary {
+    --background: var(--ion-color-primary);
+    --color: var(--ion-color-primary-contrast);
+}
+
+ion-chip.chip-warning {
+    --background: var(--ion-color-warning);
+    --color: var(--ion-color-warning-contrast);
+}
+
+ion-chip.chip-danger {
+    --background: var(--ion-color-danger);
+    --color: var(--ion-color-danger-contrast);
+}
+
+ion-chip.chip-carrot {
+    --background: var(--ion-color-carrot);
+    --color: var(--ion-color-carrot-contrast);
+}
+
+ion-chip.chip-medium {
+    --background: var(--ion-color-medium, #7f8c8d); /* fallback gray */
+    --color: var(--ion-color-medium-contrast, #fff);
 }
 
 ion-card {

@@ -1,60 +1,60 @@
 <template>
   <ion-page>
     <ion-header>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/home" />
-        </ion-buttons>
-        <ion-title class="title-large">Halal & Islam News</ion-title>
-      </ion-toolbar>
-      <ion-toolbar>
-        <ion-searchbar
-            placeholder="Search news..."
-            :debounce="800"
-            v-model="searchQuery"
-            @ionInput="handleSearch"
-            class="rounded"
-            style="flex: 1;"
-        ></ion-searchbar>
+      <app-header :title="$t('news.title')" :icon="newspaperOutline" :showProfile="true" />
+      <ion-toolbar style="padding: 8px;">
+        <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
+          <ion-searchbar
+              :placeholder="$t('news.placeholder')"
+              :debounce="800"
+              v-model="searchQuery"
+              @ionInput="handleSearch"
+              class="rounded"
+              style="flex: 1;"
+          ></ion-searchbar>
+        </div>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true">
-      <!-- ✅ Pull-to-refresh like SearchView -->
+    <ion-content class="ion-padding">
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshNews">
         <ion-refresher-content
             :pulling-icon="chevronDownCircleOutline"
-            pullingText="Pull to refresh"
+            :pullingText="$t('search.pullToRefresh')"
             refreshingSpinner="circles"
-        />
+        >
+        </ion-refresher-content>
       </ion-refresher>
 
-      <ion-list>
-        <ion-item
-            v-for="(item, index) in filteredNews"
-            :key="index"
-            button
-            detail
-            @click="openNews(item)"
-            style="--padding-start: 8px; --inner-padding-end: 8px;"
-        >
-          <ion-thumbnail slot="start" style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;">
-            <img :src="item.thumbnail" alt="news-thumbnail" style="width: 100%; height: 100%; object-fit: cover;" />
-          </ion-thumbnail>
-          <ion-label>
-            <h2>{{ item.title }}</h2>
-            <p style="color: var(--ion-background-color-step-800)">{{ item.summary }}</p>
-            <p><small>{{ fromNowToTaipei(item.created_at) }}</small></p>
-          </ion-label>
-        </ion-item>
-      </ion-list>
+      <div
+          v-for="(item, index) in filteredNews"
+          :key="index"
+          @click="openNews(item)"
+          class="news-card"
+      >
+        <ion-card>
+          <img
+              :src="item.thumbnail"
+              alt="news-thumbnail"
+              class="news-thumbnail"
+          />
 
-      <!-- Infinite Scroll -->
-      <ion-infinite-scroll threshold="100px" @ionInfinite="loadMore" :disabled="allLoaded">
+          <ion-card-header>
+            <ion-card-title>{{ item.title }}</ion-card-title>
+            <ion-card-subtitle>{{ fromNowToTaipei(item.created_at) }}</ion-card-subtitle>
+          </ion-card-header>
+
+          <ion-card-content>
+            <p class="news-summary">{{ item.summary }}</p>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content
             loading-spinner="bubbles"
-            loading-text="Loading more news..."
-        />
+            loading-text="Loading more news...">
+        </ion-infinite-scroll-content>
       </ion-infinite-scroll>
 
       <!-- ✅ FAB for Admin Only -->
@@ -71,13 +71,11 @@
 import {ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  IonPage, IonHeader, IonToolbar, IonSearchbar, IonContent,
-  IonList, IonItem, IonLabel, IonThumbnail,
-  IonInfiniteScroll, IonInfiniteScrollContent,
-  IonRefresher, IonRefresherContent, IonBackButton, IonButtons, IonTitle, IonIcon, IonFab, IonFabButton
+  IonPage, IonHeader, IonToolbar, IonSearchbar, IonContent, IonRefresherContent, IonRefresher, IonInfiniteScroll,
+  IonInfiniteScrollContent, IonCard, IonCardTitle, IonCardContent, IonCardSubtitle, IonCardHeader, IonIcon, IonFabButton, IonFab
 } from '@ionic/vue';
 import { supabase } from '@/plugins/supabaseClient';
-import {addOutline, chevronDownCircleOutline} from 'ionicons/icons';
+import {addOutline, chevronDownCircleOutline, newspaperOutline} from 'ionicons/icons';
 
 
 interface NewsItem {
@@ -96,14 +94,14 @@ const allNews = ref<NewsItem[]>([]);
 const displayedNews = ref<NewsItem[]>([]);
 const searchQuery = ref('');
 const allLoaded = ref(false);
-const pageSize = 10;
+const pageSize = 5;
 let currentOffset = 0;
 
 import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import {Capacitor} from "@capacitor/core";
+import AppHeader from "@/components/AppHeader.vue";
 
 // Extend dayjs
 dayjs.extend(utc)
@@ -154,7 +152,7 @@ async function fetchNewsBatch() {
     const mappedData = data.map((item: any) => ({
       id: item.id,
       title: truncateText(item.title, 12),
-      summary: generateSummary(item.content, item.title, 10),
+      summary: generateSummary(item.content, item.title, 20),
       thumbnail: item.header_image || 'https://placehold.co/600x400',
       created_at: item.created_at
     }));
@@ -214,6 +212,37 @@ function goToAddNews() {
 </script>
 
 <style scoped>
+.news-card ion-card {
+  margin: 6px 0;              /* 🔹 reduce gap between cards */
+  padding: 8px;               /* 🔹 smaller padding inside */
+  border-radius: 8px;         /* rounded corners */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.news-thumbnail {
+  width: 100%;
+  height: 140px;              /* 🔹 smaller image height */
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+ion-card-title {
+  font-size: 16px;            /* 🔹 smaller font for compact look */
+  font-weight: 600;
+}
+
+ion-card-subtitle {
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.news-summary {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ion-background-color-step-800);
+}
+
+
 ion-searchbar.rounded {
   --border-radius: 8px;
   --box-shadow: 0 1px 3px rgba(41, 40, 40, 0.1);

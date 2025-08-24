@@ -1,0 +1,165 @@
+{
+  "main": {
+    "title": "清真福爾摩沙",
+    "scan": "掃描成分",
+    "home": "首頁",
+    "product": "產品",
+    "explore": "探索",
+    "add": "新增產品",
+    "news": "新聞"
+  },
+  "home": {
+    "title": "清真福爾摩沙",
+    "scan": "掃描成分",
+    "scanBarcode": "掃描條碼",
+    "productStatus": "產品狀態",
+    "productsCount": "產品",
+    "halalLocationsCount": "清真地點",
+    "news": "清真與伊斯蘭新聞",
+    "viewMore": "查看更多",
+    "mainFeature": "精選功能"
+  },
+  "scanIngredients": {
+    "title": "掃描成分",
+    "disclaimer": {
+      "title": "清真掃描器免責聲明",
+      "message": "此掃描器僅依據關鍵字資料庫檢查成分，並不提供官方清真裁定。食用前請自行判斷。",
+      "verse": "「眾人啊！你們可以吃大地上一切合法而美好的食物...」",
+      "verseRef": "— 古蘭經 2:168",
+      "agree": "我了解",
+      "learnMore": "了解更多",
+      "decline": "不，我不想使用此功能"
+    },
+    "details": {
+      "title": "運作方式",
+      "intro": "此掃描器透過 OCR（光學文字辨識）和我們整理的清真成分資料庫檢查產品成分。",
+      "stepsTitle": "逐步流程",
+      "steps": {
+        "ocr": "OCR 處理 – 產品圖片（拍照或上傳）會傳送到 OCR 伺服器，讀取並擷取成分文字。",
+        "translate": "翻譯 – 若檢測到中文，會透過 Google 翻譯成英文以便一致檢查。",
+        "match": "資料庫比對 – 翻譯後的英文成分清單會與我們的關鍵字資料庫比對，判斷是否屬於清真、友善穆斯林、可疑或禁用成分。",
+        "display": "結果顯示 – 比對結果會依類別標示，並顯示狀態供您參考。"
+      },
+      "categories": {
+        "title": "成分類別",
+        "halal": {
+          "label": "清真",
+          "desc": "產品具有清真認證。",
+          "examples": "範例：印尼 BPJPH 清真、CMA 清真、TGM 清真、泰國清真"
+        },
+        "muslimFriendly": {
+          "label": "友善穆斯林",
+          "desc": "未檢測到可疑或禁用成分，但未獲官方清真認證。",
+          "examples": "範例：卵磷脂（大豆）、大豆卵磷脂、乳化劑（甘蔗）、鮮奶油"
+        },
+        "syubhah": {
+          "label": "可疑",
+          "desc": "成分存疑或不明確，需進一步確認。",
+          "examples": "範例：未知乳化劑、奶油、人造奶油、醋"
+        },
+        "haram": {
+          "label": "禁用",
+          "desc": "禁止使用的成分。",
+          "examples": "範例：豬肉、明膠、酒精、豬油、葡萄酒"
+        }
+      },
+      "disclaimerNote": "結果僅供參考，食用前請向可信來源確認。",
+      "gotIt": "了解"
+    },
+    "scan": {
+      "camera": "相機",
+      "gallery": "相簿",
+      "reCrop": "重新裁切",
+      "productName": "檢測到的產品名稱",
+      "ingredientsZh": "檢測到的成分（中文）",
+      "ingredientsEn": "翻譯成分（英文）",
+      "originalImage": "原始圖片",
+      "share": "分享",
+      "clear": "清除",
+      "cropTitle": "裁切成分",
+      "done": "完成",
+      "ocrProcessing": "OCR 處理中..."
+    },
+    "toast": {
+      "ok": "✅ 成分擷取成功！",
+      "error": "發生錯誤。",
+      "copied": "已複製到剪貼簿"
+    }
+  },
+  "search": {
+    "title": "產品",
+    "placeholder": "搜尋（例如：茶）",
+    "registeredProductCount": "數量",
+    "noProductFound": "抱歉，未找到產品...",
+    "pullToRefresh": "下拉重新整理",
+    "showingResults": "顯示 {count} / {total} 已註冊產品",
+    "details": {
+      "title": "產品詳情",
+      "description": "描述",
+      "ingredients": "成分",
+      "report": "檢舉產品",
+      "no-item": "未找到產品",
+      "viewMore": "查看全部",
+      "viewLess": "收起",
+      "colorLegend": "顏色圖例",
+      "legend": {
+        "halal": "具清真認證的成分",
+        "muslimFriendly": "未檢測到禁用，但無清真認證",
+        "syubhah": "可疑成分，請小心",
+        "haram": "含有禁用成分"
+      }
+    },
+    "status": {
+      "Halal": "清真",
+      "Muslim-friendly": "友善穆斯林",
+      "Syubhah": "可疑",
+      "Haram": "禁用",
+      "Unknown": "未知"
+    }
+  },
+  "explore": {
+    "title": "探索",
+    "placeholder": "搜尋地點（例如：清真寺）",
+    "clear": "清除",
+    "showingPlace": "顯示 1 個地點"
+  },
+  "news": {
+    "title": "清真與伊斯蘭新聞",
+    "placeholder": "搜尋新聞..."
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "language": "語言"
+  },
+  "profile": {
+    "title": "個人資料",
+    "logout": "登出",
+    "donor": "贊助狀態",
+    "noUserLogged": "尚未登入",
+    "login": "登入",
+    "settings": "設定",
+    "legal": "法律",
+    "credits": "鳴謝",
+    "support": "支持清真福爾摩沙 ❤\uFE0F",
+    "supportDescription": "如果您喜歡這個應用，請考慮支持其開發",
+    "bobaMe": "請我喝珍奶！",
+    "supportThank": "感謝您的支持！ 🙏",
+    "voluntary": "*捐款屬自願性質，並不解鎖額外功能。",
+    "appInfo": "應用資訊",
+    "appNameTitle": "應用名稱",
+    "appName": "清真福爾摩沙",
+    "appVersion": "版本"
+  },
+  "credits": {
+    "title": "鳴謝與貢獻者",
+    "founder": "創辦人與主要開發者",
+    "coFounder": "共同創辦人",
+    "coDeveloper": "共同開發者",
+    "uiUx": "UI/UX 貢獻者",
+    "database": "資料庫貢獻者",
+    "specialThanks": "特別感謝",
+    "thankYou": "誠摯感謝所有社群成員、測試者與支持者的幫助與付出。願真主安拉回賜您們一切善功與美好。"
+  }
+}

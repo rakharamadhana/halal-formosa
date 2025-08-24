@@ -1,12 +1,12 @@
 <template>
   <ion-page>
-    <app-header title="Search" :icon="searchOutline" :showProfile="true" />
     <ion-header>
+      <app-header :title="$t('search.title')" :icon="gridOutline" :showProfile="true" />
       <ion-toolbar style="padding: 8px;">
         <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
           <!-- Searchbar -->
           <ion-searchbar
-              placeholder="Search (e.g. Water)"
+              :placeholder="$t('search.placeholder')"
               :debounce="1000"
               @ionInput="handleSearchInput($event)"
               :value="searchQuery"
@@ -31,52 +31,48 @@
           >
             <ion-icon :icon="barcodeOutline" style="font-size: 22px;" />
           </ion-button>
-          <ion-button
-              v-if="scanning"
-              @click="stopScan"
-              color="danger"
-              style="
-              width: 30px;
-              height: 50px;
-              min-width: 50px;
-              padding: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              "
-          >
-            <ion-icon :icon="stopCircleOutline" />
-          </ion-button>
         </div>
       </ion-toolbar>
+      <ion-toolbar class="search-toolbar">
+        <div class="category-bar">
+          <ion-chip
+              v-for="cat in categories"
+              :key="cat.id"
+              :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
+              @click="toggleCategory(cat)"
+          >
+            <ion-label>{{ categoryIcons[cat.name] || "📦" }} {{ cat.name }}</ion-label>
+          </ion-chip>
+        </div>
+      </ion-toolbar>
+
     </ion-header>
-    <!-- Native (mobile) AdMob banner -->
     <!-- Native (mobile) AdMob banner -->
     <div v-if="isNative && !isDonor" id="ad-space-search" style="height:60px;"></div>
 
-    <!-- Web (desktop) AdSense banner -->
-    <div v-else-if="!isNative && !isDonor" id="ad-space-search" style="margin: 8px 0;">
-      <!-- <ins class="adsbygoogle"
-           style="display:block"
-           data-ad-client="ca-pub-XXXXX"
-           data-ad-slot="XXXXX"
-           data-ad-format="auto"
-           data-full-width-responsive="true"></ins> -->
-    </div>
-
-    <ion-content :fullscreen="true">
+    <ion-content>
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
         <ion-refresher-content
             :pulling-icon="chevronDownCircleOutline"
-            pullingText="Pull to refresh"
+            :pullingText="$t('search.pullToRefresh')"
             refreshingSpinner="circles"
         >
         </ion-refresher-content>
       </ion-refresher>
 
-      <div v-if="scanning" id="reader">
-        <div class="scan-line"></div>
-      </div>
+      <!-- ✅ Scanner Modal -->
+      <ion-modal
+          ref="scannerModal"
+          :is-open="scanning"
+          @didDismiss="handleDismiss"
+      >
+        <ion-content @click="dismissModal">
+          <div id="reader">
+            <div class="scan-line"></div>
+          </div>
+        </ion-content>
+      </ion-modal>
+
 
       <div>
         <div v-if="!scanning" class="ion-padding" style="padding-top: 5px;">
@@ -115,10 +111,10 @@
           </template>
 
           <!-- Empty state -->
-          <template v-else-if="results.length === 0">
+          <template v-else-if="!loading && results.length === 0">
             <ion-card>
               <ion-card-content>
-                <p>😔 Sorry, no product found...</p>
+                <p>😔 {{ $t('search.noProductFound') }} </p>
               </ion-card-content>
             </ion-card>
           </template>
@@ -154,11 +150,11 @@
 
                   <!-- Status -->
                   <ion-chip
-                      :color="product.status === 'Halal' ? 'success'
-                : product.status === 'Muslim-friendly' ? 'primary'
-                : product.status === 'Syubhah' ? 'warning'
-                : product.status === 'Haram' ? 'danger'
-                : 'medium'"
+                      :class="product.status === 'Halal' ? 'chip-success'
+    : product.status === 'Muslim-friendly' ? 'chip-primary'
+    : product.status === 'Syubhah' ? 'chip-warning'
+    : product.status === 'Haram' ? 'chip-danger'
+    : 'chip-medium'"
                       style="align-self: flex-start; border-radius: 12px; font-size: 14px;"
                   >
                     {{ product.status }}
@@ -181,97 +177,13 @@
       <ion-text color="danger" v-if="errorMsg" class="ion-padding">
         ❌ {{ errorMsg }}
       </ion-text>
-
-      <ion-modal
-          :is-open="!!selectedProduct"
-          @didDismiss="() => { closeDetails(); }"
-      >
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>Product Details</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="closeDetails">Close</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="ion-padding">
-          <div v-if="selectedProduct">
-            <!-- Swiper carousel for images -->
-            <swiper
-                v-if="selectedProduct.photo_front_url || selectedProduct.photo_back_url"
-                :modules="modules"
-                :scrollbar="true"
-                :zoom="true"
-                :slides-per-view="1"
-                :pagination="{ clickable: true }"
-                style="width: 100%; height: 300px; border-radius: 8px; overflow: hidden;"
-            >
-              <swiper-slide v-if="selectedProduct.photo_front_url">
-                <img
-                    :src="selectedProduct.photo_front_url"
-                    alt="Front Image"
-                    style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
-                />
-              </swiper-slide>
-              <swiper-slide v-if="selectedProduct.photo_back_url">
-                <img
-                    :src="selectedProduct.photo_back_url"
-                    alt="Back Image"
-                    style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
-                />
-              </swiper-slide>
-            </swiper>
-
-            <!-- Details below the slider -->
-            <div style="margin-top: 1rem;">
-              <h2 style="margin-bottom: 0;">{{ selectedProduct.name }}</h2>
-              <p style="margin-top: 3px; margin-bottom: 0;"><small>{{ selectedProduct.barcode }}</small></p>
-              <p style="margin-top: 10px"><ion-chip
-                  :color="
-                selectedProduct.status === 'Halal' ? 'success' :
-                selectedProduct.status === 'Muslim-friendly' ? 'primary' :
-                selectedProduct.status === 'Syubhah' ? 'warning' :
-                selectedProduct.status === 'Haram' ? 'danger' :
-                'medium'
-              "
-              >
-                {{ selectedProduct.status }}
-              </ion-chip></p>
-
-              <p class="ion-margin-top"><strong><small>Description</small></strong></p>
-              <h5 class="ion-no-margin" style="margin-top: 2px">{{ selectedProduct.description }}</h5>
-
-              <p class="ion-margin-top"><strong><small>Ingredients</small></strong></p>
-              <h5 class="ion-no-margin" style="margin-top: 2px">
-                <template v-if="selectedProduct.status !== 'Halal'">
-                  <span v-html="highlightedIngredients"></span>
-                </template>
-                <template v-else>
-                  {{ selectedProduct.ingredients }}
-                </template>
-              </h5>
-            </div>
-          </div>
-
-          <ion-button
-              v-if="selectedProduct"
-              class="ion-margin-top"
-              expand="block"
-              color="medium"
-              @click="goToReport(selectedProduct.barcode)"
-          >
-            Report Product
-          </ion-button>
-        </ion-content>
-      </ion-modal>
     </ion-content>
 
     <ion-footer >
       <ion-toolbar>
         <ion-text class="product-count" color="medium">
           <small>
-            Showing {{ results.length }} of {{ totalProductsCount }} registered products
+            {{ $t('search.showingResults', { count: results.length, total: totalProductsCount }) }}
           </small>
         </ion-text>
       </ion-toolbar>
@@ -279,499 +191,301 @@
   </ion-page>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 declare global { interface Window { adsbygoogle: any[] } }
 
+/* ---------------- Imports ---------------- */
 import {
-  IonPage,
-  IonHeader,
-  IonContent,
-  IonSearchbar,
-  IonText,
-  IonModal,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonIcon,
-  IonFooter,
-  onIonViewWillEnter,
-  IonChip,
-  IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  IonRefresher,
-  IonRefresherContent,
-  IonSkeletonText,
-  IonThumbnail,
-  IonCard,
-  IonCardContent, onIonViewWillLeave, onIonViewDidEnter
-} from '@ionic/vue';
-import {defineComponent, ref, onMounted, nextTick } from 'vue';
-import { Pagination, Zoom } from 'swiper/modules';
-import { Swiper, SwiperSlide } from 'swiper/vue';
-import {barcodeOutline, stopCircleOutline, chevronDownCircleOutline, searchOutline} from 'ionicons/icons';
-import { supabase } from '@/plugins/supabaseClient';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { useRouter } from 'vue-router';
-import 'swiper/css';
-import 'swiper/css/pagination';
-import 'swiper/css/zoom';
-
+  IonPage, IonHeader, IonContent, IonSearchbar, IonText, IonModal, IonToolbar, IonButton, IonIcon, IonFooter, IonChip,
+  IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher, IonRefresherContent,
+  IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
+  onIonViewWillEnter, onIonViewDidEnter, modalController, IonLabel
+} from '@ionic/vue'
+import { ref, onMounted, nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { supabase } from '@/plugins/supabaseClient'
+import {
+  barcodeOutline, chevronDownCircleOutline, gridOutline
+} from 'ionicons/icons'
+import { Capacitor } from '@capacitor/core'
+import {
+  CapacitorBarcodeScanner, CapacitorBarcodeScannerAndroidScanningLibrary,
+  CapacitorBarcodeScannerCameraDirection, CapacitorBarcodeScannerScanOrientation,
+  CapacitorBarcodeScannerTypeHintALLOption
+} from '@capacitor/barcode-scanner'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import AppHeader from '@/components/AppHeader.vue'
+import { isDonor } from '@/composables/userProfile'
 
-// Extend dayjs
+/* ---------------- Day.js ---------------- */
 dayjs.extend(utc)
 dayjs.extend(timezone)
-
-import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
-import { computed } from 'vue'
-import AppHeader from "@/components/AppHeader.vue";
-import {Capacitor} from "@capacitor/core";
-
-import { isDonor } from '@/composables/userProfile';
-
+/* ---------------- Types ---------------- */
 interface Product {
-  barcode: string;
-  name: string;
-  status: string;
-  ingredients?: string;
-  description?: string;
-  photo_front_url?: string;
-  photo_back_url?: string;
-  created_at?: string;
+  barcode: string
+  name: string
+  status: string
+  category_id?: number
+  product_categories?: { name: string } // fixed
+  ingredients?: string
+  description?: string
+  photo_front_url?: string
+  photo_back_url?: string
+  created_at?: string
 }
 
-export default defineComponent({
-  components: {
-    AppHeader,
-    IonPage,
-    IonHeader,
-    IonContent,
-    IonSearchbar,
-    IonText,
-    IonModal,
-    IonToolbar,
-    IonTitle,
-    IonButtons,
-    IonButton,
-    IonIcon,
-    IonFooter,
-    IonChip,
-    IonInfiniteScroll,
-    IonInfiniteScrollContent,
-    Swiper,
-    SwiperSlide,
-    IonRefresher,
-    IonRefresherContent,
-    IonSkeletonText,
-    IonThumbnail,
-    IonCard,
-    IonCardContent
-  },
-  setup() {
 
-    const router = useRouter();
+/* ---------------- State ---------------- */
+const router = useRouter()
+const route = useRoute()
 
-    const totalProductsCount = ref(0);
-    const allProducts = ref<Product[]>([]);
-    const results = ref<Product[]>([]);
-    const errorMsg = ref('');
-    const selectedProduct = ref<Product | null>(null);
-    const scanning = ref(false);
-    const searchQuery = ref('');
-    let html5QrcodeScanner: Html5Qrcode | null = null;
-    const modules = [Pagination, Zoom];
-    const pageSize = 15; // Adjust items per page as needed
-    const currentPage = ref(0);
-    const loadingMore = ref(false);
-    const allLoaded = ref(false);
-    const ingredientDictionary = ref<Record<string, string>>({});
-    const loading = ref(true);
-    const showReportForm = ref(false);
-    const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null);
+const totalProductsCount = ref(0)
+const allProducts = ref<Product[]>([])
+const results = ref<Product[]>([])
+const errorMsg = ref('')
+const scanning = ref(false)
+const searchQuery = ref('')
+const categories = ref<{ id: number; name: string }[]>([])
+const activeCategory = ref<{id:number, name:string} | null>(null)
 
-    const isFetching = ref(false)
+const loading = ref(true)
+const allLoaded = ref(false)
+const isFetching = ref(false)
 
-    async function refreshList(event: CustomEvent) {
-      // Reset state
-      currentPage.value = 0;
-      allLoaded.value = false;
-      allProducts.value = [];
-      results.value = [];
+const pageSize = 15
+const currentPage = ref(0)
+const ingredientDictionary = ref<Record<string, string>>({})
+const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null)
 
-      // ✅ Re-enable infinite scroll
-      if (infiniteScroll.value) {
-        infiniteScroll.value.disabled = false;
-      }
+const isNative = ref(Capacitor.isNativePlatform())
 
-      // Fetch first page
-      await fetchProducts(true);
-      await fetchTotalCount();
+const categoryIcons: Record<string, string> = {
+  "Snacks": "🍿",
+  "Confectionery": "🍬",
+  "Sauces & Seasonings": "🧂",
+  "Dairy & Ice Cream": "🍦",
+  "Cereal & Grains": "🌾",
+  "Instant Noodles": "🍜",
+  "Beverages": "🥤",
+  "Spices & Condiments": "🌶️",
+  "Vegetarian & Tofu": "🥗",
+}
 
-      event.detail.complete(); // end refresh animation
-    }
+/* ---------------- Filters ---------------- */
+const toggleCategory = async (cat: {id:number, name:string}) => {
+  activeCategory.value = activeCategory.value?.id === cat.id ? null : cat
+  await fetchProducts(true)
+}
+/* ---------------- Scanner ---------------- */
+function handleDismiss() {
+  scanning.value = false
+  stopScan()
+}
+function stopScan() {
+  console.log('Scanner stopped / cleanup here')
+}
+function dismissModal() {
+  modalController.dismiss()
+}
 
-    function fromNowToTaipei(dateString?: string) {
-      if (!dateString) return ''
-      return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
-    }
+async function startScan() {
+  if (scanning.value) return
+  scanning.value = true
 
-    const CACHE_KEY = 'products_cache';
-    const CACHE_TIMESTAMP_KEY = 'products_cache_timestamp';
+  try {
+    const result = await CapacitorBarcodeScanner.scanBarcode({
+      hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
+      scanInstructions: 'Align the barcode within the frame',
+      cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
+      scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
+      android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
+      web: { showCameraSelection: true, scannerFPS: 15 }
+    })
 
-    // update fetchProducts
-    const fetchProducts = async (reset = false) => {
-      if (isFetching.value || allLoaded.value) return
-      isFetching.value = true
+    if (result?.ScanResult) {
+      await Haptics.impact({ style: ImpactStyle.Medium })
+      searchQuery.value = result.ScanResult
 
-      try {
-        if (reset) {
-          // block infinite scroll while first page loads
-          if (infiniteScroll.value) infiniteScroll.value.disabled = true
-          loading.value = true
-          currentPage.value = 0
-          allLoaded.value = false
-          allProducts.value = []
-          results.value = []
-        }
-
-        const from = currentPage.value * pageSize
-        const to = from + pageSize - 1
-
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: false })
-            // optional: stable tie-breaker to avoid page overlaps
-            .order('barcode', { ascending: true })
-            .range(from, to)
-
-        if (error) {
-          errorMsg.value = error.message
-        } else {
-          if (!data || data.length < pageSize) allLoaded.value = true
-
-          // 🔒 de-dupe by barcode as a safety net
-          const map = new Map(allProducts.value.map(p => [p.barcode, p]))
-          ;(data || []).forEach(p => map.set(p.barcode, p))
-          allProducts.value = Array.from(map.values())
-          results.value = [...allProducts.value]
-
-          if (currentPage.value === 0) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts.value))
-            localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString())
-          }
-
-          currentPage.value++
-        }
-      } finally {
-        isFetching.value = false
-        loading.value = false
-        loadingMore.value = false
-        // re-enable after first page completes
-        if (reset && infiniteScroll.value) infiniteScroll.value.disabled = false
-      }
-    }
-
-
-    function goToReport(barcode: string) {
-      closeDetails(); // Close modal
-      setTimeout(() => {
-        router.push(`/report/${barcode}`);
-      }, 300);
-    }
-
-
-    const fetchTotalCount = async () => {
-      const { count, error } = await supabase
-          .from('products')
-          .select('barcode', { count: 'exact', head: true });
-      if (error) {
-        errorMsg.value = error.message;
-      } else {
-        totalProductsCount.value = count || 0;
-      }
-    };
-
-
-    // loadMore should respect the guards
-    const loadMore = async (event: Event) => {
-      if (allLoaded.value || isFetching.value) {
-        (event.target as HTMLIonInfiniteScrollElement).complete()
-        return
-      }
-      await fetchProducts()
-      ;(event.target as HTMLIonInfiniteScrollElement).complete()
-    }
-
-    const handleSearchInput = async (event: Event) => {
-      const target = event.target as HTMLInputElement;
-      const query = target.value.trim();
-      searchQuery.value = query;
-
-      // If query is empty, show loaded products
-      if (!query) {
-        results.value = [...allProducts.value];
-        return;
-      }
-
-      // Query Supabase directly for name or barcode
       const { data, error } = await supabase
           .from('products')
           .select('*')
-          .or(`name.ilike.%${query}%,barcode.ilike.%${query}%`) // Search in both columns
-          .order('created_at', { ascending: false });
+          .or(`name.ilike.%${result.ScanResult}%,barcode.ilike.%${result.ScanResult}%`)
+          .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Search error:', error);
-        results.value = [];
-        errorMsg.value = 'Failed to search products';
-      } else {
-        results.value = data || [];
-      }
-    };
+      results.value = error ? [] : (data || [])
+      if (error) errorMsg.value = 'Failed to search products'
+    }
+  } catch (err) {
+    console.error('❌ Barcode scan failed:', err)
+  } finally {
+    scanning.value = false
+    if (route.query.scan === 'true') {
+      router.replace({ path: '/search' })
+    }
+  }
+}
 
-    const openDetails = (product: Product) => {
-      router.push({ name: 'item-details', params: { barcode: product.barcode } })
+/* ---------------- Data Fetch ---------------- */
+const fetchCategories = async () => {
+  const { data, error } = await supabase
+      .from("product_categories")
+      .select("id, name")
+      .order("name", { ascending: true, nullsFirst: false })
+  if (!error && data) {
+    categories.value = data
+  }
+}
+
+
+const fetchProducts = async (reset = false) => {
+  if (isFetching.value || (allLoaded.value && !reset)) return
+  isFetching.value = true
+  if (reset) {
+    currentPage.value = 0
+    allLoaded.value = false
+    allProducts.value = []
+    loading.value = true   // 🔥 set loading ON
+    // ❌ don’t clear results here
+  }
+
+  try {
+    const from = currentPage.value * pageSize
+    const to = from + pageSize - 1
+
+    let query = supabase
+        .from("products")
+        .select("*, product_categories(name)", { count: "exact" }) // join category
+
+    if (activeCategory.value) {
+      query = query.eq("product_category_id", activeCategory.value.id)
     }
 
-    // Computed property to highlight ingredients if product is not Halal
-    const highlightedIngredients = computed(() => {
-      if (!selectedProduct.value || !selectedProduct.value.ingredients) return '';
-
-      // If product is Halal, just return plain text
-      if (selectedProduct.value.status === 'Halal') {
-        return selectedProduct.value.ingredients;
-      }
-
-      const rawIngredients = selectedProduct.value.ingredients;
-      const parts = rawIngredients.split(',').map(p => p.trim());
-
-      // Sort dictionary by length to avoid partial overlaps first
-      const sortedKeys = Object.keys(ingredientDictionary.value).sort((a, b) => b.length - a.length);
-
-      const highlightedParts = parts.map(part => {
-        const lowerPart = part.toLowerCase();
-        let matchedKey: string | null = null;
-
-        for (const key of sortedKeys) {
-          if (lowerPart.includes(key.toLowerCase())) {
-            matchedKey = key;
-            break; // ✅ only first/highest match
-          }
-        }
-
-        if (matchedKey) {
-          const color = ingredientDictionary.value[matchedKey];
-          return `<span style="font-weight:600;color:var(${color});">${part}</span>`;
-        } else {
-          return part;
-        }
-      });
-
-      return highlightedParts.join(', ');
-    });
-
-    const closeDetails = () => {
-      selectedProduct.value = null;
-    };
-
-    function getStatusClass(status: string) {
-      switch (status) {
-        case 'Halal':
-          return 'status-halal';
-        case 'Muslim-friendly':
-          return 'status-muslim';
-        case 'Syubhah':
-          return 'status-syubhah';
-        case 'Haram':
-          return 'status-haram';
-        default:
-          return '';
-      }
+    if (searchQuery.value) {
+      query = query.or(`name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`)
     }
+    query = query.order("created_at", { ascending: false }).range(from, to)
 
-    const isNative = ref(Capacitor.isNativePlatform())
+    const { data, error, count } = await query
+    if (error) {
+      errorMsg.value = error.message
+    } else {
+      if (reset) totalProductsCount.value = count || 0
+      if (!data || data.length < pageSize) allLoaded.value = true
 
-    // Fetch ingredient dictionary from DB on mount
-    onMounted(async () => {
-      const { data, error } = await supabase
-          .from('ingredient_highlights')
-          .select('keyword, color');
-
-      console.log('isNative?', isNative.value); // should be false in browser
-      if (!isNative.value) {
-        await nextTick();
-        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
-        catch (e) { console.warn('AdSense push error:', e); }
-      }
-
-      if (error) {
-        console.error('Failed to load ingredient highlights:', error);
-      } else if (data) {
-        // Convert array to dictionary { keyword: color }
-        ingredientDictionary.value = data.reduce((acc, item) => {
-          acc[item.keyword] = item.color;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-    });
-
-    onIonViewWillEnter(async () => {
-      loading.value = true;
-      await fetchProducts(true);
-      await fetchTotalCount();
-    });
-
-    onIonViewDidEnter(async () => {
-      // if you have a ref to IonContent, you can contentRef.value?.scrollToTop(0)
-      (window as any).scheduleBannerUpdate?.()
-    })
-
-    onIonViewWillLeave(async () => {
-      await stopScan()
-    })
-
-    const barcodeCache: Record<string, any[]> = {}; // key = barcode, value = products array
-    let lastDecoded: string | null = null;
-
-    async function startScan() {
-      if (scanning.value) return;
-      scanning.value = true;
-      await nextTick();
-
-      html5QrcodeScanner = new Html5Qrcode('reader');
-
-      const formatsToSupport = [
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF,
-      ];
-
-      try {
-        await html5QrcodeScanner.start(
-            { facingMode: 'environment' },
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 100 },
-              formatsToSupport,
-            } as any,
-            async (decodedText) => {
-              // 🔹 Avoid duplicate callbacks
-              if (decodedText === lastDecoded) return;
-              lastDecoded = decodedText;
-              searchQuery.value = decodedText;
-
-              // 🔹 Check cache first
-              if (barcodeCache[decodedText]) {
-                console.log(`♻️ Using cached result for "${decodedText}"`);
-                results.value = barcodeCache[decodedText];
-
-                if (results.value.length > 0) {
-                  console.log(`✅ Cached ${results.value.length} product(s) for "${decodedText}"`);
-                  results.value.forEach((p) =>
-                      console.log(`→ ${p.barcode}: ${p.name}`)
-                  );
-                } else {
-                  console.log(`⚠️ No products found (cached) for "${decodedText}"`);
-                }
-
-                stopScan();
-                lastDecoded = null;
-                return;
-              }
-
-              // 🔹 Not cached → query Supabase
-              console.log(`🔍 Querying Supabase for "${decodedText}"...`);
-              const { data, error } = await supabase
-                  .from('products')
-                  .select('*')
-                  .or(`name.ilike.%${decodedText}%,barcode.ilike.%${decodedText}%`)
-                  .order('created_at', { ascending: false });
-
-              if (error) {
-                console.error('❌ Search error:', error);
-                results.value = [];
-                errorMsg.value = 'Failed to search products';
-              } else {
-                results.value = data || [];
-                barcodeCache[decodedText] = results.value; // 🔹 Cache result
-
-                if (results.value.length > 0) {
-                  console.log(`✅ ${results.value.length} product(s) found for "${decodedText}"`);
-                  results.value.forEach((p) =>
-                      console.log(`→ ${p.barcode}: ${p.name}`)
-                  );
-                } else {
-                  console.log(`⚠️ No products found for "${decodedText}"`);
-                }
-              }
-
-              stopScan();
-              lastDecoded = null;
-            },
-            (errorMessage) => {
-              if (!errorMessage.includes('NotFoundException')) {
-                console.warn('Scan error:', errorMessage);
-              }
-            }
-        );
-      } catch (err) {
-        console.error('Unable to start scanning:', err);
-        scanning.value = false;
-      }
+      allProducts.value = reset ? (data || []) : [...allProducts.value, ...(data || [])]
+      results.value = [...allProducts.value]
+      currentPage.value++
     }
+  } finally {
+    isFetching.value = false
+    loading.value = false  // 🔥 stop skeletons
+  }
+}
 
-    async function stopScan() {
-      if (html5QrcodeScanner) {
-        console.log('Stopping scanner...');
-        await html5QrcodeScanner.stop();
-        await html5QrcodeScanner.clear();
-        html5QrcodeScanner = null;
-        console.log('Scanner stopped and cleared.');
-      }
-      scanning.value = false;
+const fetchTotalCount = async () => {
+  const { count, error } = await supabase
+      .from('products')
+      .select('barcode', { count: 'exact', head: true })
+  if (error) {
+    errorMsg.value = error.message
+  } else {
+    totalProductsCount.value = count || 0
+  }
+}
+
+/* ---------------- Search ---------------- */
+const handleSearchInput = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  searchQuery.value = target.value.trim()
+  await fetchProducts(true) // reset and fetch from page 1
+}
+
+
+/* ---------------- UI helpers ---------------- */
+function fromNowToTaipei(dateString?: string) {
+  if (!dateString) return ''
+  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+}
+
+const openDetails = (product: Product) => {
+  router.push({path: `/item/${product.barcode}`})
+}
+
+function getStatusClass(status: string) {
+  switch (status) {
+    case 'Halal': return 'status-halal'
+    case 'Muslim-friendly': return 'status-muslim'
+    case 'Syubhah': return 'status-syubhah'
+    case 'Haram': return 'status-haram'
+    default: return ''
+  }
+}
+
+/* ---------------- Infinite Scroll ---------------- */
+const loadMore = async (event: Event) => {
+  await fetchProducts()
+  ;(event.target as HTMLIonInfiniteScrollElement).complete()
+}
+
+
+async function refreshList(event: CustomEvent) {
+  try {
+    await nextTick()
+
+    // ✅ Correct: reset infinite scroll state
+    if (infiniteScroll.value) {
+      infiniteScroll.value.disabled = false
     }
+    await fetchProducts(true)
+    await fetchTotalCount()
+    await fetchCategories()
+  } catch (err) {
+    console.error("❌ Refresh failed:", err)
+    errorMsg.value = "Failed to refresh"
+  } finally {
+    event.detail.complete() // always close refresher
+  }
+}
 
-    return {
-      allProducts,
-      results,
-      errorMsg,
-      selectedProduct,
-      scanning,
-      searchQuery,
-      handleSearchInput,
-      openDetails,
-      closeDetails,
-      startScan,
-      stopScan,
-      barcodeOutline,
-      stopCircleOutline,
-      chevronDownCircleOutline,
-      modules,
-      loadMore,
-      totalProductsCount,
-      fromNowToTaipei,
-      refreshList,
-      highlightedIngredients,
-      loading,
-      showReportForm,
-      goToReport,
-      getStatusClass,
-      searchOutline,
-      isNative,
-      isDonor
-    };
-  },
-});
+
+/* ---------------- Lifecycle ---------------- */
+onMounted(async () => {
+  const { data, error } = await supabase.from('ingredient_highlights').select('keyword, color')
+  if (!isNative.value) {
+    await nextTick()
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}) }
+    catch (e) { console.warn('AdSense push error:', e) }
+  }
+  if (!error && data) {
+    ingredientDictionary.value = data.reduce((acc, item) => {
+      acc[item.keyword] = item.color
+      return acc
+    }, {} as Record<string, string>)
+  }
+})
+
+onIonViewWillEnter(async () => {
+  loading.value = true
+  await fetchProducts(true)
+  await fetchTotalCount()
+  await fetchCategories()
+})
+
+onIonViewDidEnter(async () => {
+  (window as any).scheduleBannerUpdate?.()
+  if (route.query.scan === 'true') {
+    setTimeout(async () => {
+      await startScan()
+      router.replace({ path: '/search' })
+    }, 300)
+  }
+})
 </script>
 
 
@@ -854,4 +568,26 @@ ion-searchbar.rounded {
   border: 1px solid rgba(244, 67, 54, 0.2);
   box-shadow: 0 0 15px rgba(244, 67, 54, 0.3);
 }
+
+.category-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.category-bar::-webkit-scrollbar {
+  display: none;
+}
+.category-chip {
+  font-size: 13px;
+  flex-shrink: 0;
+  width: auto;
+}
+.chip-carrot {
+  background: var(--ion-color-carrot);
+  color: white;
+}
+
 </style>
