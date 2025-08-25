@@ -438,21 +438,20 @@ async function refreshList(event: CustomEvent) {
   try {
     await nextTick()
 
-    // ✅ Correct: reset infinite scroll state
     if (infiniteScroll.value) {
       infiniteScroll.value.disabled = false
     }
-    await fetchProducts(true)
-    await fetchTotalCount()
-    await fetchCategories()
-  } catch (err) {
-    console.error("❌ Refresh failed:", err)
-    errorMsg.value = "Failed to refresh"
+
+    // let each function handle its own error
+    await Promise.all([
+      fetchProducts(true),
+      fetchTotalCount(),
+      fetchCategories()
+    ])
   } finally {
-    event.detail.complete() // always close refresher
+    event.detail.complete()
   }
 }
-
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {

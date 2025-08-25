@@ -161,5 +161,33 @@
     "database": "Kontributor Basis Data",
     "specialThanks": "Ucapan Terima Kasih",
     "thankYou": "Kami mengucapkan terima kasih yang sebesar-besarnya kepada semua anggota komunitas, penguji, dan pendukung yang telah membantu mewujudkan Halal Formosa. Semoga Allah SWT membalas kebaikan rekan-rekan dengan pahala yang berlipat ganda."
+  },
+  "addProduct": {
+    "title": "Tambah Produk",
+    "cropIngredients": "Potong Bahan",
+    "done": "Selesai",
+    "processingOcr": "Memproses OCR...",
+    "barcode": "Barcode *",
+    "barcodePlaceholder": "Masukkan angka saja",
+    "productName": "Nama Produk *",
+    "productNamePlaceholder": "Masukkan teks",
+    "status": "Status",
+    "statusRequired": "Status *",
+    "halal": "Halal",
+    "muslimFriendly": "Ramah Muslim",
+    "syubhah": "Syubhah",
+    "haram": "Haram",
+    "ingredients": "Bahan *",
+    "ingredientsPlaceholder": "Masukkan teks atau gunakan kamera/galeri",
+    "detectedText": "🔎 Teks Terdeteksi",
+    "category": "Kategori *",
+    "description": "Deskripsi *",
+    "descriptionPlaceholder": "Masukkan teks",
+    "frontImage": "Gambar Depan *",
+    "backImage": "Gambar Belakang *",
+    "submit": "Kirim",
+    "submitting": "Mengirim produk...",
+    "submitSuccess": "Produk berhasil dikirim!",
+    "ocrSuccess": "✅ Bahan berhasil diekstrak!"
   }
 }

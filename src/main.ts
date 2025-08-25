@@ -47,6 +47,7 @@ if (Capacitor.isNativePlatform()) {
 }
 
 const i18n = createI18n({
+    legacy: false, // you must set `false`, to use Composition API,
     locale: localStorage.getItem('lang') || 'en',
     fallbackLocale: 'en',
     messages: { en, id, zh }

@@ -162,5 +162,33 @@
     "database": "Database Contributor",
     "specialThanks": "Special Thanks",
     "thankYou": "We sincerely thank all community members, testers, and supporters who helped make Halal Formosa possible. May Allah SWT reward your contributions with abundant goodness."
+  },
+  "addProduct": {
+    "title": "Add Product",
+    "cropIngredients": "Crop Ingredients",
+    "done": "Done",
+    "processingOcr": "Processing OCR...",
+    "barcode": "Barcode *",
+    "barcodePlaceholder": "Enter digits only",
+    "productName": "Product Name *",
+    "productNamePlaceholder": "Enter text",
+    "status": "Status",
+    "statusRequired": "Status *",
+    "halal": "Halal",
+    "muslimFriendly": "Muslim-friendly",
+    "syubhah": "Syubhah",
+    "haram": "Haram",
+    "ingredients": "Ingredients *",
+    "ingredientsPlaceholder": "Enter text or use camera/gallery",
+    "detectedText": "🔎 Detected Text",
+    "category": "Category *",
+    "description": "Description *",
+    "descriptionPlaceholder": "Enter text",
+    "frontImage": "Front Image *",
+    "backImage": "Back Image *",
+    "submit": "Submit",
+    "submitting": "Submitting product...",
+    "submitSuccess": "Product submitted successfully!",
+    "ocrSuccess": "✅ Ingredients successfully extracted!"
   }
 }

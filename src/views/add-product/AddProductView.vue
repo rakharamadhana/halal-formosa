@@ -1,16 +1,16 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header title="Add product" :icon="addOutline" :showProfile="true" />
+      <app-header :title="$t('addProduct.title')" :icon="addOutline" :showProfile="true" />
     </ion-header>
 
     <ion-content class="ion-padding" >
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
         <ion-header>
           <ion-toolbar>
-            <ion-title>Crop Ingredients</ion-title>
+            <ion-title>{{ $t('addProduct.cropIngredients') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="confirmCrop">Done</ion-button>
+              <ion-button @click="confirmCrop">{{ $t('addProduct.done') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -22,30 +22,41 @@
               :src="cropperSrc"
               :stencil-props="{ aspectRatio: null }"
           />
-
           <div v-if="ocrLoading" class="ion-text-center ion-padding">
             <ion-spinner name="crescent" color="primary"></ion-spinner>
-            <p>Processing OCR...</p>
+            <p>{{ $t('addProduct.processingOcr') }}</p>
           </div>
         </ion-content>
       </ion-modal>
       <form @submit.prevent="handleSubmit">
         <div class="form-container">
           <ion-item-group>
-            <ion-item>
+            <ion-item :class="{ 'barcode-valid': barcodeValid === true, 'barcode-invalid': barcodeValid === false }">
               <ion-input
                   v-model="form.barcode"
                   required
-                  label="Barcode *"
+                  :label="$t('addProduct.barcode')"
                   label-placement="floating"
-                  placeholder="Enter digits only"
+                  :placeholder="$t('addProduct.barcodePlaceholder')"
                   @ionInput="onBarcodeInput"
-              />
+              ></ion-input>
 
-              <ion-button slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
+              <ion-icon
+                  v-if="barcodeValid !== null"
+                  :icon="barcodeValid ? checkmarkCircle : closeCircle"
+                  :color="barcodeValid ? 'success' : 'danger'"
+                  slot="end"
+                  style="font-size: 20px;"
+              />
+              <ion-button color="carrot" slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
                 <ion-icon :icon="barcodeOutline" />
               </ion-button>
             </ion-item>
+
+            <!-- 🟢 message shown here -->
+            <ion-note v-if="barcodeMessage" :color="barcodeValid ? 'success' : 'danger'" class="ion-padding-start">
+              {{ barcodeMessage }}
+            </ion-note>
 
             <div v-if="scanning && !Capacitor.isNativePlatform()" id="reader"></div>
 
@@ -53,29 +64,29 @@
               <ion-input
                   v-model="form.name"
                   required
-                  label="Product Name *"
+                  :label="$t('addProduct.productName')"
                   label-placement="floating"
-                  placeholder="Enter text"
+                  :placeholder="$t('addProduct.productNamePlaceholder')"
                   @input="onProductNameInput"
               ></ion-input>
             </ion-item>
 
             <ion-item>
               <ion-select v-model="form.status" interface="popover" required>
-                <div slot="label">Status <ion-text color="danger">*</ion-text></div>
-                <ion-select-option value="Halal">Halal</ion-select-option>
-                <ion-select-option value="Muslim-friendly">Muslim-friendly</ion-select-option>
-                <ion-select-option value="Syubhah">Syubhah</ion-select-option>
-                <ion-select-option value="Haram">Haram</ion-select-option>
+                <div slot="label">{{ $t('addProduct.status') }} <ion-text color="danger">*</ion-text></div>
+                <ion-select-option value="Halal">{{ $t('addProduct.halal') }}</ion-select-option>
+                <ion-select-option value="Muslim-friendly">{{ $t('addProduct.muslimFriendly') }}</ion-select-option>
+                <ion-select-option value="Syubhah">{{ $t('addProduct.syubhah') }}</ion-select-option>
+                <ion-select-option value="Haram">{{ $t('addProduct.haram') }}</ion-select-option>
               </ion-select>
             </ion-item>
 
             <ion-item>
               <ion-textarea
                   v-model="form.ingredients"
-                  label="Ingredients *"
+                  :label="$t('addProduct.ingredients')"
                   label-placement="floating"
-                  placeholder="Enter text or use camera/gallery"
+                  :placeholder="$t('addProduct.ingredientsPlaceholder')"
                   :auto-grow="true"
                   @input="handleIngredientsInput"
                   @blur="recheckHighlights"
@@ -93,14 +104,14 @@
 
             <ion-accordion-group v-if="rawChineseOcr" class="ion-margin-top ion-margin-horizontal">
               <ion-accordion value="rawOcr">
-                <ion-item slot="header">
-                  <ion-label>🔎 Detected Text</ion-label>
+                <ion-item slot="header" style="background-color: transparent">
+                  <ion-label>{{ $t('addProduct.detectedText') }}</ion-label>
                 </ion-item>
-                <div slot="content" >
+                <div slot="content">
                   <ion-textarea
                       v-model="rawChineseOcr"
                       readonly
-                      style="width: 100%; background: var(--ion-background-color-step-50); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; padding: 8px; --padding: 8px; min-height: 60px;"
+                      style="width: 100%; background: var(--ion-background-color-step-50); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; padding: 8px; --padding: 8px; min-height: 100px;"
                   ></ion-textarea>
                 </div>
               </ion-accordion>
@@ -138,15 +149,8 @@
 
             <ion-item>
               <ion-select v-model.number="form.product_category_id" interface="popover" required>
-                <div slot="label">
-                  Category <ion-text color="danger">*</ion-text>
-                </div>
-
-                <ion-select-option
-                    v-for="cat in categories"
-                    :key="cat.id"
-                    :value="cat.id"
-                >
+                <div slot="label">{{ $t('addProduct.category') }}</div>
+                <ion-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">
                   {{ cat.name }}
                 </ion-select-option>
               </ion-select>
@@ -156,16 +160,16 @@
             <ion-item>
               <ion-textarea
                   v-model="form.description"
-                  label="Description *"
+                  :label="$t('addProduct.description')"
                   label-placement="floating"
-                  placeholder="Enter text"
+                  :placeholder="$t('addProduct.descriptionPlaceholder')"
                   :auto-grow="true"
                   required
               ></ion-textarea>
             </ion-item>
 
             <ion-item>
-              <ion-label>Front Image <ion-text color="danger">*</ion-text></ion-label>
+              <ion-label>{{ $t('addProduct.frontImage') }}</ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeFrontPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -175,12 +179,13 @@
                 </ion-button>
               </ion-buttons>
             </ion-item>
+
             <div v-if="frontPreview" style="padding: 0 16px 16px;">
               <img :src="frontPreview" alt="Front Preview" style="max-width: 100%; border-radius: 8px;" />
             </div>
 
             <ion-item style="--inner-border-width: 0">
-              <ion-label>Back Image <ion-text color="danger">*</ion-text></ion-label>
+              <ion-label>{{ $t('addProduct.backImage') }}</ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeBackPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -190,20 +195,15 @@
                 </ion-button>
               </ion-buttons>
             </ion-item>
+
             <div v-if="backPreview" style="padding: 0 16px 16px;">
               <img :src="backPreview" alt="Back Preview" style="max-width: 100%; border-radius: 8px;" />
             </div>
           </ion-item-group>
         </div>
 
-        <ion-button
-            expand="block"
-            type="submit"
-            class="ion-margin-top"
-            color="carrot"
-            :disabled="loading"
-        >
-          {{ loading ? 'Submitting product...' : 'Submit' }}
+        <ion-button expand="block" type="submit" class="ion-margin-top" color="carrot" :disabled="loading">
+          {{ loading ? $t('addProduct.submitting') : $t('addProduct.submit') }}
         </ion-button>
 
         <ion-spinner id="spinner" name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
@@ -211,7 +211,7 @@
         <!-- Toast for success -->
         <ion-toast
             :is-open="showToast"
-            :message="toastMessage"
+            :message="$t('addProduct.submitSuccess')"
             :duration="1500"
             color="success"
             position="bottom"
@@ -222,7 +222,7 @@
         <!-- OCR Success Toast -->
         <ion-toast
             :is-open="showOcrToast"
-            message="✅ Ingredients succesfully extracted!"
+            :message="$t('addProduct.ocrSuccess')"
             :duration="2000"
             color="success"
             position="bottom"
@@ -267,9 +267,9 @@ import {
   IonToast,
   IonToolbar,
     IonAccordion,
-    IonAccordionGroup
+    IonAccordionGroup, IonNote
 } from '@ionic/vue';
-import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline} from 'ionicons/icons';
+import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline, checkmarkCircle, closeCircle,} from 'ionicons/icons';
 import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
 import { Capacitor } from '@capacitor/core'
@@ -365,14 +365,23 @@ const statusDescriptions: Record<string, string> = {
   'Haram': "Haram ingredients found."
 }
 
+// Track if user manually edits description
+watch(() => form.value.description, (newDesc, oldDesc) => {
+  // Only mark as user-typed if not from our own code
+  if (!programmaticDescUpdate.value && newDesc !== oldDesc && scannedOnce.value) {
+    userTouchedDescription.value = true
+  }
+})
+
+
 // after your useOcrPipeline call
 watch([autoStatus, productName, ingredientsText],
     ([newStatus, newName]) => {
       if (newStatus) {
         form.value.status = newStatus
+        autoStatusApplied.value = true   // ✅ mark that auto status was applied
         console.log("⚡ AutoStatus applied:", newStatus)
 
-        // only set description if still empty
         if (!form.value.description?.trim()) {
           form.value.description = statusDescriptions[newStatus] ?? ""
         }
@@ -396,12 +405,27 @@ watch([autoStatus, productName, ingredientsText],
     }
 )
 
-// watch for *manual* status changes
+// Manual status change
 watch(() => form.value.status, (newStatus) => {
-  if (newStatus && !form.value.description?.trim()) {
-    form.value.description = statusDescriptions[newStatus] ?? ""
-  }
+  if (!newStatus) return
+  if (isResettingForm.value) return   // 🚫 skip if resetting form
+
+  if (!scannedOnce.value) return      // 🚫 skip if not after scan
+
+  // reset + overwrite description
+  form.value.description = ""
+  programmaticDescUpdate.value = true
+  form.value.description = statusDescriptions[newStatus] ?? ""
+  nextTick(() => { programmaticDescUpdate.value = false })
+  userTouchedDescription.value = false
 })
+
+
+
+
+const autoStatusApplied = ref(false)
+const userTouchedDescription = ref(false)
+const programmaticDescUpdate = ref(false)
 
 const frontFile = ref < File | null > (null)
 const backFile = ref < File | null > (null)
@@ -420,6 +444,10 @@ const cropperSrc = ref<string | null>(null);
 const cropperRef = ref<any>(null);
 const rawChineseOcr = ref('')  // keep original OCR before cleaning
 const scannedOnce = ref(false);
+const isResettingForm = ref(false)
+
+const barcodeValid = ref<null | boolean>(null)
+const barcodeMessage = ref<string>('') // feedback below input
 
 const categories = ref<{ id: number; name: string }[]>([])
 
@@ -456,9 +484,13 @@ function openCropper(file: File) {
 }
 
 function closeCropper() {
-  showCropper.value = false;
-  cropperSrc.value = null;
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur()
+  }
+  showCropper.value = false
+  cropperSrc.value = null
 }
+
 
 async function confirmCrop() {
   if (!cropperRef.value) {
@@ -583,6 +615,7 @@ async function scanIngredientsWithCamera() {
   form.value.ingredients = '';
   form.value.product_category_id = null;
   form.value.description = '';
+  userTouchedDescription.value = false
   ingredientHighlights.value = [];
   rawChineseOcr.value = '';
 
@@ -608,6 +641,7 @@ function scanIngredientsFromGallery() {
   form.value.ingredients = '';
   form.value.product_category_id = null;
   form.value.description = '';
+  userTouchedDescription.value = false
   ingredientHighlights.value = [];
   rawChineseOcr.value = '';
 
@@ -727,6 +761,9 @@ function extractProductName(text: string) {
 }
 
 async function runOcrOnFile(file: File) {
+  // reset user edits on every scan
+  userTouchedDescription.value = false
+
   const ocrText = await extractTextFromImage(file);
 
   if (!ocrText) {
@@ -803,37 +840,38 @@ async function runOcrOnFile(file: File) {
   showOcrToast.value = true;
 }
 
-function onBarcodeInput(event: CustomEvent) {
-  // Ionic's value comes from event.detail.value
+async function onBarcodeInput(event: CustomEvent) {
   const rawValue = (event.detail?.value as string) || ''
-
-  // Keep only digits
   let numericValue = rawValue.replace(/\D/g, '')
+  if (numericValue.length > 14) numericValue = numericValue.slice(0, 14)
 
-  // Limit to max 14 digits
-  if (numericValue.length > 14) {
-    numericValue = numericValue.slice(0, 14)
-  }
-
-  // Update form state
   form.value.barcode = numericValue
-
-  // Also push back into input (needed for manual correction)
   event.target && ((event.target as HTMLIonInputElement).value = numericValue)
 
-  // Validate if length is enough
   if (numericValue.length >= 8) {
-    const result = validateBarcode(numericValue)
-    if (!result.isValid) {
-      setError(result.message)
-    } else {
-      toastMessage.value = result.message
-      showToast.value = true
-      console.log(result.message)
+    // 🟢 1. Check existence in DB first
+    const { data, error } = await supabase
+        .from("products")
+        .select("id")
+        .eq("barcode", numericValue)
+        .limit(1)
+
+    if (!error && data && data.length > 0) {
+      barcodeValid.value = false
+      barcodeMessage.value = "❌ This barcode already exists in the database."
+      return   // 🚫 stop here, no need to run format validation
     }
+
+    // 🟢 2. If not in DB, validate format/check digit
+    const result = validateBarcode(numericValue)
+    barcodeValid.value = result.isValid
+    barcodeMessage.value = result.message
+
+  } else {
+    barcodeValid.value = null
+    barcodeMessage.value = ""
   }
 }
-
 
 function onProductNameInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
@@ -988,7 +1026,7 @@ function uploadBackFromGallery() {
   input.click();
 }
 
-async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Promise<File> {
+async function resizeImage(webPath: string, maxWidth = 600, quality = 0.6): Promise<File> {
   const response = await fetch(webPath)
   const blob = await response.blob()
   const img = await createImageBitmap(blob)
@@ -1006,17 +1044,17 @@ async function resizeImage(webPath: string, maxWidth = 800, quality = 0.7): Prom
     canvas.toBlob(
         (compressedBlob) => {
           if (compressedBlob) {
-            resolve(new File([compressedBlob], 'image.jpg', { type: 'image/jpeg' }));
+            resolve(new File([compressedBlob], 'image.jpg', { type: 'image/jpeg' }))
           } else {
-            setError('❌ Failed to compress image, please try again.');
+            setError('❌ Failed to compress image, please try again.')
           }
         },
         'image/jpeg',
         quality
-    );
-
+    )
   })
 }
+
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -1061,7 +1099,7 @@ function validateBarcode(barcode: string) {
     correctBarcode,
     message: isValid
         ? `✅ Valid ${type} barcode`
-        : `❌ Invalid ${type}. Correct check digit: ${calcCheckDigit}`
+        : `❌ Invalid ${type}.`
   };
 }
 
@@ -1156,7 +1194,6 @@ async function handleSubmit() {
     let backUrl = ''
 
     if (frontFile.value) {
-      console.log('Uploading front image...')
       const {
         error
       } = await supabase.storage
@@ -1182,7 +1219,6 @@ async function handleSubmit() {
     }
 
     if (backFile.value) {
-      console.log('Uploading back image...')
       const {
         error
       } = await supabase.storage
@@ -1207,7 +1243,6 @@ async function handleSubmit() {
       console.log('Back image uploaded:', backUrl)
     }
 
-    console.log('Inserting product into database...')
     const {
       error: insertError
     } = await supabase.from('products').insert([{
@@ -1224,6 +1259,8 @@ async function handleSubmit() {
     toastMessage.value = 'Product submitted successfully!'
     showToast.value = true
 
+    isResettingForm.value = true
+
     form.value = {
       barcode: '',
       name: '',
@@ -1232,11 +1269,21 @@ async function handleSubmit() {
       ingredients: '',
       description: ''
     }
+
+    nextTick(() => {
+      isResettingForm.value = false
+    })
+
     frontFile.value = null
     backFile.value = null
     frontPreview.value = null
     backPreview.value = null
     ingredientHighlights.value = []
+
+    // ✅ Reset barcode checks
+    barcodeValid.value = null
+    barcodeMessage.value = ''
+
   } catch (err: any) {
     console.error('Submission error:', err)
     setError(err.message || 'An unexpected error occurred.')
@@ -1286,4 +1333,13 @@ ion-content::part(scroll) {
   margin-bottom: 300px; /* adjust to keyboard height */
 }
 
+.barcode-valid {
+  --highlight-color-focused: var(--ion-color-success);
+  --border-color: var(--ion-color-success);
+}
+
+.barcode-invalid {
+  --highlight-color-focused: var(--ion-color-danger);
+  --border-color: var(--ion-color-danger);
+}
 </style>

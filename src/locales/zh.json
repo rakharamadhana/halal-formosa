@@ -161,5 +161,33 @@
     "database": "資料庫貢獻者",
     "specialThanks": "特別感謝",
     "thankYou": "誠摯感謝所有社群成員、測試者與支持者的幫助與付出。願真主安拉回賜您們一切善功與美好。"
+  },
+  "addProduct": {
+    "title": "新增產品",
+    "cropIngredients": "裁剪成分區域",
+    "done": "完成",
+    "processingOcr": "正在處理 OCR...",
+    "barcode": "條碼 *",
+    "barcodePlaceholder": "僅輸入數字",
+    "productName": "產品名稱 *",
+    "productNamePlaceholder": "輸入文字",
+    "status": "狀態",
+    "statusRequired": "狀態 *",
+    "halal": "清真",
+    "muslimFriendly": "友善穆斯林",
+    "syubhah": "可疑（Syubhah）",
+    "haram": "禁用（Haram）",
+    "ingredients": "成分 *",
+    "ingredientsPlaceholder": "輸入文字或使用相機/相簿",
+    "detectedText": "🔎 偵測到的文字",
+    "category": "分類 *",
+    "description": "描述 *",
+    "descriptionPlaceholder": "輸入文字",
+    "frontImage": "正面圖片 *",
+    "backImage": "背面圖片 *",
+    "submit": "送出",
+    "submitting": "正在送出產品...",
+    "submitSuccess": "產品已成功送出！",
+    "ocrSuccess": "✅ 成分已成功擷取！"
   }
 }
