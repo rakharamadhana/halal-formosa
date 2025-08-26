@@ -283,7 +283,7 @@ import {
   CapacitorBarcodeScanner,
   CapacitorBarcodeScannerAndroidScanningLibrary,
   CapacitorBarcodeScannerCameraDirection,
-  CapacitorBarcodeScannerScanOrientation,
+  CapacitorBarcodeScannerScanOrientation, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerTypeHintALLOption
 } from '@capacitor/barcode-scanner'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 
@@ -933,6 +933,13 @@ function extractIonColor(fullColor: string) {
   return parts[parts.length - 1] // last part = "warning"
 }
 
+const webFormats = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+]
+
 async function startBarcodeScan() {
   if (scanning.value) return
   scanning.value = true
@@ -940,12 +947,9 @@ async function startBarcodeScan() {
 
   try {
     const result = await CapacitorBarcodeScanner.scanBarcode({
-      hint: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-      ],
+      hint: Capacitor.isNativePlatform()
+          ? CapacitorBarcodeScannerTypeHintALLOption.ALL
+          : (webFormats as unknown as CapacitorBarcodeScannerTypeHint), // 👈 force cast
 
       scanInstructions: 'Align the barcode within the frame',
       cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
