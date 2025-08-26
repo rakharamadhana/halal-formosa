@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button default-href="/explore" />
         </ion-buttons>
-        <ion-title>Add New Place</ion-title>
+        <ion-title>{{ $t('addPlace.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,7 +13,7 @@
       <!-- Role guard -->
       <ion-card v-if="checkedRole && !isAllowed">
         <ion-card-content>
-          You don’t have permission to add places. Please contact an admin.
+          {{ $t('addPlace.noPermission') }}
         </ion-card-content>
       </ion-card>
 
@@ -21,20 +21,20 @@
         <ion-item>
           <ion-input
               v-model="form.name"
-              label="Place Name *"
+              :label="$t('addPlace.nameLabel')"
               label-placement="stacked"
               required
-              placeholder="e.g., Taipei Grand Mosque"
+              :placeholder="$t('addPlace.namePlaceholder')"
           />
         </ion-item>
 
         <ion-item>
           <ion-select
               v-model.number="form.type_id"
-              label="Type *"
+              :label="$t('addPlace.typeLabel')"
               label-placement="stacked"
               interface="popover"
-              placeholder="Select a type"
+              :placeholder="$t('addPlace.typePlaceholder')"
               required
           >
             <ion-select-option
@@ -50,7 +50,7 @@
         <!-- Image upload -->
         <ion-item>
           <ion-label>
-            Image <ion-text color="danger">*</ion-text>
+            {{ $t('addPlace.imageLabel') }}
           </ion-label>
           <ion-buttons slot="end">
             <ion-button @click="takePicture" fill="clear" :disabled="uploading">
@@ -64,7 +64,7 @@
 
         <!-- Preview -->
         <div v-if="imagePreview" class="img-preview-wrap">
-          <img :src="imagePreview" alt="Front Preview" class="img-preview" />
+          <img :src="imagePreview" alt="Preview" class="img-preview" />
         </div>
 
         <div class="row-2">
@@ -73,7 +73,7 @@
                 v-model.number="form.lat"
                 type="number"
                 step="any"
-                label="Latitude *"
+                :label="$t('addPlace.latLabel')"
                 label-placement="stacked"
                 required
             />
@@ -83,7 +83,7 @@
                 v-model.number="form.lng"
                 type="number"
                 step="any"
-                label="Longitude *"
+                :label="$t('addPlace.lngLabel')"
                 label-placement="stacked"
                 required
             />
@@ -91,7 +91,7 @@
         </div>
 
         <div class="map-wrap">
-          <div class="hint">Tap on the map to set coordinates</div>
+          <div class="hint">{{ $t('addPlace.mapHint') }}</div>
 
           <div class="map-holder">
             <!-- Real map is ALWAYS in the DOM -->
@@ -108,7 +108,7 @@
 
         <ion-button type="submit" expand="block" :disabled="submitting || !isValid">
           <ion-spinner v-if="submitting" name="lines-small" class="mr-2" />
-          <span v-else>Save Place</span>
+          <span v-else>{{ $t('addPlace.saveBtn') }}</span>
         </ion-button>
       </form>
 
@@ -127,7 +127,7 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonItem, IonInput, IonSelect, IonSelectOption,
-  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonText, IonIcon
+  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonIcon
 } from '@ionic/vue'
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'

@@ -4,6 +4,8 @@ export const isDonor = ref(false);
 export const donorType = ref('Free');
 export const userRole = ref<string | null>(null)   // 👈 role from DB
 export const isAdmin = computed(() => userRole.value === 'admin') // 👈 derived
+export const isContributor = computed(() => userRole.value === 'contributor')
+
 
 // Helpers to set values
 export function setDonorStatus(value: boolean) {

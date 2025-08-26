@@ -5,11 +5,20 @@
     </ion-header>
     <!-- Native AdMob banner -->
     <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
-    <!-- Map stays fixed -->
-    <div style="position: relative;">
-      <!-- Map container -->
-      <div id="map"></div>
-      <!-- FAB absolutely anchored inside the map container -->
+
+    <!-- Map section -->
+    <div style="position: relative; height: 45vh; width: 100%;">
+      <!-- Map is always present, hidden when loading -->
+      <div id="map" v-show="!loading" style="height: 100%; width: 100%;"></div>
+
+      <!-- Skeleton overlay -->
+      <ion-skeleton-text
+          v-show="loading"
+          animated
+          style="height:100%;width:100%;border-radius:0;position:absolute;top:0;left:0;z-index:0;"
+      />
+
+      <!-- FAB stays visible -->
       <ion-fab
           vertical="bottom"
           horizontal="end"
@@ -45,27 +54,41 @@
       </div>
 
       <!-- ✅ Category bar right under search input -->
-      <div class="category-bar">
-        <ion-chip
-            v-for="cat in categories"
-            :key="cat"
-            :class="['category-chip', activeCategory === cat ? 'chip-carrot' : 'chip-medium']"
-            @click="toggleCategory(cat)"
-        >
-          <!-- If icon is emoji -->
-          <span v-if="typeof categoryIcons[cat] === 'string' && categoryIcons[cat].length === 2" style="margin-right:4px;">
-            {{ categoryIcons[cat] }}
-          </span>
-          <!-- If icon is Ionicon -->
-          <ion-icon
-              v-else
-              :icon="categoryIcons[cat]"
-              style="margin-right:4px;"
-          />
+      <div class="category-bar-wrapper">
+        <!-- Real category bar -->
+        <div v-show="!loadingCategories" class="category-bar">
+          <ion-chip
+              v-for="cat in categories"
+              :key="cat"
+              :class="['category-chip', activeCategory === cat ? 'chip-carrot' : 'chip-medium']"
+              @click="toggleCategory(cat)"
+          >
+            <!-- If icon is emoji -->
+            <span
+                v-if="typeof categoryIcons[cat] === 'string' && categoryIcons[cat].length === 2"
+                style="margin-right:4px;"
+            >
+        {{ categoryIcons[cat] }}
+      </span>
+            <!-- If icon is Ionicon -->
+            <ion-icon
+                v-else
+                :icon="categoryIcons[cat]"
+                style="margin-right:4px;"
+            />
+            <ion-label>{{ cat }}</ion-label>
+          </ion-chip>
+        </div>
 
-          <ion-label>{{ cat }}</ion-label>
-        </ion-chip>
+        <!-- Skeleton placeholder -->
+        <div v-if="loadingCategories" class="category-skeletons">
+          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;" />
+        </div>
       </div>
+
     </ion-toolbar>
 
     <ion-toolbar
@@ -81,39 +104,68 @@
     </ion-toolbar>
 
     <!-- Place list scrolls -->
-    <ion-content class="ion-padding" style="margin-top:0; --padding-top:0; " ref="contentRef">
+    <ion-content class="ion-padding" style="margin-top:0; --padding-top:0;" ref="contentRef">
       <div class="place-list">
-        <ion-card
-            v-for="place in displayedLocations"
-            :key="place.id"
-            :ref="setCardRef(place.id)"
-            :class="{ 'active-card': selectedPlace?.id === place.id }"
-            @click="selectPlace(place)"
-        >
-          <div style="display: flex; align-items: center;">
-            <ion-thumbnail
-                slot="start"
-                style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;"
-            >
-              <img
-                  loading="lazy"
-                  :src="place.image || 'https://placehold.co/200x100'"
-                  alt="thumbnail"
-                  style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
-                  @error="onImageError"
+        <!-- ✅ Skeleton list while loading -->
+        <template v-if="loadingPlaces">
+          <ion-card v-for="n in 3" :key="'skeleton-' + n">
+            <div style="display: flex; align-items: center;">
+              <!-- Thumbnail skeleton -->
+              <ion-skeleton-text
+                  animated
+                  style="width:115px; height:115px; border-radius:10px;"
               />
-            </ion-thumbnail>
-            <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div>
-                <h5 class="title-text">{{ place.name }}</h5>
-                <p class="type-text">
-                  {{ place.type }}
-                </p>
+              <!-- Text skeletons -->
+              <div style="flex:1; margin-left:12px;">
+                <ion-skeleton-text
+                    animated
+                    style="width:70%; height:18px; margin-bottom:8px;"
+                />
+                <ion-skeleton-text
+                    animated
+                    style="width:50%; height:14px; margin-bottom:6px;"
+                />
+                <ion-skeleton-text
+                    animated
+                    style="width:40%; height:14px;"
+                />
               </div>
-              <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
             </div>
-          </div>
-        </ion-card>
+          </ion-card>
+        </template>
+
+        <!-- ✅ Real data after loaded -->
+        <template v-else>
+          <ion-card
+              v-for="place in displayedLocations"
+              :key="place.id"
+              :ref="setCardRef(place.id)"
+              :class="{ 'active-card': selectedPlace?.id === place.id }"
+              @click="selectPlace(place)"
+          >
+            <div style="display: flex; align-items: center;">
+              <ion-thumbnail
+                  slot="start"
+                  style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;"
+              >
+                <img
+                    loading="lazy"
+                    :src="place.image || 'https://placehold.co/200x100'"
+                    alt="thumbnail"
+                    style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
+                    @error="onImageError"
+                />
+              </ion-thumbnail>
+              <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h5 class="title-text">{{ place.name }}</h5>
+                  <p class="type-text">{{ place.type }}</p>
+                </div>
+                <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
+              </div>
+            </div>
+          </ion-card>
+        </template>
       </div>
     </ion-content>
   </ion-page>
@@ -126,7 +178,8 @@ declare global { interface Window { adsbygoogle: any[] } }
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewWillEnter, onIonViewDidEnter, IonHeader, IonLabel, IonChip
+  IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonHeader, IonLabel, IonChip,
+    IonSkeletonText
 } from '@ionic/vue'
 import {
   compassOutline,
@@ -166,7 +219,7 @@ type LocationRow = {
   lng: number
   image?: string | null
   type_id: number
-  location_types: { name: string } | null
+  location_types: { name: string }[]   // ✅ array
 }
 
 // Local type for ion-content (no external import needed)
@@ -194,6 +247,9 @@ const contentRef = ref<HTMLIonContentElement | null>(null)
 
 const searchQuery = ref('')
 const isNative = ref(Capacitor.isNativePlatform())
+const loading = ref(true)
+const loadingCategories = ref(true)
+const loadingPlaces = ref(true)
 
 /* Google Maps runtime objects */
 let mapInstance: google.maps.Map | null = null
@@ -207,9 +263,10 @@ let clusterer: MarkerClusterer | null = null
 
 
 const fetchLocationTypes = async () => {
+  loadingCategories.value = true
   const { data, error } = await supabase.from('location_types').select('id, name')
-  if (error) { console.error(error); return }
-  locationTypes.value = data || []
+  if (!error && data) locationTypes.value = data
+  loadingCategories.value = false
 }
 
 const categoryIcons: Record<string, any> = {
@@ -370,25 +427,30 @@ const loadRole = async () => {
 
 /* ---------------- Data ---------------- */
 const fetchLocations = async () => {
+  loadingPlaces.value = true
+
   const { data, error } = await supabase
       .from('locations')
       .select(`
-    id, name, lat, lng, image, type_id,
-    location_types(name)
-  `) as unknown as { data: LocationRow[]; error: any }
+      id, name, lat, lng, image, type_id,
+      location_types(name)
+    `)
 
-  if (error) { console.error(error); return }
+  if (!error && data) {
+    const typedData = data as LocationRow[]
 
-  locations.value = (data ?? []).map(loc => ({
-    id: loc.id,
-    name: loc.name,
-    position: { lat: loc.lat, lng: loc.lng },
-    image: loc.image,
-    typeId: loc.type_id,
-    type: loc.location_types?.name ?? ''   // use "type" not "typeName"
-  }))
+    locations.value = typedData.map((loc) => ({
+      id: loc.id,
+      name: loc.name,
+      position: { lat: loc.lat, lng: loc.lng },
+      image: loc.image,
+      typeId: loc.type_id,
+      type: loc.location_types[0]?.name ?? ''   // ✅ pick first
+    }))
+  }
 
-  initMarkers() // after map ready
+  initMarkers()
+  loadingPlaces.value = false
 }
 
 const categories = computed(() => {
@@ -415,6 +477,7 @@ const toggleCategory = (cat: string) => {
 
 /* ---------------- Map ---------------- */
 const initMap = async () => {
+  loading.value = true
   const [{ Map }, marker] = await Promise.all([
     loader.importLibrary('maps'),
     loader.importLibrary('marker')
@@ -428,6 +491,7 @@ const initMap = async () => {
     clickableIcons: false
   })
   infoWindow = new google.maps.InfoWindow()
+  loading.value = false
 }
 
 const initMarkers = (places: Place[] = locations.value) => {
@@ -518,28 +582,40 @@ const selectPlace = (place: Place) => {
 
 const centerOnUser = async () => {
   try {
+    let coords: { latitude: number; longitude: number }
+
     if (Capacitor.isNativePlatform()) {
-      const p = await Geolocation.checkPermissions()
-      if (p.location !== 'granted') {
-        const r = await Geolocation.requestPermissions()
-        if (r.location !== 'granted') {
-          alert('Location permission is required.')
+      // Native (Android/iOS) → Capacitor Geolocation
+      const perm = await Geolocation.checkPermissions()
+      if (perm.location !== 'granted') {
+        const req = await Geolocation.requestPermissions()
+        if (req.location !== 'granted') {
+          console.warn('Location permission denied')
           return
         }
       }
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true })
+      coords = pos.coords
+    } else {
+      // Web → use browser navigator.geolocation
+      coords = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve(pos.coords),
+            err => reject(err),
+            { enableHighAccuracy: true }
+        )
+      })
     }
 
-    const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true })
-    const userLoc: LatLng = { lat: position.coords.latitude, lng: position.coords.longitude }
+    const userLoc: LatLng = { lat: coords.latitude, lng: coords.longitude }
     userLocation.value = userLoc
     mapInstance?.panTo(userLoc)
-
-    const dot = document.createElement('div')
-    dot.className = 'user-location-dot'
 
     if (userMarker.value) {
       userMarker.value.position = userLoc
     } else {
+      const dot = document.createElement('div')
+      dot.className = 'user-location-dot'
       userMarker.value = new google.maps.marker.AdvancedMarkerElement({
         position: userLoc,
         map: mapInstance!,
@@ -548,8 +624,7 @@ const centerOnUser = async () => {
       })
     }
   } catch (err) {
-    console.error(err)
-    alert('Could not get location.')
+    console.warn('Could not get location:', err)
   }
 }
 
@@ -603,21 +678,19 @@ const sortedLocations = computed(() => {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
-  console.log('isNative?', isNative.value); // should be false in browser
-  if (!isNative.value) {
-    await nextTick();
-  }
-});
+  console.log('isNative?', isNative.value)
+  if (!isNative.value) await nextTick()
 
-onIonViewWillEnter(async () => {
   await initMap()
-  await fetchLocationTypes()   // ✅ now used
-  await fetchLocations()
-  await centerOnUser()
   await loadRole()
+  fetchLocationTypes()
+  fetchLocations()
+  centerOnUser()
 })
 
-onIonViewDidEnter(() => (window as any).scheduleBannerUpdate?.());
+onIonViewDidEnter(() => {
+  (window as any).scheduleBannerUpdate?.()
+})
 
 /* dark mode InfoWindow sync */
 const observer = new MutationObserver(applyInfoWindowDarkClass)
@@ -753,6 +826,20 @@ button.gm-ui-hover-effect > span {
   /* Hide scrollbar */
   scrollbar-width: none;     /* Firefox */
   -ms-overflow-style: none;  /* IE/Edge */
+}
+
+.category-bar-wrapper {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 6px;
+}
+
+.category-skeletons {
+  overflow-x: auto;
+  display: flex;
+  gap: 8px;
+  width: 100%;
 }
 
 .category-bar::-webkit-scrollbar {

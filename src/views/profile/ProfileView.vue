@@ -16,60 +16,94 @@
         </ion-toolbar>
       </ion-header>
 
-      <!-- Profile Card -->
-      <ion-card class="profile-card ion-text-center">
-        <div v-if="userAvatar" class="avatar-wrapper">
-          <img :src="userAvatar" alt="Profile Picture" class="avatar" />
-        </div>
+      <!-- ✅ Skeleton while loading -->
+      <div v-if="loading" class="ion-text-center">
+        <ion-card class="profile-card ion-text-center">
+          <!-- Avatar -->
+          <ion-skeleton-text
+              animated
+              style="width: 120px; height: 120px; border-radius: 50%; margin: 0 auto;"
+          />
 
-        <ion-text v-if="userDisplayName" class="profile-name">
-          <h2>{{ userDisplayName }}</h2>
-          <ion-badge :color="donorBadge.color" style="margin-left: 6px;">
-            {{ donorBadge.emoji }} {{ donorBadge.label }}
-          </ion-badge>
-        </ion-text>
+          <!-- Name -->
+          <ion-skeleton-text
+              animated
+              style="width: 60%; height: 20px; margin: 1rem auto;"
+          />
 
-        <ion-text v-if="userEmail" class="profile-email">
-          <p>{{ userEmail }}</p>
-        </ion-text>
+          <!-- Badge -->
+          <ion-skeleton-text
+              animated
+              style="width: 80px; height: 20px; border-radius: 5px; margin: 0 auto;"
+          />
 
-        <ion-button
-            v-if="userEmail"
-            color="danger"
-            expand="block"
-            class="logout-button"
-            @click="handleLogout"
-        >
-          {{ $t('profile.logout') }}
-        </ion-button>
+          <!-- Email -->
+          <ion-skeleton-text
+              animated
+              style="width: 70%; height: 16px; margin: 0.5rem auto;"
+          />
 
-        <div v-else class="login-prompt">
-          <p>{{ $t('profile.noUserLogged') }}</p>
-          <ion-button color="carrot" expand="block" @click="goToLogin">
-            {{ $t('profile.login') }}
+          <!-- Button -->
+          <ion-skeleton-text
+              animated
+              style="width: 100%; height: 36px; border-radius: 6px; margin: 1.5rem auto;"
+          />
+        </ion-card>
+      </div>
+
+      <!-- ✅ Real content -->
+      <div v-else>
+        <!-- Profile Card -->
+        <ion-card class="profile-card ion-text-center">
+          <div v-if="userAvatar" class="avatar-wrapper">
+            <img :src="userAvatar" alt="Profile Picture" class="avatar" />
+          </div>
+
+          <ion-text v-if="userDisplayName" class="profile-name">
+            <h2>{{ userDisplayName }}</h2>
+            <ion-badge :color="donorBadge.color" style="margin-left: 6px;">
+              {{ donorBadge.emoji }} {{ donorBadge.label }}
+            </ion-badge>
+          </ion-text>
+
+          <ion-text v-if="userEmail" class="profile-email">
+            <p>{{ userEmail }}</p>
+          </ion-text>
+
+          <ion-button
+              v-if="userEmail"
+              color="danger"
+              expand="block"
+              class="logout-button"
+              @click="handleLogout"
+          >
+            {{ $t('profile.logout') }}
           </ion-button>
-        </div>
-      </ion-card>
+
+          <div v-else class="login-prompt">
+            <p>{{ $t('profile.noUserLogged') }}</p>
+            <ion-button color="carrot" expand="block" @click="goToLogin">
+              {{ $t('profile.login') }}
+            </ion-button>
+          </div>
+        </ion-card>
+      </div>
 
       <!-- Review Submissions -->
-      <ion-list
-          v-if="isAdmin"
-          class="profile-menu"
-          style="border-radius: 10px"
-      >
+      <ion-list v-if="isAdmin" class="profile-menu" style="border-radius: 10px">
         <ion-item button @click="goToReviewSubmissions" style="--inner-border-width: 0">
           <ion-icon :icon="listOutline" />&nbsp;
           <ion-label>{{ $t('profile.review') }}</ion-label>
-        </ion-item>
 
-        <!-- ✅ Pending badge -->
-        <ion-badge
-            v-if="pendingCount > 0"
-            color="danger"
-            style="position: absolute; top: 13px; left: 8px; border-radius: 50%; font-size: 10px; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; z-index: 99;"
-        >
-          {{ pendingCount }}
-        </ion-badge>
+          <!-- ✅ Put badge at end slot -->
+          <ion-badge
+              v-if="pendingCount > 0"
+              color="danger"
+              slot="end"
+          >
+            {{ pendingCount }}
+          </ion-badge>
+        </ion-item>
       </ion-list>
 
       <!-- Menu -->
@@ -78,12 +112,10 @@
           <ion-icon :icon="settingsOutline" />&nbsp;
           <ion-label>{{ $t('profile.settings') }}</ion-label>
         </ion-item>
-
         <ion-item button @click="goToLegal" >
           <ion-icon :icon="documentTextOutline" />&nbsp;
           <ion-label>{{ $t('profile.legal') }}</ion-label>
         </ion-item>
-
         <ion-item button @click="goToCredits" style="--inner-border-width: 0">
           <ion-icon :icon="peopleOutline" />&nbsp;
           <ion-label>{{ $t('profile.credits') }}</ion-label>
@@ -97,7 +129,6 @@
         </ion-card-header>
         <ion-card-content>
           <p>{{ $t('profile.supportDescription') }}</p>
-
           <a href="https://halalformosa.bobaboba.me" target="_blank" class="boba-button">
             <img
                 src="https://s3.ap-southeast-1.amazonaws.com/media.anyonelab.com/images/boba/boba-embed-icon.png"
@@ -106,7 +137,6 @@
             />
             {{ $t('profile.bobaMe') }}
           </a>
-
           <p class="support-thank">{{ $t('profile.supportThank') }}</p>
           <p><small>{{ $t('profile.voluntary') }}</small></p>
         </ion-card-content>
@@ -125,7 +155,7 @@
             </ion-item>
             <ion-item>
               <ion-label>{{ $t('profile.appVersion') }}</ion-label>
-              <ion-note slot="end">1.2.1</ion-note>
+              <ion-note slot="end">1.2.2</ion-note>
             </ion-item>
           </ion-list>
         </ion-card-content>
@@ -135,10 +165,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import {onBeforeUnmount, onMounted, ref} from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
-import { onIonViewWillEnter } from '@ionic/vue'
 
 // ✅ Ionic components
 import {
@@ -158,7 +187,7 @@ import {
   IonIcon,
   IonText,
   IonNote,
-  IonBadge,
+  IonBadge, onIonViewWillEnter,
 } from '@ionic/vue'
 
 // ✅ Icons
@@ -171,6 +200,7 @@ import {
 
 // ✅ Composables
 import { donorBadge, isAdmin } from '@/composables/userProfile'
+import {Subscription} from "@supabase/supabase-js";
 
 // State
 const userEmail = ref('')
@@ -178,6 +208,10 @@ const userDisplayName = ref('')
 const userAvatar = ref('')
 const router = useRouter()
 const pendingCount = ref(0)
+const loading = ref(true)
+
+
+let authSubscription: Subscription | null = null  // 👈 correct type
 
 async function fetchPendingCount() {
   if (!isAdmin.value) {
@@ -195,39 +229,56 @@ async function fetchPendingCount() {
   }
 }
 
-// Fetch user info
-const updateUser = async () => {
-  try {
-    const { data } = await supabase.auth.getUser()
-    if (data?.user) {
-      userEmail.value = data.user.email || ''
+onMounted(async () => {
+  // Initial user check
+  const { data } = await supabase.auth.getUser()
+  if (data?.user) {
+    const u = data.user
+    userEmail.value = u.email || ''
+    userDisplayName.value =
+        u.user_metadata?.full_name ||
+        u.user_metadata?.display_name ||
+        ''
+    userAvatar.value = u.user_metadata?.avatar_url || ''
+  } else {
+    userEmail.value = ''
+    userDisplayName.value = ''
+    userAvatar.value = ''
+  }
+
+  if (isAdmin.value) await fetchPendingCount()
+
+  // ✅ Set loading false after first check
+  loading.value = false
+
+  // Subscribe for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const u = session.user
+      userEmail.value = u.email || ''
       userDisplayName.value =
-          data.user.user_metadata?.full_name ||
-          data.user.user_metadata?.display_name ||
+          u.user_metadata?.full_name ||
+          u.user_metadata?.display_name ||
           ''
-      userAvatar.value = data.user.user_metadata?.avatar_url || ''
+      userAvatar.value = u.user_metadata?.avatar_url || ''
     } else {
       userEmail.value = ''
       userDisplayName.value = ''
       userAvatar.value = ''
     }
-  } catch (error) {
-    userEmail.value = ''
-    userDisplayName.value = ''
-    userAvatar.value = ''
-    console.error('Failed to fetch user:', error)
-  }
-}
 
-onIonViewWillEnter(async () => {
-  await updateUser()
+    if (isAdmin.value) fetchPendingCount()
+  })
 
-  // ✅ Only admins need the pending count
-  if (isAdmin.value) {
-    await fetchPendingCount()
-  }
+  authSubscription = subscription
 })
 
+onBeforeUnmount(() => {
+  if (authSubscription) {
+    authSubscription.unsubscribe()
+    authSubscription = null
+  }
+})
 
 // Actions
 const handleLogout = async () => {

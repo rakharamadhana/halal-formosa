@@ -35,14 +35,27 @@
       </ion-toolbar>
       <ion-toolbar class="search-toolbar">
         <div class="category-bar">
-          <ion-chip
-              v-for="cat in categories"
-              :key="cat.id"
-              :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
-              @click="toggleCategory(cat)"
-          >
-            <ion-label>{{ categoryIcons[cat.name] || "📦" }} {{ cat.name }}</ion-label>
-          </ion-chip>
+          <!-- ✅ Skeletons while loading -->
+          <template v-if="loadingCategories">
+            <ion-skeleton-text
+                v-for="n in 4"
+                :key="'cat-skeleton-' + n"
+                animated
+                style="width: 100px; height: 28px; border-radius: 5px; margin-right: 8px;"
+            />
+          </template>
+
+          <!-- ✅ Real categories -->
+          <template v-else>
+            <ion-chip
+                v-for="cat in categories"
+                :key="cat.id"
+                :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
+                @click="toggleCategory(cat)"
+            >
+              <ion-label>{{ categoryIcons[cat.name] || "📦" }} {{ cat.name }}</ion-label>
+            </ion-chip>
+          </template>
         </div>
       </ion-toolbar>
 
@@ -78,7 +91,7 @@
         <div v-if="!scanning" class="ion-padding" style="padding-top: 5px;">
 
           <!-- Skeleton loader -->
-          <template v-if="loading && results.length === 0">
+          <template v-if="loadingProducts && results.length === 0">
             <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
               <div style="display: flex; align-items: center;">
                 <!-- Skeleton Image -->
@@ -111,7 +124,7 @@
           </template>
 
           <!-- Empty state -->
-          <template v-else-if="!loading && results.length === 0">
+          <template v-else-if="!loadingProducts && results.length === 0">
             <ion-card>
               <ion-card-content>
                 <p>😔 {{ $t('search.noProductFound') }} </p>
@@ -211,7 +224,7 @@ import {
   IonPage, IonHeader, IonContent, IonSearchbar, IonText, IonModal, IonToolbar, IonButton, IonIcon, IonFooter, IonChip,
   IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher, IonRefresherContent,
   IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
-  onIonViewWillEnter, onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton
+  onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton
 } from '@ionic/vue'
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -268,7 +281,10 @@ const searchQuery = ref('')
 const categories = ref<{ id: number; name: string }[]>([])
 const activeCategory = ref<{id:number, name:string} | null>(null)
 
-const loading = ref(true)
+const loadingProducts = ref(true)
+const loadingCategories = ref(true)
+const loadingCount = ref(true)
+
 const allLoaded = ref(false)
 const isFetching = ref(false)
 
@@ -347,25 +363,27 @@ async function startScan() {
 
 /* ---------------- Data Fetch ---------------- */
 const fetchCategories = async () => {
+  loadingCategories.value = true
   const { data, error } = await supabase
       .from("product_categories")
       .select("id, name")
-      .order("name", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true })
+
   if (!error && data) {
     categories.value = data
   }
+  loadingCategories.value = false
 }
 
 
 const fetchProducts = async (reset = false) => {
+  loadingProducts.value = true
   if (isFetching.value || (allLoaded.value && !reset)) return
   isFetching.value = true
   if (reset) {
     currentPage.value = 0
     allLoaded.value = false
     allProducts.value = []
-    loading.value = true   // 🔥 set loading ON
-    // ❌ don’t clear results here
   }
 
   try {
@@ -374,8 +392,8 @@ const fetchProducts = async (reset = false) => {
 
     let query = supabase
         .from("products")
-        .select("*, product_categories(name)", { count: "exact" })
-        .eq("approved", true)   // ✅ only approved products
+        .select("*, product_categories(name)")   // ❌ removed count
+        .eq("approved", true)
 
     if (activeCategory.value) {
       query = query.eq("product_category_id", activeCategory.value.id)
@@ -384,19 +402,18 @@ const fetchProducts = async (reset = false) => {
     if (searchQuery.value) {
       query = query.or(`name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`)
     }
+
     query = query.order("created_at", { ascending: false }).range(from, to)
 
-    const { data, error, count } = await query
+    const { data, error } = await query
     if (error) {
       errorMsg.value = error.message
     } else {
-      if (reset) totalProductsCount.value = count || 0
-
       if (!data || data.length < pageSize) {
         allLoaded.value = true
-        infiniteDisabled.value = true   // ✅ disable infinite scroll
+        infiniteDisabled.value = true
       } else {
-        infiniteDisabled.value = false  // ✅ enable infinite scroll for more pages
+        infiniteDisabled.value = false
       }
 
       allProducts.value = reset ? (data || []) : [...allProducts.value, ...(data || [])]
@@ -405,11 +422,13 @@ const fetchProducts = async (reset = false) => {
     }
   } finally {
     isFetching.value = false
-    loading.value = false  // 🔥 stop skeletons
+    loadingProducts.value = false
   }
 }
 
+
 const fetchTotalCount = async () => {
+  loadingCount.value = true
   const { count, error } = await supabase
       .from('products')
       .select('barcode', { count: 'exact', head: true })
@@ -418,6 +437,7 @@ const fetchTotalCount = async () => {
   } else {
     totalProductsCount.value = count || 0
   }
+  loadingCount.value = false
 }
 
 /* ---------------- Search ---------------- */
@@ -478,13 +498,14 @@ async function refreshList(event: CustomEvent) {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
+  // 🔹 Auth/session setup
   const { data: { session } } = await supabase.auth.getSession()
   isAuthenticated.value = !!session
-
   supabase.auth.onAuthStateChange((_event, session) => {
     isAuthenticated.value = !!session
   })
 
+  // 🔹 Ingredient dictionary preload
   const { data, error } = await supabase.from('ingredient_highlights').select('keyword, color')
   if (!isNative.value) {
     await nextTick()
@@ -497,14 +518,15 @@ onMounted(async () => {
       return acc
     }, {} as Record<string, string>)
   }
+
+  // 🔹 Initial data load
+  await Promise.all([
+    fetchProducts(true),
+    fetchTotalCount(),
+    fetchCategories()
+  ])
 })
 
-onIonViewWillEnter(async () => {
-  loading.value = true
-  await fetchProducts(true)
-  await fetchTotalCount()
-  await fetchCategories()
-})
 
 onIonViewDidEnter(async () => {
   (window as any).scheduleBannerUpdate?.()

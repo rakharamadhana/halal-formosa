@@ -26,29 +26,58 @@
         </ion-refresher-content>
       </ion-refresher>
 
-      <div
-          v-for="(item, index) in filteredNews"
-          :key="index"
-          @click="openNews(item)"
-          class="news-card"
-      >
-        <ion-card>
-          <img
-              :src="item.thumbnail"
-              alt="news-thumbnail"
-              class="news-thumbnail"
+      <!-- ✅ Skeleton loader -->
+      <template v-if="loadingNews">
+        <ion-card v-for="n in 5" :key="'skeleton-' + n">
+          <ion-skeleton-text
+              animated
+              style="width:100%; height:140px; border-radius:8px; margin-bottom:8px;"
           />
-
           <ion-card-header>
-            <ion-card-title>{{ item.title }}</ion-card-title>
-            <ion-card-subtitle>{{ fromNowToTaipei(item.created_at) }}</ion-card-subtitle>
+            <ion-skeleton-text
+                animated
+                style="width:70%; height:18px; margin-bottom:6px;"
+            />
+            <ion-skeleton-text
+                animated
+                style="width:40%; height:14px;"
+            />
           </ion-card-header>
-
           <ion-card-content>
-            <p class="news-summary">{{ item.summary }}</p>
+            <ion-skeleton-text
+                animated
+                style="width:100%; height:12px; margin-bottom:4px;"
+            />
+            <ion-skeleton-text
+                animated
+                style="width:80%; height:12px;"
+            />
           </ion-card-content>
         </ion-card>
-      </div>
+      </template>
+
+      <!-- ✅ Actual news after loading -->
+      <template v-else>
+        <div
+            v-for="(item, index) in filteredNews"
+            :key="index"
+            @click="openNews(item)"
+            class="news-card"
+        >
+          <ion-card>
+            <img :src="item.thumbnail" alt="news-thumbnail" class="news-thumbnail" />
+
+            <ion-card-header>
+              <ion-card-title>{{ item.title }}</ion-card-title>
+              <ion-card-subtitle>{{ fromNowToTaipei(item.created_at) }}</ion-card-subtitle>
+            </ion-card-header>
+
+            <ion-card-content>
+              <p class="news-summary">{{ item.summary }}</p>
+            </ion-card-content>
+          </ion-card>
+        </div>
+      </template>
 
       <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content
@@ -58,7 +87,7 @@
       </ion-infinite-scroll>
 
       <!-- ✅ FAB for Admin Only -->
-      <ion-fab v-if="isAdmin" vertical="bottom" horizontal="end" slot="fixed">
+      <ion-fab v-if="isAdmin || isContributor" vertical="bottom" horizontal="end" slot="fixed">
         <ion-fab-button color="carrot" @click="goToAddNews">
           <ion-icon :icon="addOutline" />
         </ion-fab-button>
@@ -72,7 +101,7 @@ import {ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   IonPage, IonHeader, IonToolbar, IonSearchbar, IonContent, IonRefresherContent, IonRefresher, IonInfiniteScroll,
-  IonInfiniteScrollContent, IonCard, IonCardTitle, IonCardContent, IonCardSubtitle, IonCardHeader, IonIcon, IonFabButton, IonFab
+  IonInfiniteScrollContent, IonCard, IonCardTitle, IonCardContent, IonCardSubtitle, IonCardHeader, IonIcon, IonFabButton, IonFab, IonSkeletonText
 } from '@ionic/vue';
 import { supabase } from '@/plugins/supabaseClient';
 import {addOutline, chevronDownCircleOutline, newspaperOutline} from 'ionicons/icons';
@@ -88,7 +117,7 @@ interface NewsItem {
 
 
 const router = useRouter();
-const isAdmin = ref(false);
+const loadingNews = ref(true)
 
 const allNews = ref<NewsItem[]>([]);
 const displayedNews = ref<NewsItem[]>([]);
@@ -103,6 +132,9 @@ import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import AppHeader from "@/components/AppHeader.vue";
 
+// 🟢 import role state from userProfile composable
+import { isAdmin, isContributor, setUserRole, userRole } from '@/composables/userProfile'
+
 // Extend dayjs
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -113,32 +145,36 @@ function fromNowToTaipei(dateString?: string) {
   return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
 }
 
+
 onMounted(async () => {
-  await checkAdmin();
-  await loadInitialNews();
-});
+  await ensureUserRole()   // check with DB if not cached
+  await loadInitialNews()
+})
 
-async function checkAdmin() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return;
+async function ensureUserRole() {
+  if (userRole.value) return // already cached
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) return
 
-  const { data, error } = await supabase
+  const { data } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', session.user.id)
-      .single();
+      .maybeSingle()
 
-  if (!error && data && data.role === 'admin') {
-    isAdmin.value = true;
+  if (data?.role) {
+    setUserRole(data.role)
   }
 }
 
 async function loadInitialNews() {
+  loadingNews.value = true
   currentOffset = 0;
   allNews.value = [];
   displayedNews.value = [];
   allLoaded.value = false;
   await fetchNewsBatch();
+  loadingNews.value = false
 }
 
 async function fetchNewsBatch() {

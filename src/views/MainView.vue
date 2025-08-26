@@ -39,10 +39,9 @@ import {
   homeOutline, newspaperOutline, gridOutline
 } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
-import { setUserRole } from '@/composables/userProfile'
+import { setUserRole, loadUserRoleFromCache } from '@/composables/userProfile'
 
 const isAuthenticated = ref(false);
-const userRole = ref<string | null>(null);
 const isRoleLoading = ref(true);
 const profilePic = ref<string | null>(null);
 
@@ -51,7 +50,7 @@ async function checkSession() {
   isAuthenticated.value = !!session;
 
   if (!session) {
-    userRole.value = null;
+    setUserRole(null); // clear role globally
     isRoleLoading.value = false;
   }
 }
@@ -59,27 +58,23 @@ async function checkSession() {
 async function fetchUserRole() {
   isRoleLoading.value = true;
   try {
-    const user = await supabase.auth.getUser();
-    const userId = user.data.user?.id;
-    if (userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
       const { data, error } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', userId)
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (error) {
-        console.error('Failed to fetch user role:', error)
-        userRole.value = null   // ✅ update local ref
-        setUserRole(null)       // (optional) update global store
+      if (!error && data?.role) {
+        setUserRole(data.role); // ✅ update global composable
       } else {
-        userRole.value = data?.role || null   // ✅ update local ref
-        setUserRole(data?.role || null)       // (optional)
+        setUserRole(null);
       }
     }
   } catch (err) {
     console.error('Error fetching user role:', err);
-    userRole.value = null;
+    setUserRole(null);
   } finally {
     isRoleLoading.value = false;
   }
@@ -97,6 +92,7 @@ async function fetchProfilePic(session?: any) {
 }
 
 onMounted(() => {
+  loadUserRoleFromCache();  // 🟢 restore role from localStorage
   checkSession();
   fetchUserRole();
   fetchProfilePic();
@@ -107,7 +103,7 @@ onMounted(() => {
       fetchUserRole();
       fetchProfilePic(session);
     } else {
-      userRole.value = null;
+      setUserRole(null);
       isRoleLoading.value = false;
       profilePic.value = null;
     }

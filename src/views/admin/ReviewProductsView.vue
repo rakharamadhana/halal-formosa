@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <app-header
-          title="Review Submissions"
+          :title="$t('review.title')"
           :icon="listOutline"
           :showBack="true"
           backRoute="/search"
@@ -10,7 +10,27 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <ion-list v-if="pendingProducts.length">
+      <!-- Skeleton while loading -->
+      <div v-if="loadingProducts">
+        <ion-list>
+          <ion-item v-for="n in 5" :key="n">
+            <ion-thumbnail slot="start">
+              <ion-skeleton-text animated style="width: 64px; height: 64px; border-radius: 8px;" />
+            </ion-thumbnail>
+            <ion-label>
+              <h2>
+                <ion-skeleton-text animated style="width: 60%; height: 16px;" />
+              </h2>
+              <p>
+                <ion-skeleton-text animated style="width: 40%; height: 14px;" />
+              </p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </div>
+
+      <!-- Product list -->
+      <ion-list v-else-if="pendingProducts.length">
         <ion-item
             v-for="product in pendingProducts"
             :key="product.id"
@@ -19,7 +39,7 @@
             @click="openProductModal(product)"
         >
           <ion-thumbnail slot="start">
-            <img :src="product.photo_front_url" alt="Product image"/>
+            <img :src="product.photo_front_url" :alt="$t('review.imageAlt')" />
           </ion-thumbnail>
           <ion-label>
             <h2>{{ product.name }}</h2>
@@ -28,17 +48,18 @@
         </ion-item>
       </ion-list>
 
+      <!-- No pending products -->
       <ion-text v-else color="medium">
-        No pending submissions 🎉
+        {{ $t('review.noPending') }}
       </ion-text>
 
       <!-- ✅ Product Detail Modal -->
       <ion-modal :is-open="showModal" @didDismiss="closeModal">
         <ion-header>
           <ion-toolbar>
-            <ion-title>Review Product</ion-title>
+            <ion-title>{{ $t('review.modalTitle') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="closeModal">Close</ion-button>
+              <ion-button @click="closeModal">{{ $t('review.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -47,30 +68,30 @@
           <ion-list v-if="selectedProduct">
             <!-- Barcode -->
             <ion-item>
-              <ion-label position="stacked">Barcode</ion-label>
+              <ion-label position="stacked">{{ $t('review.barcode') }}</ion-label>
               <ion-input v-model="selectedProduct.barcode" readonly></ion-input>
             </ion-item>
 
             <!-- Product Name -->
             <ion-item>
-              <ion-label position="stacked">Name</ion-label>
+              <ion-label position="stacked">{{ $t('review.name') }}</ion-label>
               <ion-input v-model="selectedProduct.name"></ion-input>
             </ion-item>
 
             <!-- Status -->
             <ion-item>
-              <ion-label position="stacked">Status</ion-label>
+              <ion-label position="stacked">{{ $t('review.status') }}</ion-label>
               <ion-select v-model="selectedProduct.status" interface="popover">
-                <ion-select-option value="Halal">Halal</ion-select-option>
-                <ion-select-option value="Muslim-friendly">Muslim-friendly</ion-select-option>
-                <ion-select-option value="Syubhah">Syubhah</ion-select-option>
-                <ion-select-option value="Haram">Haram</ion-select-option>
+                <ion-select-option value="Halal">{{ $t('review.statusHalal') }}</ion-select-option>
+                <ion-select-option value="Muslim-friendly">{{ $t('review.statusMuslimFriendly') }}</ion-select-option>
+                <ion-select-option value="Syubhah">{{ $t('review.statusSyubhah') }}</ion-select-option>
+                <ion-select-option value="Haram">{{ $t('review.statusHaram') }}</ion-select-option>
               </ion-select>
             </ion-item>
 
             <!-- Category -->
             <ion-item>
-              <ion-label position="stacked">Category</ion-label>
+              <ion-label position="stacked">{{ $t('review.category') }}</ion-label>
               <ion-select v-model="selectedProduct.product_category_id" interface="popover">
                 <ion-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">
                   {{ cat.name }}
@@ -81,7 +102,7 @@
             <!-- Ingredients -->
             <div class="ion-margin-top ion-padding-horizontal">
               <ion-label class="ion-padding-bottom">
-                <strong>Ingredients</strong>
+                <strong>{{ $t('review.ingredients') }}</strong>
               </ion-label>
               <ul style="margin:0; padding-left:1.2rem">
                 <li v-for="(ing, idx) in visibleIngredients"
@@ -97,43 +118,43 @@
                     size="small"
                     @click="showAllIngredients = !showAllIngredients"
                 >
-                  {{ !showAllIngredients ? 'View More' : 'View Less' }}
+                  {{ !showAllIngredients ? $t('review.viewMore') : $t('review.viewLess') }}
                 </ion-button>
               </div>
 
               <!-- Color Legend -->
               <div v-if="usedColors.length" class="ion-margin-top ingredient-legend">
-                <p><strong>Color Legend</strong></p>
+                <p><strong>{{ $t('review.colorLegend') }}</strong></p>
                 <ion-chip
                     v-for="color in usedColors"
                     :key="color"
                     :class="colorToChipClass(color)"
                 >
-                  {{ colorLabels[color] }}
+                  {{ $t(colorLabels[color]) }}
                 </ion-chip>
               </div>
             </div>
 
-
             <!-- Description -->
             <ion-item>
-              <ion-label position="stacked">Description</ion-label>
+              <ion-label position="stacked">{{ $t('review.description') }}</ion-label>
               <ion-textarea v-model="selectedProduct.description" auto-grow></ion-textarea>
             </ion-item>
+
             <!-- Images -->
             <div class="ion-margin-top ion-padding-horizontal">
               <ion-label class="ion-padding-bottom">
-                <strong>Images</strong>
+                <strong>{{ $t('review.images') }}</strong>
               </ion-label>
               <Swiper
                   :modules="modules"
                   :slides-per-view="1"
-                  :space-between="0"
                   class="preview-swiper"
               >
                 <SwiperSlide v-if="selectedProduct.photo_front_url">
                   <img
                       :src="selectedProduct.photo_front_url"
+                      :alt="$t('review.frontImageAlt')"
                       style="width: 100%; cursor: pointer;"
                       @click="openImageModal(0)"
                   />
@@ -141,6 +162,7 @@
                 <SwiperSlide v-if="selectedProduct.photo_back_url">
                   <img
                       :src="selectedProduct.photo_back_url"
+                      :alt="$t('review.backImageAlt')"
                       style="width: 100%; cursor: pointer;"
                       @click="openImageModal(1)"
                   />
@@ -148,61 +170,60 @@
               </Swiper>
             </div>
 
-
-            <!-- ✅ Fullscreen Image Modal -->
-            <ion-modal :is-open="showImageModal" @didDismiss="closeImageModal">
-              <ion-content fullscreen>
-                <!-- Floating Close Button -->
-                <ion-button
-                    fill="solid"
-                    color="carrot"
-                    style="position: absolute; top: 16px; right: 16px; z-index: 9999;"
-                    @click="closeImageModal"
-                >
-                  ✕
-                </ion-button>
-
-                <!-- Swiper Gallery -->
-                <Swiper
-                    v-if="selectedProduct"
-                    :modules="modules"
-                    :zoom="true"
-                    :slides-per-view="1"
-                    :pagination="{ clickable: true }"
-                    :initial-slide="activeImageIndex"
-                    class="fullscreen-swiper"
-                >
-                  <SwiperSlide v-if="selectedProduct.photo_front_url">
-                    <div class="swiper-zoom-container">
-                      <img :src="selectedProduct.photo_front_url" alt="Front Image" />
-                    </div>
-                  </SwiperSlide>
-                  <SwiperSlide v-if="selectedProduct.photo_back_url">
-                    <div class="swiper-zoom-container">
-                      <img :src="selectedProduct.photo_back_url" alt="Back Image" />
-                    </div>
-                  </SwiperSlide>
-                </Swiper>
-              </ion-content>
-            </ion-modal>
-
-
             <!-- Approve / Reject buttons -->
             <div style="margin-top: 20px; display: flex; gap: 12px;">
               <ion-button expand="block" color="success" @click="approveProduct(selectedProduct)">
-                Approve & Save
+                {{ $t('review.approve') }}
               </ion-button>
               <ion-button expand="block" color="danger" @click="rejectProduct(selectedProduct.id)">
-                Reject
+                {{ $t('review.reject') }}
               </ion-button>
             </div>
           </ion-list>
         </ion-content>
-      </ion-modal>
 
+        <!-- ✅ Fullscreen Image Modal -->
+        <ion-modal :is-open="showImageModal" @didDismiss="closeImageModal">
+          <ion-content fullscreen>
+            <!-- Floating Close Button -->
+            <ion-button
+                fill="solid"
+                color="carrot"
+                style="position: absolute; top: 16px; right: 16px; z-index: 9999;"
+                @click="closeImageModal"
+            >
+              ✕
+            </ion-button>
+
+            <!-- Swiper Gallery -->
+            <Swiper
+                v-if="selectedProduct"
+                :modules="modules"
+                :zoom="true"
+                :slides-per-view="1"
+                :pagination="{ clickable: true }"
+                :initial-slide="activeImageIndex"
+                class="fullscreen-swiper"
+            >
+              <SwiperSlide v-if="selectedProduct.photo_front_url">
+                <div class="swiper-zoom-container">
+                  <img :src="selectedProduct.photo_front_url" :alt="$t('review.frontImageAlt')" />
+                </div>
+              </SwiperSlide>
+              <SwiperSlide v-if="selectedProduct.photo_back_url">
+                <div class="swiper-zoom-container">
+                  <img :src="selectedProduct.photo_back_url" :alt="$t('review.backImageAlt')" />
+                </div>
+              </SwiperSlide>
+            </Swiper>
+          </ion-content>
+        </ion-modal>
+
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
+
 
 
 <script setup lang="ts">
@@ -248,6 +269,7 @@ const activeImageIndex = ref(0)
 const ingredientDictionary = ref<Record<string, string>>({})
 const showAllIngredients = ref(false)
 const maxVisible = 5
+const loadingProducts = ref(true) // new state
 
 // Ingredient entry type
 interface IngredientEntry {
@@ -343,6 +365,7 @@ function closeImageModal() {
 }
 
 async function loadPendingProducts() {
+  loadingProducts.value = true
   const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -352,6 +375,7 @@ async function loadPendingProducts() {
   if (!error && data) {
     pendingProducts.value = data
   }
+  loadingProducts.value = false
 }
 
 function openProductModal(product: any) {

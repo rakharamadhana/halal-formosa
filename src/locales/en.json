@@ -194,5 +194,56 @@
     "submitting": "Submitting product...",
     "submitSuccess": "Product submitted successfully!",
     "ocrSuccess": "✅ Ingredients successfully extracted!"
+  },
+  "addPlace": {
+    "title": "Add New Place",
+    "noPermission": "You don’t have permission to add places. Please contact an admin.",
+    "nameLabel": "Place Name *",
+    "namePlaceholder": "e.g., Taipei Grand Mosque",
+    "typeLabel": "Type *",
+    "typePlaceholder": "Select a type",
+    "imageLabel": "Image *",
+    "latLabel": "Latitude *",
+    "lngLabel": "Longitude *",
+    "mapHint": "Tap on the map to set coordinates",
+    "saveBtn": "Save Place",
+    "toast": {
+      "pleaseImage": "Please select an image.",
+      "tooLarge": "Image still too large after compression.",
+      "processError": "Could not process image.",
+      "saved": "Place saved!",
+      "failed": "Failed to save."
+    }
+  },
+  "review": {
+    "title": "Review Submissions",
+    "noPending": "No pending submissions 🎉",
+    "modalTitle": "Review Product",
+    "close": "Close",
+    "barcode": "Barcode",
+    "name": "Name",
+    "status": "Status",
+    "statusHalal": "Halal",
+    "statusMuslimFriendly": "Muslim-friendly",
+    "statusSyubhah": "Syubhah",
+    "statusHaram": "Haram",
+    "category": "Category",
+    "ingredients": "Ingredients",
+    "viewMore": "View More",
+    "viewLess": "View Less",
+    "colorLegend": "Color Legend",
+    "description": "Description",
+    "images": "Images",
+    "approve": "Approve & Save",
+    "reject": "Reject",
+    "imageAlt": "Product image",
+    "frontImageAlt": "Front Image",
+    "backImageAlt": "Back Image",
+    "colorLabels": {
+      "--ion-color-success": "Halal",
+      "--ion-color-primary": "Muslim-friendly",
+      "--ion-color-warning": "Syubhah",
+      "--ion-color-danger": "Haram"
+    }
   }
 }

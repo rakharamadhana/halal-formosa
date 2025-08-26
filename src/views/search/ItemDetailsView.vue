@@ -9,8 +9,64 @@
 
     <ion-content>
       <div v-if="loading">
-        <ion-skeleton-text animated style="width:100%;height:200px" />
-        <ion-skeleton-text animated style="width:70%;height:20px;margin-top:10px" />
+        <!-- Image carousel skeleton -->
+        <ion-skeleton-text
+            animated
+            style="width: 100%; height: 300px;"
+        />
+
+        <div class="ion-padding-horizontal">
+          <!-- Title -->
+          <ion-skeleton-text
+              animated
+              style="width: 70%; height: 22px; margin-top: 16px;"
+          />
+          <!-- Barcode -->
+          <ion-skeleton-text
+              animated
+              style="width: 40%; height: 16px; margin-top: 8px;"
+          />
+
+          <!-- Status chip -->
+          <ion-skeleton-text
+              animated
+              style="width: 100%; height: 40px; border-radius: 5px; margin-top: 16px;"
+          />
+
+          <!-- Description header + text -->
+          <ion-skeleton-text
+              animated
+              style="width: 50%; height: 16px; margin-top: 20px;"
+          />
+          <ion-skeleton-text
+              animated
+              style="width: 90%; height: 14px; margin-top: 8px;"
+          />
+          <ion-skeleton-text
+              animated
+              style="width: 85%; height: 14px; margin-top: 4px;"
+          />
+
+          <!-- Ingredients header + list -->
+          <ion-skeleton-text
+              animated
+              style="width: 60%; height: 16px; margin-top: 20px;"
+          />
+          <div style="margin-top: 8px;">
+            <ion-skeleton-text
+                v-for="n in 4"
+                :key="n"
+                animated
+                style="width: 90%; height: 14px; margin-bottom: 6px;"
+            />
+          </div>
+
+          <!-- Action buttons -->
+          <ion-skeleton-text
+              animated
+              style="width: 100%; height: 44px; border-radius: 4px; margin-top: 12px;"
+          />
+        </div>
       </div>
 
       <div v-else-if="item">
@@ -434,4 +490,16 @@ onMounted(async () => {
   max-height: 100%;
   object-fit: contain;
 }
+
+ion-skeleton-text {
+  --background: linear-gradient(90deg, #e0e0e0 25%, #f2f2f2 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 </style>

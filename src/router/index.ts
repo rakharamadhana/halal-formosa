@@ -6,6 +6,7 @@ import { supabase } from '@/plugins/supabaseClient';
 import SearchView from '@/views/search/SearchView.vue';
 import ExploreView from '@/views/explore/ExploreView.vue';
 import ScanIngredientsView from '@/views/scan/ScanIngredientsView.vue';
+import { isAdmin, isContributor } from '@/composables/userProfile'
 
 const routes: Array<RouteRecordRaw> = [
     {
@@ -22,11 +23,11 @@ const routes: Array<RouteRecordRaw> = [
         ],
     },
     { path: '/item/:barcode', name: 'item-details', component: () => import('@/views/search/ItemDetailsView.vue'), meta: { noAds: true } },
-    { path: '/scan', component: ScanIngredientsView, meta: { noAds: true } },
+    { path: '/scan', component: ScanIngredientsView, meta: { requiresAuth: true, noAds: true } },
     { path: '/news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), props: true, meta: { adSpaceId: 'ad-space-news-detail', adId: import.meta.env.VITE_ADMOB_NEWS_BANNER_ID } },
     { path: '/news/add', component: () => import('@/views/news/AddNewsView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
-    { path: '/news/edit/:id', component: () => import('@/views/news/AddNewsView.vue') },
-    { path: '/explore/add', name: 'ExploreAdd', component: () => import('@/views/explore/AddPlaceView.vue') },
+    { path: '/news/edit/:id', component: () => import('@/views/news/AddNewsView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/explore/add', name: 'ExploreAdd', component: () => import('@/views/explore/AddPlaceView.vue'), meta: { requiresAuth: true } },
     { path: '/report/:barcode', name: 'report', component: () => import('@/views/search/ReportView.vue'), meta: { requiresAuth: true }, props: true },
     { path: '/settings', component: () => import('@/views/profile/SettingsView.vue') },
     { path: '/legal', component: () => import('@/views/legal/LegalView.vue') },
@@ -47,47 +48,21 @@ const router = createRouter({
 
 // ✅ Cleaner guard
 router.beforeEach(async (to, from, next) => {
-    const publicRoutes = new Set([
-        '/login',
-        '/signup',
-        '/search',
-        '/explore',
-        '/profile',
-        '/settings',
-        '/legal',
-        '/credits',
-        '/home',
-        '/news'
-    ]);
 
-    const isPublic =
-        publicRoutes.has(to.path) ||
-        to.path.startsWith('/news/') || // dynamic news pages
-        to.name === 'item-details';     // named route
+    const { data: { session } } = await supabase.auth.getSession()
 
-    const { data: { session } } = await supabase.auth.getSession();
-
-    // 🚫 Auth required but not logged in → redirect to login with redirect param
-    if (!isPublic && !session) {
+    // 🚫 Needs auth but not logged in
+    if (to.meta.requiresAuth && !session) {
         return next({
             path: '/login',
             query: { redirect: to.fullPath }
-        });
+        })
     }
 
-    // 🔐 Admin check only when meta.requiresAdmin is true
-    if (to.meta.requiresAdmin) {
-        const { data, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session?.user.id)
-            .maybeSingle();
-
-        if (error || !data || data.role !== 'admin') {
-            return next('/home');
-        }
+    // 🔐 Admin/Contributor-only routes
+    if (to.meta.requiresAdmin && !(isAdmin.value || isContributor.value)) {
+        return next('/home')
     }
-
 
     next();
 });
