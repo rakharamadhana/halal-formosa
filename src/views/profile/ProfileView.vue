@@ -155,7 +155,7 @@
             </ion-item>
             <ion-item>
               <ion-label>{{ $t('profile.appVersion') }}</ion-label>
-              <ion-note slot="end">1.2.2</ion-note>
+              <ion-note slot="end">{{ appVersion }}</ion-note>
             </ion-item>
           </ion-list>
         </ion-card-content>
@@ -168,6 +168,9 @@
 import {onBeforeUnmount, onMounted, ref} from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
+
+// @ts-expect-error – because define() injects globals
+const appVersion = __APP_VERSION__
 
 // ✅ Ionic components
 import {
@@ -209,7 +212,6 @@ const userAvatar = ref('')
 const router = useRouter()
 const pendingCount = ref(0)
 const loading = ref(true)
-
 
 let authSubscription: Subscription | null = null  // 👈 correct type
 
