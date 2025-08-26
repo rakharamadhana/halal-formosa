@@ -284,7 +284,6 @@ import {
   CapacitorBarcodeScannerAndroidScanningLibrary,
   CapacitorBarcodeScannerCameraDirection,
   CapacitorBarcodeScannerScanOrientation,
-  CapacitorBarcodeScannerTypeHintALLOption
 } from '@capacitor/barcode-scanner'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 
@@ -303,6 +302,7 @@ import { userRole, setUserRole } from '@/composables/userProfile'
 const { errorMsg, setError } = useError()
 
 import type { Product } from '@/types/Product'
+import {Html5QrcodeSupportedFormats} from "html5-qrcode";
 
 // props
 const props = defineProps<{
@@ -940,13 +940,26 @@ async function startBarcodeScan() {
 
   try {
     const result = await CapacitorBarcodeScanner.scanBarcode({
-      hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
+      hint: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+      ],
+
       scanInstructions: 'Align the barcode within the frame',
       cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
       scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
-      android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
-      web: { showCameraSelection: true, scannerFPS: 15 }
-    })
+
+      android: {
+        scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT,
+      },
+
+      web: {
+        showCameraSelection: true,
+        scannerFPS: 15,
+      },
+    });
 
     if (result?.ScanResult) {
       await Haptics.impact({ style: ImpactStyle.Medium })  // small vibration

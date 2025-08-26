@@ -187,7 +187,7 @@ import {
   IonIcon,
   IonText,
   IonNote,
-  IonBadge, onIonViewWillEnter,
+  IonBadge, IonSkeletonText
 } from '@ionic/vue'
 
 // ✅ Icons
