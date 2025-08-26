@@ -1,7 +1,12 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header :title="$t('addProduct.title')" :icon="addOutline" :showProfile="true" />
+      <app-header
+          :title="props.editProduct ? $t('addProduct.editTitle') : $t('addProduct.title')"
+          :icon="addOutline"
+          :showProfile="true"
+          show-back
+      />
     </ion-header>
 
     <ion-content class="ion-padding" >
@@ -38,7 +43,6 @@
                   :label="$t('addProduct.barcode')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.barcodePlaceholder')"
-                  @ionInput="onBarcodeInput"
               ></ion-input>
 
               <ion-icon
@@ -203,7 +207,9 @@
         </div>
 
         <ion-button expand="block" type="submit" class="ion-margin-top" color="carrot" :disabled="loading">
-          {{ loading ? $t('addProduct.submitting') : $t('addProduct.submit') }}
+          {{ loading
+            ? $t('addProduct.submitting')
+            : (props.editProduct ? $t('addProduct.update') : $t('addProduct.submit')) }}
         </ion-button>
 
         <ion-spinner id="spinner" name="dots" v-if="loading" class="ion-text-center ion-margin-top"></ion-spinner>
@@ -270,7 +276,7 @@ import {
     IonAccordionGroup, IonNote
 } from '@ionic/vue';
 import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline, checkmarkCircle, closeCircle,} from 'ionicons/icons';
-import {nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -292,8 +298,16 @@ import AppHeader from "@/components/AppHeader.vue";
 import useHighlightCache from '@/composables/useHighlightCache'
 import useOcrPipeline from '@/composables/useOcrPipeline'
 import useError from '@/composables/useError'
+import { userRole, setUserRole } from '@/composables/userProfile'
 
 const { errorMsg, setError } = useError()
+
+import type { Product } from '@/types/Product'
+
+// props
+const props = defineProps<{
+  editProduct?: Product
+}>()
 
 // highlight + OCR pipeline
 const { allHighlights, blacklistPatterns, fetchHighlightsWithCache, incrementUsageCount } =
@@ -328,6 +342,19 @@ onMounted(async () => {
   }
   if (!blacklistResult.error && blacklistResult.data) {
     blacklistPatterns.value = blacklistResult.data.map((row) => new RegExp(row.pattern, 'i'));
+  }
+
+  if (props.editProduct) {
+    form.value = {
+      barcode: props.editProduct.barcode,
+      name: props.editProduct.name,
+      status: props.editProduct.status,
+      product_category_id: props.editProduct.product_category_id ?? null,
+      ingredients: props.editProduct.ingredients ?? '',
+      description: props.editProduct.description ?? ''
+    }
+    frontPreview.value = props.editProduct.photo_front_url ?? null
+    backPreview.value = props.editProduct.photo_back_url ?? null
   }
 
   // force fetch highlights & blacklist from DB and save to cache
@@ -419,8 +446,6 @@ watch(() => form.value.status, (newStatus) => {
   nextTick(() => { programmaticDescUpdate.value = false })
   userTouchedDescription.value = false
 })
-
-
 
 
 const autoStatusApplied = ref(false)
@@ -840,38 +865,38 @@ async function runOcrOnFile(file: File) {
   showOcrToast.value = true;
 }
 
-async function onBarcodeInput(event: CustomEvent) {
-  const rawValue = (event.detail?.value as string) || ''
-  let numericValue = rawValue.replace(/\D/g, '')
-  if (numericValue.length > 14) numericValue = numericValue.slice(0, 14)
+watch(() => form.value.barcode, async (newVal) => {
+  if (!newVal) {
+    barcodeValid.value = null
+    barcodeMessage.value = ''
+    return
+  }
 
-  form.value.barcode = numericValue
-  event.target && ((event.target as HTMLIonInputElement).value = numericValue)
-
-  if (numericValue.length >= 8) {
-    // 🟢 1. Check existence in DB first
+  if (newVal.length >= 8) {
     const { data, error } = await supabase
         .from("products")
-        .select("id")
-        .eq("barcode", numericValue)
+        .select("id, barcode")
+        .eq("barcode", newVal)
         .limit(1)
 
     if (!error && data && data.length > 0) {
-      barcodeValid.value = false
-      barcodeMessage.value = "❌ This barcode already exists in the database."
-      return   // 🚫 stop here, no need to run format validation
+      // 🟢 allow if this is the same product we’re editing
+      if (props.editProduct && data[0].id === props.editProduct.id) {
+        const result = validateBarcode(newVal)
+        barcodeValid.value = result.isValid
+        barcodeMessage.value = result.message
+      } else {
+        barcodeValid.value = false
+        barcodeMessage.value = "❌ This barcode already exists in the database."
+      }
+    } else {
+      const result = validateBarcode(newVal)
+      barcodeValid.value = result.isValid
+      barcodeMessage.value = result.message
     }
-
-    // 🟢 2. If not in DB, validate format/check digit
-    const result = validateBarcode(numericValue)
-    barcodeValid.value = result.isValid
-    barcodeMessage.value = result.message
-
-  } else {
-    barcodeValid.value = null
-    barcodeMessage.value = ""
   }
-}
+})
+
 
 function onProductNameInput(event: Event) {
   const input = event.target as HTMLTextAreaElement;
@@ -931,8 +956,8 @@ async function startBarcodeScan() {
       console.warn('⚠️ Scan finished but no barcode detected')
     }
   } catch (err: any) {
-    console.error('❌ Barcode scan failed:', err);
-    setError('❌ Barcode scan failed: ' + (err.message || 'Unknown error'));
+    console.error('❌ Barcode scan failed:', JSON.stringify(err, null, 2));
+    setError('❌ Barcode scan failed: ' + (err.message || JSON.stringify(err)));
   } finally {
     scanning.value = false
     console.log('🛑 Scanning session ended')
@@ -1125,6 +1150,8 @@ function calculateCheckDigit(digits: number[]) {
 
 
 async function handleSubmit() {
+
+  const autoApprove = ['admin', 'contributor'].includes(userRole.value || 'user')
   loading.value = true
   errorMsg.value = ''
   showErrorToast.value = false
@@ -1136,6 +1163,15 @@ async function handleSubmit() {
       loading.value = false
       return
     }
+
+    // fetch role from profiles table
+    const { data: profile } = await supabase
+        .from('user_roles')  // or 'profiles'
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    setUserRole(profile?.role || 'user')
 
     const {
       barcode
@@ -1178,20 +1214,21 @@ async function handleSubmit() {
       return;
     }
 
-    if (!frontFile.value) {
+    if (!props.editProduct && !frontFile.value) {
       setError('Front image is required.')
-      loading.value = false;
-      return;
+      loading.value = false
+      return
     }
 
-    if (!backFile.value) {
+    if (!props.editProduct && !backFile.value) {
       setError('Back image is required.')
-      loading.value = false;
-      return;
+      loading.value = false
+      return
     }
 
-    let frontUrl = ''
-    let backUrl = ''
+
+    let frontUrl = props.editProduct?.photo_front_url || ''
+    let backUrl  = props.editProduct?.photo_back_url || ''
 
     if (frontFile.value) {
       const {
@@ -1243,46 +1280,63 @@ async function handleSubmit() {
       console.log('Back image uploaded:', backUrl)
     }
 
-    const {
-      error: insertError
-    } = await supabase.from('products').insert([{
-      ...form.value,
-      photo_front_url: frontUrl,
-      photo_back_url: backUrl,
-      added_by: user.id, // ✅ Fill with current user's ID
-      created_at: new Date().toISOString(),
-    }])
+    if (props.editProduct) {
+      // update existing
+      const { error } = await supabase.from('products').update({
+        ...form.value,
+        photo_front_url: frontUrl,
+        photo_back_url: backUrl,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+        approved: autoApprove ? true : props.editProduct?.approved
+      }).eq('id', props.editProduct.id)
 
-    if (insertError) throw insertError
+      if (error) throw error
+      toastMessage.value = '✅ Product updated successfully!'
+    } else {
+      // 🟢 INSERT new
+      const { error } = await supabase.from('products').insert([{
+        ...form.value,
+        photo_front_url: frontUrl,
+        photo_back_url: backUrl,
+        added_by: user.id,
+        approved: autoApprove,
+        created_at: new Date().toISOString(),
+      }])
+      if (error) throw error
+      toastMessage.value = autoApprove
+          ? '✅ Product published successfully!'
+          : '✅ Product submitted and awaiting approval.'
 
-    console.log('Product inserted successfully')
-    toastMessage.value = 'Product submitted successfully!'
-    showToast.value = true
+      isResettingForm.value = true
 
-    isResettingForm.value = true
+      form.value = {
+        barcode: '',
+        name: '',
+        status: 'Muslim-friendly',
+        product_category_id: null,
+        ingredients: '',
+        description: ''
+      }
 
-    form.value = {
-      barcode: '',
-      name: '',
-      status: 'Muslim-friendly',
-      product_category_id: null,
-      ingredients: '',
-      description: ''
+      nextTick(() => {
+        isResettingForm.value = false
+      })
+
+      frontFile.value = null
+      backFile.value = null
+      frontPreview.value = null
+      backPreview.value = null
+      ingredientHighlights.value = []
+
+      // ✅ Reset barcode checks
+      barcodeValid.value = null
+      barcodeMessage.value = ''
     }
 
-    nextTick(() => {
-      isResettingForm.value = false
-    })
 
-    frontFile.value = null
-    backFile.value = null
-    frontPreview.value = null
-    backPreview.value = null
-    ingredientHighlights.value = []
-
-    // ✅ Reset barcode checks
-    barcodeValid.value = null
-    barcodeMessage.value = ''
+    console.log('Product inserted successfully')
+    showToast.value = true
 
   } catch (err: any) {
     console.error('Submission error:', err)

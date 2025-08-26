@@ -19,25 +19,26 @@
             v-if="item.photo_front_url || item.photo_back_url"
             :modules="modules"
             :scrollbar="true"
-            :zoom="true"
             :slides-per-view="1"
             :pagination="{ clickable: true }"
             class="product-swiper"
         >
-          <SwiperSlide  v-if="item.photo_front_url">
+          <SwiperSlide v-if="item.photo_front_url">
             <img
                 :src="item.photo_front_url"
                 alt="Front Image"
-                style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
+                style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                @click="openImageModal(0)"
             />
-          </SwiperSlide >
-          <SwiperSlide  v-if="item.photo_back_url">
+          </SwiperSlide>
+          <SwiperSlide v-if="item.photo_back_url">
             <img
                 :src="item.photo_back_url"
                 alt="Back Image"
-                style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
+                style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                @click="openImageModal(1)"
             />
-          </SwiperSlide >
+          </SwiperSlide>
         </Swiper>
 
         <!-- Details below the slider -->
@@ -92,6 +93,23 @@
             </ion-chip>
           </div>
 
+          <ion-button
+              v-if="isAdmin && item"
+              expand="block"
+              color="carrot"
+              class="ion-margin-top"
+              @click="openEditModal"
+          >
+            {{ $t('search.details.edit') }}
+          </ion-button>
+
+          <!-- 🟠 Admin Edit Modal -->
+          <ion-modal :is-open="showEditModal" @didDismiss="closeEditModal">
+            <AddProductView
+                :edit-product="item!"
+                @close="closeEditModal"
+            />
+          </ion-modal>
 
           <ion-button
               v-if="item"
@@ -106,13 +124,49 @@
       </div>
       <p v-else class="ion-text-center ion-margin-top">❌ {{ $t('search.details.no-item') }}</p>
     </ion-content>
+
+    <!-- 🟢 Fullscreen Image Modal -->
+    <ion-modal :is-open="showImageModal" @didDismiss="closeImageModal">
+      <ion-content fullscreen>
+        <!-- Floating Close Button -->
+        <ion-button
+            fill="solid"
+            color="carrot"
+            style="position: absolute; top: 16px; right: 16px; z-index: 9999;"
+            @click="closeImageModal"
+        >
+          ✕
+        </ion-button>
+
+        <!-- Swiper Gallery with Zoom -->
+        <Swiper
+            :modules="[Pagination, Zoom]"
+            :zoom="true"
+            :slides-per-view="1"
+            :pagination="{ clickable: true }"
+            :initial-slide="activeImageIndex"
+            class="fullscreen-swiper"
+        >
+          <SwiperSlide v-if="item!.photo_front_url">
+            <div class="swiper-zoom-container">
+              <img :src="item!.photo_front_url" alt="Front Image" />
+            </div>
+          </SwiperSlide>
+          <SwiperSlide v-if="item!.photo_back_url">
+            <div class="swiper-zoom-container">
+              <img :src="item!.photo_back_url" alt="Back Image" />
+            </div>
+          </SwiperSlide>
+        </Swiper>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import {
   IonPage,
-  IonContent, IonSkeletonText, IonChip, IonButton
+  IonContent, IonSkeletonText, IonChip, IonButton, IonHeader, IonModal,
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
 import { useRoute } from 'vue-router'
@@ -126,7 +180,9 @@ import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
 import {bagOutline} from "ionicons/icons";
+import AddProductView from "@/views/add-product/AddProductView.vue";
 
+const showEditModal = ref(false)
 const route = useRoute()
 const barcode = route.params.barcode as string
 
@@ -139,22 +195,31 @@ const maxVisible = 5
 
 const ingredientDictionary = ref<Record<string, string>>({});
 
-interface Product {
-  barcode: string
-  name: string
-  status: string
-  ingredients?: string
-  description?: string
-  photo_front_url?: string
-  photo_back_url?: string
-  created_at?: string
-}
+import type { Product } from '@/types/Product'
 
 const item = ref<Product | null>(null)
+const showImageModal = ref(false)
+const activeImageIndex = ref(0)
 
 // If this page should show ads (set meta accordingly), keep this true and include the slot.
 // If you used meta:{noAds:true} you can leave the slot out and keep showAds = false.
 const showAds = false // set true only if meta.adSpaceId is configured
+
+function openImageModal(index: number) {
+  activeImageIndex.value = index
+  showImageModal.value = true
+}
+function closeImageModal() {
+  showImageModal.value = false
+}
+
+function openEditModal() {
+  showEditModal.value = true
+}
+
+function closeEditModal() {
+  showEditModal.value = false
+}
 
 function statusToChipClass(status: string): string {
   switch (status) {
@@ -272,18 +337,33 @@ function colorToChipClass(color: string): string {
   }
 }
 
+const isAdmin = ref(false)
 
 onMounted(async () => {
   loading.value = true
   try {
-    const [prodRes, hlRes] = await Promise.all([
+    const [{ data: { user } }, prodRes, hlRes] = await Promise.all([
+      supabase.auth.getUser(),   // 🟢 check current user
       supabase.from('products')
           .select('*')
           .eq('barcode', barcode)
-          .maybeSingle(), // avoids throwing when 0 rows
+          .maybeSingle(),
       supabase.from('ingredient_highlights')
           .select('keyword, color')
     ])
+
+    // 🟢 If logged in, check role
+    if (user) {
+      const { data: roleRow, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+      if (!roleError && roleRow?.role === 'admin') {
+        isAdmin.value = true
+      }
+    }
 
     // product
     if (prodRes.error) {
@@ -302,11 +382,11 @@ onMounted(async () => {
     }
   } finally {
     loading.value = false
-    // let the page paint, then ask the global banner scheduler to realign
     await nextTick()
     ;(window as any).scheduleBannerUpdate?.()
   }
 })
+
 
 </script>
 
@@ -329,4 +409,29 @@ onMounted(async () => {
   color: var(--ion-color-medium);
 }
 
+.fullscreen-swiper,
+.fullscreen-swiper .swiper-slide,
+.fullscreen-swiper .swiper-zoom-container {
+  width: 100%;
+  height: 100%;
+}
+
+.fullscreen-swiper .swiper-slide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: black;
+}
+
+.fullscreen-swiper .swiper-zoom-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.fullscreen-swiper img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
 </style>

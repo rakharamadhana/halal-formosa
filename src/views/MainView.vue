@@ -24,15 +24,6 @@
           <ion-icon :icon="newspaperOutline" />
           <ion-label>{{ $t('main.news') }}</ion-label>
         </ion-tab-button>
-
-        <ion-tab-button
-            v-if="!isRoleLoading && userRole === 'admin'"
-            tab="add"
-            href="/add"
-        >
-          <ion-icon :icon="cameraOutline" />
-          <ion-label>{{ $t('main.add') }}</ion-label>
-        </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
   </ion-page>
@@ -44,11 +35,11 @@ import {
   IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonRouterOutlet, IonPage
 } from '@ionic/vue';
 import {
-  cameraOutline,
   compassOutline,
   homeOutline, newspaperOutline, gridOutline
 } from 'ionicons/icons';
 import { supabase } from '@/plugins/supabaseClient';
+import { setUserRole } from '@/composables/userProfile'
 
 const isAuthenticated = ref(false);
 const userRole = ref<string | null>(null);
@@ -68,8 +59,8 @@ async function checkSession() {
 async function fetchUserRole() {
   isRoleLoading.value = true;
   try {
-    const user = supabase.auth.getUser();
-    const userId = (await user).data.user?.id;
+    const user = await supabase.auth.getUser();
+    const userId = user.data.user?.id;
     if (userId) {
       const { data, error } = await supabase
           .from('user_roles')
@@ -78,10 +69,12 @@ async function fetchUserRole() {
           .single();
 
       if (error) {
-        console.error('Failed to fetch user role:', error);
-        userRole.value = null;
+        console.error('Failed to fetch user role:', error)
+        userRole.value = null   // ✅ update local ref
+        setUserRole(null)       // (optional) update global store
       } else {
-        userRole.value = data?.role || null;
+        userRole.value = data?.role || null   // ✅ update local ref
+        setUserRole(data?.role || null)       // (optional)
       }
     }
   } catch (err) {

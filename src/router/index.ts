@@ -33,6 +33,11 @@ const routes: Array<RouteRecordRaw> = [
     { path: '/credits', component: () => import('@/views/profile/CreditsView.vue') },
     { path: '/signup', component: () => import('@/views/auth/SignUpView.vue') },
     { path: '/login', component: () => import('@/views/auth/LoginView.vue') },
+    {
+        path: '/admin/review-products',
+        component: () => import('@/views/admin/ReviewProductsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+    }
 ];
 
 const router = createRouter({
@@ -82,6 +87,7 @@ router.beforeEach(async (to, from, next) => {
             return next('/home');
         }
     }
+
 
     next();
 });

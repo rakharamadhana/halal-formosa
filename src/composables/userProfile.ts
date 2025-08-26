@@ -2,6 +2,8 @@ import { ref, computed } from 'vue';
 
 export const isDonor = ref(false);
 export const donorType = ref('Free');
+export const userRole = ref<string | null>(null)   // 👈 role from DB
+export const isAdmin = computed(() => userRole.value === 'admin') // 👈 derived
 
 // Helpers to set values
 export function setDonorStatus(value: boolean) {
@@ -39,3 +41,19 @@ export const donorBadge = computed(() => {
     // Fallback to "Free" if type not found
     return map[donorType.value] || map.Free;
 });
+
+export function setUserRole(value: string | null) {
+    userRole.value = value
+    if (value) {
+        localStorage.setItem('user_role', value)
+    } else {
+        localStorage.removeItem('user_role')
+    }
+}
+
+export function loadUserRoleFromCache() {
+    const storedRole = localStorage.getItem('user_role')
+    if (storedRole) {
+        userRole.value = storedRole
+    }
+}

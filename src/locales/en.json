@@ -103,6 +103,7 @@
       "viewMore": "View All",
       "viewLess": "View Short",
       "colorLegend": "Color Legend",
+      "edit": "✏\uFE0F Edit Product",
       "legend": {
         "halal": "Certified halal ingredient",
         "muslimFriendly": "Permissible ingredient, but no halal certification",
@@ -140,6 +141,7 @@
     "donor": "Donor Status",
     "noUserLogged": "No user logged in",
     "login": "Login",
+    "review": "Product Review",
     "settings": "Settings",
     "legal": "Legal",
     "credits": "Credits & Contributor",
@@ -165,6 +167,7 @@
   },
   "addProduct": {
     "title": "Add Product",
+    "editTitle": "Edit Product",
     "cropIngredients": "Crop Ingredients",
     "done": "Done",
     "processingOcr": "Processing OCR...",
@@ -187,6 +190,7 @@
     "frontImage": "Front Image *",
     "backImage": "Back Image *",
     "submit": "Submit",
+    "update": "Update",
     "submitting": "Submitting product...",
     "submitSuccess": "Product submitted successfully!",
     "ocrSuccess": "✅ Ingredients successfully extracted!"

@@ -606,8 +606,6 @@ onMounted(async () => {
   console.log('isNative?', isNative.value); // should be false in browser
   if (!isNative.value) {
     await nextTick();
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
-    catch (e) { console.warn('AdSense push error:', e); }
   }
 });
 

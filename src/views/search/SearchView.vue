@@ -167,16 +167,28 @@
       </div>
 
       <!-- bind the ref so we can disable/enable it -->
-      <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
+      <ion-infinite-scroll
+          ref="infiniteScroll"
+          @ionInfinite="loadMore"
+          threshold="100px"
+          :disabled="infiniteDisabled"
+      >
         <ion-infinite-scroll-content
             loading-spinner="bubbles"
-            loading-text="Loading more products...">
-        </ion-infinite-scroll-content>
+            loading-text="Loading more products..."
+        />
       </ion-infinite-scroll>
 
       <ion-text color="danger" v-if="errorMsg" class="ion-padding">
         ❌ {{ errorMsg }}
       </ion-text>
+
+      <!-- 🟠 FAB Add Product (only for admins) -->
+      <ion-fab v-if="isAuthenticated" vertical="bottom" horizontal="end" slot="fixed">
+        <ion-fab-button color="carrot" @click="goToAddProduct">
+          <ion-icon :icon="addOutline" />
+        </ion-fab-button>
+      </ion-fab>
     </ion-content>
 
     <ion-footer >
@@ -199,13 +211,13 @@ import {
   IonPage, IonHeader, IonContent, IonSearchbar, IonText, IonModal, IonToolbar, IonButton, IonIcon, IonFooter, IonChip,
   IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher, IonRefresherContent,
   IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
-  onIonViewWillEnter, onIonViewDidEnter, modalController, IonLabel
+  onIonViewWillEnter, onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton
 } from '@ionic/vue'
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
 import {
-  barcodeOutline, chevronDownCircleOutline, gridOutline
+  barcodeOutline, chevronDownCircleOutline, gridOutline, addOutline
 } from 'ionicons/icons'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -244,6 +256,8 @@ interface Product {
 /* ---------------- State ---------------- */
 const router = useRouter()
 const route = useRoute()
+const infiniteDisabled = ref(false)
+const isAuthenticated = ref(false)
 
 const totalProductsCount = ref(0)
 const allProducts = ref<Product[]>([])
@@ -360,7 +374,8 @@ const fetchProducts = async (reset = false) => {
 
     let query = supabase
         .from("products")
-        .select("*, product_categories(name)", { count: "exact" }) // join category
+        .select("*, product_categories(name)", { count: "exact" })
+        .eq("approved", true)   // ✅ only approved products
 
     if (activeCategory.value) {
       query = query.eq("product_category_id", activeCategory.value.id)
@@ -376,7 +391,13 @@ const fetchProducts = async (reset = false) => {
       errorMsg.value = error.message
     } else {
       if (reset) totalProductsCount.value = count || 0
-      if (!data || data.length < pageSize) allLoaded.value = true
+
+      if (!data || data.length < pageSize) {
+        allLoaded.value = true
+        infiniteDisabled.value = true   // ✅ disable infinite scroll
+      } else {
+        infiniteDisabled.value = false  // ✅ enable infinite scroll for more pages
+      }
 
       allProducts.value = reset ? (data || []) : [...allProducts.value, ...(data || [])]
       results.value = [...allProducts.value]
@@ -417,6 +438,11 @@ const openDetails = (product: Product) => {
   router.push({path: `/item/${product.barcode}`})
 }
 
+
+function goToAddProduct() {
+  router.push('/add')
+}
+
 function getStatusClass(status: string) {
   switch (status) {
     case 'Halal': return 'status-halal'
@@ -437,12 +463,8 @@ const loadMore = async (event: Event) => {
 async function refreshList(event: CustomEvent) {
   try {
     await nextTick()
+    infiniteDisabled.value = false   // ✅ reactive instead of mutating prop
 
-    if (infiniteScroll.value) {
-      infiniteScroll.value.disabled = false
-    }
-
-    // let each function handle its own error
     await Promise.all([
       fetchProducts(true),
       fetchTotalCount(),
@@ -453,8 +475,16 @@ async function refreshList(event: CustomEvent) {
   }
 }
 
+
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  isAuthenticated.value = !!session
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    isAuthenticated.value = !!session
+  })
+
   const { data, error } = await supabase.from('ingredient_highlights').select('keyword, color')
   if (!isNative.value) {
     await nextTick()

@@ -51,8 +51,29 @@
         </div>
       </ion-card>
 
+      <!-- Review Submissions -->
+      <ion-list
+          v-if="isAdmin"
+          class="profile-menu"
+          style="border-radius: 10px"
+      >
+        <ion-item button @click="goToReviewSubmissions" style="--inner-border-width: 0">
+          <ion-icon :icon="listOutline" />&nbsp;
+          <ion-label>{{ $t('profile.review') }}</ion-label>
+        </ion-item>
+
+        <!-- ✅ Pending badge -->
+        <ion-badge
+            v-if="pendingCount > 0"
+            color="danger"
+            style="position: absolute; top: 13px; left: 8px; border-radius: 50%; font-size: 10px; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; z-index: 99;"
+        >
+          {{ pendingCount }}
+        </ion-badge>
+      </ion-list>
+
       <!-- Menu -->
-      <ion-list class="profile-menu" style="border-radius: 10px">
+      <ion-list class="profile-menu" style="border-radius: 10px; margin-top: 20px">
         <ion-item button @click="goToSettings">
           <ion-icon :icon="settingsOutline" />&nbsp;
           <ion-label>{{ $t('profile.settings') }}</ion-label>
@@ -145,17 +166,34 @@ import {
   settingsOutline,
   documentTextOutline,
   personCircleOutline,
-  peopleOutline,
+  peopleOutline, listOutline,
 } from 'ionicons/icons'
 
 // ✅ Composables
-import { donorBadge } from '@/composables/userProfile'
+import { donorBadge, isAdmin } from '@/composables/userProfile'
 
 // State
 const userEmail = ref('')
 const userDisplayName = ref('')
 const userAvatar = ref('')
 const router = useRouter()
+const pendingCount = ref(0)
+
+async function fetchPendingCount() {
+  if (!isAdmin.value) {
+    pendingCount.value = 0
+    return
+  }
+
+  const { count, error } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("approved", false)
+
+  if (!error && count !== null) {
+    pendingCount.value = count
+  }
+}
 
 // Fetch user info
 const updateUser = async () => {
@@ -181,7 +219,15 @@ const updateUser = async () => {
   }
 }
 
-onIonViewWillEnter(updateUser)
+onIonViewWillEnter(async () => {
+  await updateUser()
+
+  // ✅ Only admins need the pending count
+  if (isAdmin.value) {
+    await fetchPendingCount()
+  }
+})
+
 
 // Actions
 const handleLogout = async () => {
@@ -193,7 +239,9 @@ const handleLogout = async () => {
     router.push('/login')
   }
 }
-
+const goToReviewSubmissions = () => {
+  router.push('/admin/review-products')
+}
 const goToLogin = () => router.push('/login')
 const goToSettings = () => router.push('/settings')
 const goToLegal = () => router.push('/legal')

@@ -102,6 +102,7 @@
       "viewMore": "Lihat Semua",
       "viewLess": "Lihat Ringkas",
       "colorLegend": "Keterangan Warna",
+      "edit": "✏\uFE0F Perbarui Produk",
       "legend": {
         "halal": "Bahan bersertifikat halal",
         "muslimFriendly": "Bahan Ramah muslim, tapi tidak bersertifikat halal",
@@ -139,6 +140,7 @@
     "donor": "Status Donatur",
     "noUserLogged": "Tidak ada pengguna yang masuk",
     "login": "Masuk",
+    "review": "Review Produk",
     "settings": "Pengaturan",
     "legal": "Legal",
     "credits": "Kredit & Kontributor",
@@ -164,6 +166,7 @@
   },
   "addProduct": {
     "title": "Tambah Produk",
+    "editTitle": "Perbarui Produk",
     "cropIngredients": "Potong Bahan",
     "done": "Selesai",
     "processingOcr": "Memproses OCR...",
@@ -186,6 +189,7 @@
     "frontImage": "Gambar Depan *",
     "backImage": "Gambar Belakang *",
     "submit": "Kirim",
+    "update": "Perbarui",
     "submitting": "Mengirim produk...",
     "submitSuccess": "Produk berhasil dikirim!",
     "ocrSuccess": "✅ Bahan berhasil diekstrak!"
