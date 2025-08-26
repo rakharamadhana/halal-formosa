@@ -946,41 +946,45 @@ async function startBarcodeScan() {
   console.log('📸 Starting barcode scan...')
 
   try {
-    const result = await CapacitorBarcodeScanner.scanBarcode({
-      hint: Capacitor.isNativePlatform()
-          ? CapacitorBarcodeScannerTypeHintALLOption.ALL
-          : (webFormats as unknown as CapacitorBarcodeScannerTypeHint), // 👈 force cast
+    const result = await new Promise<any>((resolve, reject) => {
+      CapacitorBarcodeScanner.scanBarcode({
+        hint: Capacitor.isNativePlatform()
+            ? CapacitorBarcodeScannerTypeHintALLOption.ALL
+            : (webFormats as unknown as CapacitorBarcodeScannerTypeHint),
+        scanInstructions: 'Align the barcode within the frame',
+        cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
+        scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
+        android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
+        web: { showCameraSelection: true, scannerFPS: 15 },
+      }).then(resolve).catch(reject)
 
-      scanInstructions: 'Align the barcode within the frame',
-      cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
-      scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
-
-      android: {
-        scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT,
-      },
-
-      web: {
-        showCameraSelection: true,
-        scannerFPS: 15,
-      },
-    });
+      // 🟢 Extra safeguard for Web close button
+      if (!Capacitor.isNativePlatform()) {
+        const checkInterval = setInterval(() => {
+          const readerEl = document.getElementById('reader')
+          if (!readerEl || readerEl.style.display === 'none') {
+            clearInterval(checkInterval)
+            resolve(null)  // pretend "cancelled"
+          }
+        }, 500)
+      }
+    })
 
     if (result?.ScanResult) {
-      await Haptics.impact({ style: ImpactStyle.Medium })  // small vibration
+      await Haptics.impact({ style: ImpactStyle.Medium })
       console.log('✅ Barcode detected:', result.ScanResult)
       form.value.barcode = result.ScanResult
     } else {
-      console.warn('⚠️ Scan finished but no barcode detected')
+      console.warn('⚠️ Scan cancelled or no barcode detected')
     }
   } catch (err: any) {
     console.error('❌ Barcode scan failed:', JSON.stringify(err, null, 2));
     setError('❌ Barcode scan failed: ' + (err.message || JSON.stringify(err)));
   } finally {
-    scanning.value = false
+    scanning.value = false  // ✅ always reset
     console.log('🛑 Scanning session ended')
   }
 }
-
 
 let isUnmounted = false
 onUnmounted(() => {

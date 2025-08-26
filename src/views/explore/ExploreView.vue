@@ -173,7 +173,6 @@
 
 
 <script setup lang="ts">
-declare global { interface Window { adsbygoogle: any[] } }
 
 /* ---------------- Imports ---------------- */
 import {

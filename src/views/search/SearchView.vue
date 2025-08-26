@@ -217,7 +217,6 @@
 </template>
 
 <script setup lang="ts">
-declare global { interface Window { adsbygoogle: any[] } }
 
 /* ---------------- Imports ---------------- */
 import {
@@ -509,8 +508,6 @@ onMounted(async () => {
   const { data, error } = await supabase.from('ingredient_highlights').select('keyword, color')
   if (!isNative.value) {
     await nextTick()
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}) }
-    catch (e) { console.warn('AdSense push error:', e) }
   }
   if (!error && data) {
     ingredientDictionary.value = data.reduce((acc, item) => {
