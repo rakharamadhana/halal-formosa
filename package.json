@@ -57,6 +57,7 @@
     "exif-js": "^2.3.0",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.0.0",
+    "quagga": "^0.12.1",
     "swiper": "^11.2.10",
     "vue": "^3.3.0",
     "vue-advanced-cropper": "^2.8.9",

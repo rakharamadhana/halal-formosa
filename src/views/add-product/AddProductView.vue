@@ -52,8 +52,13 @@
                   slot="end"
                   style="font-size: 20px;"
               />
-              <ion-button color="carrot" slot="end" size="small" @click="startBarcodeScan" :disabled="scanning">
-                <ion-icon :icon="barcodeOutline" />
+              <ion-button
+                  color="carrot"
+                  slot="end"
+                  size="default"
+                  @click="startBarcodeScan"
+              >
+                <ion-icon :icon="scanning ? stopCircle : barcodeOutline" />
               </ion-button>
             </ion-item>
 
@@ -275,18 +280,27 @@ import {
     IonAccordion,
     IonAccordionGroup, IonNote
 } from '@ionic/vue';
-import {addOutline, barcodeOutline, cameraOutline, cloudUploadOutline, checkmarkCircle, closeCircle,} from 'ionicons/icons';
+import {
+  addOutline,
+  barcodeOutline,
+  cameraOutline,
+  cloudUploadOutline,
+  checkmarkCircle,
+  closeCircle,
+  stopCircle,
+} from 'ionicons/icons';
 import { nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
+
 import { Capacitor } from '@capacitor/core'
 import {
   CapacitorBarcodeScanner,
   CapacitorBarcodeScannerAndroidScanningLibrary,
   CapacitorBarcodeScannerCameraDirection,
-  CapacitorBarcodeScannerScanOrientation, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerTypeHintALLOption
+  CapacitorBarcodeScannerScanOrientation, CapacitorBarcodeScannerTypeHintALLOption
 } from '@capacitor/barcode-scanner'
-import { Haptics, ImpactStyle } from '@capacitor/haptics'
-
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // Import Camera plugin and types
 import {Camera, CameraResultType, CameraSource} from '@capacitor/camera'
@@ -302,7 +316,7 @@ import { userRole, setUserRole } from '@/composables/userProfile'
 const { errorMsg, setError } = useError()
 
 import type { Product } from '@/types/Product'
-import {Html5QrcodeSupportedFormats} from "html5-qrcode";
+
 
 // props
 const props = defineProps<{
@@ -473,7 +487,7 @@ const isResettingForm = ref(false)
 
 const barcodeValid = ref<null | boolean>(null)
 const barcodeMessage = ref<string>('') // feedback below input
-
+const html5QrCodeInstance = ref<Html5Qrcode | null>(null)
 const categories = ref<{ id: number; name: string }[]>([])
 
 const fetchCategories = async () => {
@@ -933,56 +947,76 @@ function extractIonColor(fullColor: string) {
   return parts[parts.length - 1] // last part = "warning"
 }
 
-const webFormats = [
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-]
-
 async function startBarcodeScan() {
-  if (scanning.value) return
+  if (scanning.value) {
+    // 🛑 If already scanning → stop
+    if (html5QrCodeInstance.value) {
+      await html5QrCodeInstance.value.stop()
+      document.getElementById('reader')!.innerHTML = ''
+      html5QrCodeInstance.value = null
+    }
+    scanning.value = false
+    return
+  }
+
   scanning.value = true
-  console.log('📸 Starting barcode scan...')
 
   try {
-    const result = await new Promise<any>((resolve, reject) => {
-      CapacitorBarcodeScanner.scanBarcode({
-        hint: Capacitor.isNativePlatform()
-            ? CapacitorBarcodeScannerTypeHintALLOption.ALL
-            : (webFormats as unknown as CapacitorBarcodeScannerTypeHint),
+    if (Capacitor.isNativePlatform()) {
+      // 🟢 Native → MLKit
+      const result = await CapacitorBarcodeScanner.scanBarcode({
+        hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
         scanInstructions: 'Align the barcode within the frame',
         cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
         scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
         android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
-        web: { showCameraSelection: true, scannerFPS: 15 },
-      }).then(resolve).catch(reject)
+      })
 
-      // 🟢 Extra safeguard for Web close button
-      if (!Capacitor.isNativePlatform()) {
-        const checkInterval = setInterval(() => {
-          const readerEl = document.getElementById('reader')
-          if (!readerEl || readerEl.style.display === 'none') {
-            clearInterval(checkInterval)
-            resolve(null)  // pretend "cancelled"
-          }
-        }, 500)
+      if (result?.ScanResult) {
+        await Haptics.impact({ style: ImpactStyle.Medium })
+        form.value.barcode = result.ScanResult
       }
-    })
-
-    if (result?.ScanResult) {
-      await Haptics.impact({ style: ImpactStyle.Medium })
-      console.log('✅ Barcode detected:', result.ScanResult)
-      form.value.barcode = result.ScanResult
+      scanning.value = false
     } else {
-      console.warn('⚠️ Scan cancelled or no barcode detected')
+      // 🌐 Web → html5-qrcode
+      await nextTick()
+      const html5QrCode = new Html5Qrcode('reader')
+      html5QrCodeInstance.value = html5QrCode
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 300, height: 150 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+        ],
+      }
+
+      await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
+          async (decodedText) => {
+            console.log('✅ Web barcode detected:', decodedText)
+            await Haptics.impact({ style: ImpactStyle.Medium })
+            form.value.barcode = decodedText
+
+            // auto stop after detection
+            await html5QrCode.stop()
+            document.getElementById('reader')!.innerHTML = ''
+            html5QrCodeInstance.value = null
+            scanning.value = false
+          },
+          (errorMessage) => {
+            // gets called often — keep silent or log if needed
+            console.log(errorMessage)
+          }
+      )
     }
   } catch (err: any) {
-    console.error('❌ Barcode scan failed:', JSON.stringify(err, null, 2));
-    setError('❌ Barcode scan failed: ' + (err.message || JSON.stringify(err)));
-  } finally {
-    scanning.value = false  // ✅ always reset
-    console.log('🛑 Scanning session ended')
+    console.error('❌ Barcode scan failed:', err)
+    scanning.value = false
   }
 }
 
