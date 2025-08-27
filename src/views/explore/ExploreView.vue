@@ -59,24 +59,24 @@
         <div v-show="!loadingCategories" class="category-bar">
           <ion-chip
               v-for="cat in categories"
-              :key="cat"
-              :class="['category-chip', activeCategory === cat ? 'chip-carrot' : 'chip-medium']"
+              :key="cat.id"
+              :class="['category-chip', activeCategoryId === cat.id ? 'chip-carrot' : 'chip-medium']"
               @click="toggleCategory(cat)"
           >
             <!-- If icon is emoji -->
             <span
-                v-if="typeof categoryIcons[cat] === 'string' && categoryIcons[cat].length === 2"
+                v-if="typeof categoryIcons[cat.name] === 'string' && categoryIcons[cat.name].length === 2"
                 style="margin-right:4px;"
             >
-        {{ categoryIcons[cat] }}
+        {{ categoryIcons[cat.name] }}
       </span>
             <!-- If icon is Ionicon -->
             <ion-icon
                 v-else
-                :icon="categoryIcons[cat]"
+                :icon="categoryIcons[cat.name]"
                 style="margin-right:4px;"
             />
-            <ion-label>{{ cat }}</ion-label>
+            <ion-label>{{ cat.name }}</ion-label>
           </ion-chip>
         </div>
 
@@ -88,6 +88,7 @@
           <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;" />
         </div>
       </div>
+
 
     </ion-toolbar>
 
@@ -452,26 +453,16 @@ const fetchLocations = async () => {
   loadingPlaces.value = false
 }
 
-const categories = computed(() => {
-  return locationTypes.value.map(t => t.name) // from DB, not only existing places
-})
+const categories = computed(() => locationTypes.value)
 
 const activeCategory = ref<string | null>(null)
+const activeCategoryId = ref<number|null>(null)
 
-const toggleCategory = (cat: string) => {
-  // ✅ clear focus whenever category changes
+const toggleCategory = (cat: LocationType) => {
+  activeCategoryId.value = activeCategoryId.value === cat.id ? null : cat.id
   focusedPlaceId.value = null
-
-  // ✅ reset search bar
   searchQuery.value = ''
-
-  // ✅ toggle active category
-  activeCategory.value = activeCategory.value === cat ? null : cat
-
-  // ✅ close map popup
-  if (infoWindow) {
-    infoWindow.close()
-  }
+  if (infoWindow) infoWindow.close()
 }
 
 /* ---------------- Map ---------------- */
@@ -531,7 +522,7 @@ const initMarkers = (places: Place[] = locations.value) => {
   })
 
   // ✅ only cluster when no filter
-  if (!activeCategory.value) {
+  if (!activeCategoryId.value) {
     clusterer = new MarkerClusterer({
       map: mapInstance!,
       markers: markerArray,
@@ -545,19 +536,20 @@ const initMarkers = (places: Place[] = locations.value) => {
 }
 
 
-watch([activeCategory, locations, focusedPlaceId], () => {
+watch([activeCategoryId, locations, focusedPlaceId], () => {
   let filtered = [...locations.value]
 
   if (focusedPlaceId.value !== null) {
-    // focus mode → show only that marker
+    // focus mode → only that marker
     filtered = filtered.filter(l => l.id === focusedPlaceId.value)
-  } else if (activeCategory.value) {
-    // otherwise filter by category
-    filtered = filtered.filter(l => l.type === activeCategory.value)
+  } else if (activeCategoryId.value !== null) {
+    // filter by type_id
+    filtered = filtered.filter(l => l.typeId === activeCategoryId.value)
   }
 
   initMarkers(filtered)
 })
+
 
 
 
@@ -657,8 +649,8 @@ const sortedLocations = computed(() => {
   let base = [...locations.value]
 
   // ✅ filter by category
-  if (activeCategory.value) {
-    base = base.filter(l => l.type === activeCategory.value)
+  if (activeCategoryId.value) {
+    base = base.filter(l => l.typeId === activeCategoryId.value)
   }
 
   // search
