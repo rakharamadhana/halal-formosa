@@ -455,7 +455,6 @@ const fetchLocations = async () => {
 
 const categories = computed(() => locationTypes.value)
 
-const activeCategory = ref<string | null>(null)
 const activeCategoryId = ref<number|null>(null)
 
 const toggleCategory = (cat: LocationType) => {
