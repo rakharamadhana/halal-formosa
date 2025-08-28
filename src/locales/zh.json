@@ -17,7 +17,9 @@
     "halalLocationsCount": "清真地點",
     "news": "清真與伊斯蘭新聞",
     "viewMore": "查看更多",
-    "mainFeature": "功能選單"
+    "mainFeature": "功能選單",
+    "discoverProducts": "探索產品",
+    "discoverLocations": "探索地點"
   },
   "scanIngredients": {
     "title": "掃描成分",

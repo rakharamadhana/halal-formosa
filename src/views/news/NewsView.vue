@@ -251,7 +251,6 @@ function goToAddNews() {
 .news-card ion-card {
   margin: 6px 0;              /* 🔹 reduce gap between cards */
   padding: 8px;               /* 🔹 smaller padding inside */
-  border-radius: 8px;         /* rounded corners */
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 

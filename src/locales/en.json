@@ -17,7 +17,10 @@
     "halalLocationsCount": "Halal Locations",
     "news": "Halal & Islam News",
     "viewMore": "View More",
-    "mainFeature": "Featured Menu"
+    "mainFeature": "Featured Menu",
+    "discoverProducts": "Discover Products",
+    "discoverLocations": "Discover Locations",
+    "locationCategories": "Locations Status"
   },
   "scanIngredients" :
   {

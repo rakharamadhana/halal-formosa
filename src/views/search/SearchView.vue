@@ -487,7 +487,6 @@ async function refreshList(event: CustomEvent) {
     await Promise.all([
       fetchProducts(true),
       fetchTotalCount(),
-      fetchCategories()
     ])
   } finally {
     event.detail.complete()
@@ -588,7 +587,6 @@ ion-searchbar.rounded {
 }
 
 .product-card {
-  border-radius: 12px;
   transition: box-shadow 0.3s, border 0.3s;
   cursor: pointer;
 }

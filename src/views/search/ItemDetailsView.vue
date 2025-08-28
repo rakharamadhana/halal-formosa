@@ -188,7 +188,7 @@
         <ion-button
             fill="solid"
             color="carrot"
-            style="position: absolute; top: 16px; right: 16px; z-index: 9999;"
+            class="image-modal-close-btn"
             @click="closeImageModal"
         >
           ✕
@@ -502,4 +502,11 @@ ion-skeleton-text {
   100% { background-position: 200% 0; }
 }
 
+.image-modal-close-btn {
+  position: absolute;
+  /* account for safe area + header */
+  top: calc(env(safe-area-inset-top, 0px) + var(--ion-safe-area-top, 0px) + 56px);
+  right: 16px;
+  z-index: 9999;
+}
 </style>

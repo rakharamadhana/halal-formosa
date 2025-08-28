@@ -179,7 +179,7 @@
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
   IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonHeader, IonLabel, IonChip,
-    IonSkeletonText
+  IonSkeletonText, onIonViewWillEnter
 } from '@ionic/vue'
 import {
   compassOutline,
@@ -675,6 +675,10 @@ onMounted(async () => {
   await loadRole()
   fetchLocationTypes()
   fetchLocations()
+  centerOnUser()
+})
+
+onIonViewWillEnter(async () => {
   centerOnUser()
 })
 

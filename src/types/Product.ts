@@ -12,5 +12,8 @@ export interface Product {
     updated_by?: string
     created_at?: string
     updated_at?: string
-    approved?: boolean   // 👈 add this
+    approved?: boolean
+
+    // ✅ relation
+    product_categories?: { name: string }[]
 }
