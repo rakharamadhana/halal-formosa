@@ -180,7 +180,7 @@
 
 <script setup lang="ts">
 /* ---------------- Imports ---------------- */
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 import {
   IonPage, IonContent, IonCard, IonCardHeader, IonCardTitle,
   IonCardContent, IonButton, IonIcon, IonHeader, onIonViewWillEnter, IonLabel, IonChip, IonSkeletonText
@@ -205,7 +205,7 @@ const DoughnutChart = Doughnut
 const router = useRouter()
 const doughnutRef = ref<any>(null)
 const locationChartRef = ref<any>(null)
-const RECENT_DISCOVER_LIMIT = 5
+const RECENT_DISCOVER_LIMIT = 15
 const totalProducts = ref(0)
 const totalLocations = ref(0)
 const loadingStats = ref(true)

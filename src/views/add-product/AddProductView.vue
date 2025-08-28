@@ -1343,7 +1343,9 @@ async function handleSubmit() {
         photo_back_url: backUrl,
         updated_at: new Date().toISOString(),
         updated_by: user.id,
-        approved: autoApprove ? true : props.editProduct?.approved
+        approved: autoApprove ? true : props.editProduct?.approved,
+        approved_by: autoApprove ? user.id : props.editProduct?.approved_by,
+        approved_at: autoApprove ? new Date().toISOString() : props.editProduct?.approved_at,
       }).eq('id', props.editProduct.id)
 
       if (error) throw error
@@ -1356,6 +1358,8 @@ async function handleSubmit() {
         photo_back_url: backUrl,
         added_by: user.id,
         approved: autoApprove,
+        approved_by: autoApprove ? user.id : null,
+        approved_at: autoApprove ? new Date().toISOString() : null,
         created_at: new Date().toISOString(),
       }])
       if (error) throw error
