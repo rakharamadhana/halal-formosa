@@ -303,7 +303,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // Import Camera plugin and types
-import {Camera, CameraResultType, CameraSource} from '@capacitor/camera'
+import {Camera, CameraDirection, CameraResultType, CameraSource} from '@capacitor/camera'
 import {Cropper} from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 import AppHeader from "@/components/AppHeader.vue";
@@ -1032,7 +1032,8 @@ async function takeFrontPicture() {
       quality: 90,
       allowEditing: false,
       resultType: CameraResultType.Uri,
-      source: CameraSource.Camera
+      source: CameraSource.Camera,
+      direction: CameraDirection.Rear   // 👈 force front camera
     });
 
     if (isUnmounted) return;
@@ -1052,19 +1053,19 @@ async function takeBackPicture() {
       quality: 90,
       allowEditing: false,
       resultType: CameraResultType.Uri,
-      source: CameraSource.Camera
+      source: CameraSource.Camera,
+      direction: CameraDirection.Rear   // 👈 force back camera
     });
 
     if (isUnmounted) return;
-
     backPreview.value = image.webPath || null;
     backFile.value = await resizeImage(image.webPath || '');
 
   } catch (error) {
     console.error('Error taking back photo:', error);
+    setError('❌ Failed to capture back image.');
   }
 }
-
 
 function uploadFrontFromGallery() {
   const input = document.createElement('input');

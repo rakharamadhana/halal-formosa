@@ -325,7 +325,7 @@ import {ref, onUnmounted} from 'vue'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import {Camera, CameraDirection, CameraResultType, CameraSource} from '@capacitor/camera'
 import type { PluginListenerHandle } from '@capacitor/core'
 
 import useDisclaimer from "@/composables/useDisclaimer";
@@ -375,7 +375,13 @@ const {
 
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
-  const image = await Camera.getPhoto({ quality: 90, allowEditing: false, resultType: CameraResultType.Uri, source: CameraSource.Camera })
+  const image = await Camera.getPhoto({
+    quality: 90,
+    allowEditing: false,
+    resultType: CameraResultType.Uri,
+    source: CameraSource.Camera,
+    direction: CameraDirection.Rear // ✅ ensures back camera
+  });
   const blob = await fetch(image.webPath!).then(r => r.blob())
   const file = new File([blob], `ingredients-${Date.now()}.jpg`, { type: 'image/jpeg' })
   originalFile.value = file
