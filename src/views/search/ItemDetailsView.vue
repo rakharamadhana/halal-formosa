@@ -3,18 +3,14 @@
     <ion-header>
       <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline">
         <template #actions>
-          <!-- Report button -->
-          <ion-button
-              :router-link="{ name: 'report', params: { barcode: item!.barcode } }"
-              v-if="item"
-          >
-            <ion-icon :icon="alertCircleOutline" />
-          </ion-button>
-
-          <!-- Edit button (admins only) -->
-          <ion-button @click="openEditModal" v-if="isAdmin && item">
-            <ion-icon :icon="createOutline" />
-          </ion-button>
+          <ion-item button @click="editItem" lines="none">
+            <ion-icon :icon="createOutline" slot="start" />
+            <ion-label>Edit</ion-label>
+          </ion-item>
+          <ion-item button @click="reportItem" lines="none">
+            <ion-icon :icon="alertCircleOutline" slot="start" />
+            <ion-label>Report</ion-label>
+          </ion-item>
         </template>
       </app-header>
     </ion-header>
@@ -234,7 +230,7 @@
 import {
   IonPage,
   IonContent, IonSkeletonText, IonChip, IonButton, IonHeader, IonModal,
-    IonIcon,
+    IonIcon, IonItem, IonLabel
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
 import { useRoute } from 'vue-router'
@@ -246,7 +242,7 @@ import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
-import {alertCircleOutline, bagOutline, barcodeOutline, createOutline } from "ionicons/icons";
+import {alertCircleOutline, bagOutline, barcodeOutline, createOutline} from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
 
 const showEditModal = ref(false)
@@ -263,6 +259,7 @@ const maxVisible = 5
 const ingredientDictionary = ref<Record<string, string>>({});
 
 import type { Product } from '@/types/Product'
+import router from "@/router";
 
 const item = ref<Product | null>(null)
 const showImageModal = ref(false)
@@ -280,8 +277,15 @@ function closeImageModal() {
   showImageModal.value = false
 }
 
-function openEditModal() {
+function editItem() {
+  // Open your edit modal
   showEditModal.value = true
+}
+
+function reportItem() {
+  if (!item.value) return
+  // Navigate to the report page
+  router.push({ name: 'report', params: { barcode: item.value.barcode } })
 }
 
 function closeEditModal() {

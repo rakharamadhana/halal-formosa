@@ -23,10 +23,22 @@
       {{ title }}
     </ion-title>
 
-    <!-- ✅ NEW: custom action buttons slot -->
+    <!-- Actions as 3-dot menu -->
     <ion-buttons slot="end">
-      <slot name="actions"></slot>
+      <ion-button id="actions-trigger">
+        <ion-icon :icon="ellipsisVerticalOutline" />
+      </ion-button>
     </ion-buttons>
+
+    <!-- Popover menu -->
+    <ion-popover trigger="actions-trigger" size="auto" dismiss-on-select>
+      <ion-content>
+        <ion-list>
+          <!-- Slot for actions -->
+          <slot name="actions"></slot>
+        </ion-list>
+      </ion-content>
+    </ion-popover>
 
     <!-- Profile button (optional) -->
     <ion-buttons slot="end" v-if="showProfile">
@@ -44,8 +56,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { IonToolbar, IonButton, IonTitle, IonButtons, IonIcon, IonBackButton } from '@ionic/vue'
-import {arrowBackOutline, chevronBackOutline, personCircle} from 'ionicons/icons'
+import { IonToolbar, IonButton, IonTitle, IonButtons, IonIcon, IonBackButton, IonPopover, IonList, IonContent } from '@ionic/vue'
+import {arrowBackOutline, ellipsisVerticalOutline, personCircle} from 'ionicons/icons'
 import { supabase } from '@/plugins/supabaseClient'
 withDefaults(defineProps<{
   title: string
