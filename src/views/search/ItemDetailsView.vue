@@ -1,8 +1,24 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline" />
+      <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline">
+        <template #actions>
+          <!-- Report button -->
+          <ion-button
+              :router-link="{ name: 'report', params: { barcode: item!.barcode } }"
+              v-if="item"
+          >
+            <ion-icon :icon="alertCircleOutline" />
+          </ion-button>
+
+          <!-- Edit button (admins only) -->
+          <ion-button @click="openEditModal" v-if="isAdmin && item">
+            <ion-icon :icon="createOutline" />
+          </ion-button>
+        </template>
+      </app-header>
     </ion-header>
+
 
     <!-- If this page should show ads, include this slot and set meta.adSpaceId above -->
     <div v-if="isNative && showAds" id="ad-space-item-details" style="height:60px;"></div>
@@ -100,16 +116,34 @@
         <!-- Details below the slider -->
         <div style="margin-top: 1rem; padding-top: 0" class="ion-padding">
           <h2 style="margin-bottom: 0;">{{ item.name }}</h2>
-          <p style="margin-top: 3px; margin-bottom: 0;"><small>{{ item.barcode }}</small></p>
+
+          <!-- Barcode row -->
+          <p style="margin-top: 3px; margin-bottom: 0; display: flex; align-items: center; justify-content: space-between;">
+            <!-- Left side: barcode -->
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <ion-icon :icon="barcodeOutline" style="font-size: 18px;" />
+              <small>{{ item.barcode }}</small>
+            </span>
+
+            <!-- Right side: category -->
+            <small>{{ item.product_categories?.name }}</small>
+          </p>
+
+
+          <!-- Status -->
           <p style="margin-top: 10px">
             <ion-chip :class="statusToChipClass(item.status)">
               {{ $t(`search.status.${item.status}`) }}
             </ion-chip>
           </p>
 
-          <p class="ion-margin-top"><strong><small>{{ $t('search.details.description') }}</small></strong></p>
+          <!-- Description -->
+          <p class="ion-margin-top">
+            <strong><small>{{ $t('search.details.description') }}</small></strong>
+          </p>
           <h5 class="ion-no-margin" style="margin-top: 2px">{{ item.description }}</h5>
 
+          <!-- Ingredients -->
           <p class="ion-margin-top">
             <strong><small>{{ $t('search.details.ingredients') }}</small></strong>
           </p>
@@ -132,14 +166,9 @@
             </ion-button>
           </div>
 
-          <h5 v-else class="ion-no-margin" style="margin-top: 2px">
-            {{ item.ingredients }}
-          </h5>
-
           <!-- Color Legend -->
           <div v-if="usedColors.length" class="ion-margin-top ingredient-legend">
             <p><strong>{{ $t('search.details.colorLegend') }}</strong></p>
-
             <ion-chip
                 v-for="color in usedColors"
                 :key="color"
@@ -149,34 +178,16 @@
             </ion-chip>
           </div>
 
-          <ion-button
-              v-if="isAdmin && item"
-              expand="block"
-              color="carrot"
-              class="ion-margin-top"
-              @click="openEditModal"
-          >
-            {{ $t('search.details.edit') }}
-          </ion-button>
-
-          <!-- 🟠 Admin Edit Modal -->
+          <!-- Edit Modal -->
           <ion-modal :is-open="showEditModal" @didDismiss="closeEditModal">
             <AddProductView
                 :edit-product="item!"
                 @close="closeEditModal"
+                @updated="handleProductUpdated"
             />
           </ion-modal>
-
-          <ion-button
-              v-if="item"
-              class="ion-margin-top"
-              expand="block"
-              color="medium"
-              @click="goToReport(item.barcode)"
-          >
-            {{ $t('search.details.report') }}
-          </ion-button>
         </div>
+
       </div>
       <p v-else class="ion-text-center ion-margin-top">❌ {{ $t('search.details.no-item') }}</p>
     </ion-content>
@@ -223,19 +234,19 @@
 import {
   IonPage,
   IonContent, IonSkeletonText, IonChip, IonButton, IonHeader, IonModal,
+    IonIcon,
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
 import { useRoute } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '@/plugins/supabaseClient'
 import {Swiper, SwiperSlide} from "swiper/vue";
-import router from "@/router";
 import {Pagination, Zoom} from "swiper/modules";
 import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
-import {bagOutline} from "ionicons/icons";
+import {alertCircleOutline, bagOutline, barcodeOutline, createOutline } from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
 
 const showEditModal = ref(false)
@@ -277,6 +288,20 @@ function closeEditModal() {
   showEditModal.value = false
 }
 
+
+async function handleProductUpdated() {
+  showEditModal.value = false
+  const { data, error } = await supabase
+      .from('products')
+      .select(`*, product_categories ( id, name )`)
+      .eq('barcode', barcode)
+      .maybeSingle()
+
+  if (!error && data) {
+    item.value = data
+  }
+}
+
 function statusToChipClass(status: string): string {
   switch (status) {
     case 'Halal':
@@ -290,14 +315,6 @@ function statusToChipClass(status: string): string {
     default:
       return 'chip-medium'
   }
-}
-
-function goToReport(barcode: string) {
-  if (!barcode) return
-  // if you're closing a modal first, keep the small delay; otherwise you can remove it
-  setTimeout(() => {
-    router.push({ name: 'report', params: { barcode } })
-  }, 300)
 }
 
 const visibleIngredients = computed(() => {
@@ -399,16 +416,19 @@ onMounted(async () => {
   loading.value = true
   try {
     const [{ data: { user } }, prodRes, hlRes] = await Promise.all([
-      supabase.auth.getUser(),   // 🟢 check current user
+      supabase.auth.getUser(),
       supabase.from('products')
-          .select('*')
+          .select(`
+          *,
+          product_categories ( id, name )
+        `)
           .eq('barcode', barcode)
           .maybeSingle(),
       supabase.from('ingredient_highlights')
           .select('keyword, color')
     ])
 
-    // 🟢 If logged in, check role
+    // role check…
     if (user) {
       const { data: roleRow, error: roleError } = await supabase
           .from('user_roles')
@@ -428,7 +448,7 @@ onMounted(async () => {
       item.value = prodRes.data
     }
 
-    // highlights
+    // highlights…
     if (hlRes.error) {
       console.error('Highlights load error:', hlRes.error)
     } else if (hlRes.data) {
@@ -442,6 +462,7 @@ onMounted(async () => {
     ;(window as any).scheduleBannerUpdate?.()
   }
 })
+
 
 
 </script>

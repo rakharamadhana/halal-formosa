@@ -6,6 +6,8 @@
           :icon="addOutline"
           :showProfile="true"
           show-back
+          :useRouterBack="false"
+          @back="emit('close')"
       />
     </ion-header>
 
@@ -489,6 +491,7 @@ const barcodeValid = ref<null | boolean>(null)
 const barcodeMessage = ref<string>('') // feedback below input
 const html5QrCodeInstance = ref<Html5Qrcode | null>(null)
 const categories = ref<{ id: number; name: string }[]>([])
+const emit = defineEmits(['updated', 'close'])
 
 const fetchCategories = async () => {
   const { data, error } = await supabase
@@ -1351,6 +1354,7 @@ async function handleSubmit() {
 
       if (error) throw error
       toastMessage.value = '✅ Product updated successfully!'
+      emit('updated')
     } else {
       // 🟢 INSERT new
       const { error } = await supabase.from('products').insert([{

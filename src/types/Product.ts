@@ -19,5 +19,5 @@ export interface Product {
     approved_at?: string | null   // ISO timestamp when approved
 
     // ✅ relation
-    product_categories?: { name: string }[]
+    product_categories: { id: number; name: string }
 }

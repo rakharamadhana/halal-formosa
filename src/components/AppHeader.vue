@@ -1,29 +1,34 @@
 <template>
   <ion-toolbar>
-    <!-- ✅ Back button (optional) -->
+    <!-- Back button -->
     <ion-buttons slot="start" v-if="showBack">
-      <ion-back-button :default-href="backRoute || '/home'" />
+      <ion-back-button
+          v-if="useRouterBack"
+          :default-href="backRoute || '/home'"
+      />
+      <ion-button v-else @click="$emit('back')">
+        <ion-icon :icon="arrowBackOutline" style="font-size: 24px;" />
+      </ion-button>
     </ion-buttons>
 
+    <!-- Title + Icon -->
     <ion-title class="title-large">
-      <!-- Case 1: icon explicitly set to "none" → nothing -->
-      <template v-if="icon === 'none'">
-        <!-- nothing -->
-      </template>
-
-      <!-- Case 2: no icon provided → show default logo -->
+      <template v-if="icon === 'none'"></template>
       <template v-else-if="!icon">
         <img src="/favicon-32x32.png" alt="Halal Formosa" style="height: 28px; margin-right: 6px;" />
       </template>
-
-      <!-- Case 3: icon provided → show that ion-icon -->
       <template v-else>
         <ion-icon :icon="icon" style="margin-right: 6px; font-size: 22px;" />
       </template>
-
       {{ title }}
     </ion-title>
 
+    <!-- ✅ NEW: custom action buttons slot -->
+    <ion-buttons slot="end">
+      <slot name="actions"></slot>
+    </ion-buttons>
+
+    <!-- Profile button (optional) -->
     <ion-buttons slot="end" v-if="showProfile">
       <ion-button @click="$router.push('/profile')">
         <template v-if="isAuthenticated && profilePic">
@@ -40,15 +45,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { IonToolbar, IonButton, IonTitle, IonButtons, IonIcon, IonBackButton } from '@ionic/vue'
-import { personCircle } from 'ionicons/icons'
+import {arrowBackOutline, chevronBackOutline, personCircle} from 'ionicons/icons'
 import { supabase } from '@/plugins/supabaseClient'
-defineProps<{
+withDefaults(defineProps<{
   title: string
   icon?: string
-  showBack?: boolean       // NEW: show a back button on the left
-  backRoute?: string       // NEW: fallback route if there’s no history
-  showProfile?: boolean    // optional: allow hiding the profile button if needed
-}>();
+  showBack?: boolean
+  backRoute?: string
+  showProfile?: boolean
+  useRouterBack?: boolean   // 👈
+}>(), {
+  useRouterBack: true       // 👈 default to true
+})
 const isAuthenticated = ref(false)
 const profilePic = ref<string | null>(null)
 

@@ -99,6 +99,7 @@
     "showingResults": "Showing {count} of {total} registered products",
     "details": {
       "title": "Product Details",
+      "category": "Category",
       "description": "Description",
       "ingredients": "Ingredients",
       "report": "Report Product",

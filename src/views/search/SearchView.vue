@@ -304,6 +304,7 @@ const categoryIcons: Record<string, string> = {
   "Beverages": "🥤",
   "Spices & Condiments": "🌶️",
   "Vegetarian & Tofu": "🥗",
+  "Fresh Meat": "🥩",
 }
 
 /* ---------------- Filters ---------------- */
