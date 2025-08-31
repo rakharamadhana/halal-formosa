@@ -168,7 +168,7 @@
 
           <!-- Color Legend -->
           <div v-if="usedColors.length" class="ion-margin-top ingredient-legend">
-            <p><strong>{{ $t('search.details.colorLegend') }}</strong></p>
+            <p><strong><small>{{ $t('search.details.colorLegend') }}</small></strong></p>
             <ion-chip
                 v-for="color in usedColors"
                 :key="color"
@@ -620,7 +620,6 @@ onMounted(async () => {
 }
 
 .ingredient-legend {
-  font-size: 14px;
   line-height: 1.6;
 }
 
