@@ -240,7 +240,22 @@
                 </template>
                 — {{ colorMeaning(extractIonColor(h.color)) }}
               </ion-chip>
+            </div>
 
+            <ion-button
+                v-if="ingredientsTextZh && !summaryUsed"
+                expand="block"
+                color="carrot"
+                :disabled="loadingSummary"
+                @click="handleSummaryClick"
+            >
+              {{ loadingSummary ? 'Analyzing…' : 'AI Summary' }}
+            </ion-button>
+
+            <!-- AI Summary Section -->
+            <div v-if="loadingSummary || overallNote || errorSummary" class="ai-summary-block">
+              <h3 class="ai-summary-title">AI Summary</h3>
+              <div class="ai-summary-text" v-html="errorSummary || overallNote"></div>
             </div>
 
             <div v-if="ingredientsText" class="actions">
@@ -335,6 +350,8 @@ import useError from '@/composables/useError'
 import useHighlightCache from '@/composables/useHighlightCache'
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 import {BlacklistPattern} from "@/types/ingredients";
+import useAISummary from '@/composables/useAISummary'
+
 
 /** ---------- State ---------- */
 const showCropper = ref(false)
@@ -455,6 +472,22 @@ async function confirmCrop() {
   closeCropper()
 }
 
+const summaryUsed = ref(false)
+
+async function handleSummaryClick() {
+  if (summaryUsed.value) return
+  await generateSummary(ingredientsTextZh.value, ingredientHighlights.value, autoStatus.value)
+  summaryUsed.value = true
+}
+
+/** ---------- AI Summary ---------- */
+const {
+  overallNote,
+  loadingSummary,
+  errorSummary,
+  generateSummary
+} = useAISummary()
+
 /** ---------- OCR pipeline ---------- */
 const {
   runOcr,
@@ -520,6 +553,8 @@ function clearAll() {
   autoStatus.value = ''
   originalFile.value = null
   croppedFile.value = null
+  overallNote.value = ''
+  summaryUsed.value = false  // ✅ reset when user clears
 
   if (originalPreviewUrl.value) {
     URL.revokeObjectURL(originalPreviewUrl.value);
@@ -586,4 +621,23 @@ ion-card { border-radius: 12px; }
   flex: 1;            /* each button takes equal space */
 }
 
+.ai-summary-block {
+  margin-top: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.ai-summary-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ai-summary-text {
+  white-space: pre-wrap;     /* ✅ keeps line breaks from AI response */
+  font-size: 16px;
+  color: var(--ion-color-dark);
+  line-height: 1.5;          /* ✅ improves readability */
+  border-radius: 8px;
+}
 </style>

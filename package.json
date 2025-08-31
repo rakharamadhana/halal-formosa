@@ -1,7 +1,7 @@
 {
   "name": "halal-formosa",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.2.4",
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
@@ -33,6 +33,7 @@
     "@capawesome/capacitor-app-update": "^7.0.1",
     "@capgo/capacitor-navigation-bar": "^7.1.26",
     "@google-cloud/translate": "^9.2.0",
+    "@google/genai": "^1.16.0",
     "@googlemaps/js-api-loader": "^1.16.10",
     "@googlemaps/markerclusterer": "^2.6.2",
     "@ionic/pwa-elements": "^3.3.0",
@@ -57,6 +58,7 @@
     "exif-js": "^2.3.0",
     "html5-qrcode": "^2.3.8",
     "ionicons": "^7.0.0",
+    "marked": "^16.2.1",
     "quagga": "^0.12.1",
     "swiper": "^11.2.10",
     "tesseract.js": "^6.0.1",
