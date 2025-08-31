@@ -23,22 +23,20 @@
       {{ title }}
     </ion-title>
 
-    <!-- Actions as 3-dot menu -->
-    <ion-buttons slot="end">
+    <!-- Actions as 3-dot menu (only if slot provided) -->
+    <ion-buttons slot="end" v-if="$slots.actions">
       <ion-button id="actions-trigger">
         <ion-icon :icon="ellipsisVerticalOutline" />
       </ion-button>
-    </ion-buttons>
 
-    <!-- Popover menu -->
-    <ion-popover trigger="actions-trigger" size="auto" dismiss-on-select>
-      <ion-content>
-        <ion-list>
-          <!-- Slot for actions -->
-          <slot name="actions"></slot>
-        </ion-list>
-      </ion-content>
-    </ion-popover>
+      <ion-popover trigger="actions-trigger" size="auto" dismiss-on-select>
+        <ion-content>
+          <ion-list>
+            <slot name="actions"></slot>
+          </ion-list>
+        </ion-content>
+      </ion-popover>
+    </ion-buttons>
 
     <!-- Profile button (optional) -->
     <ion-buttons slot="end" v-if="showProfile">

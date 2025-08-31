@@ -168,7 +168,7 @@
     : product.status === 'Syubhah' ? 'chip-warning'
     : product.status === 'Haram' ? 'chip-danger'
     : 'chip-medium'"
-                      style="align-self: flex-start; border-radius: 12px; font-size: 14px;"
+                      style="align-self: flex-start; font-size: 14px;"
                   >
                     {{ product.status }}
                   </ion-chip>

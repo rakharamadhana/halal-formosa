@@ -137,7 +137,11 @@
           <p class="ion-margin-top">
             <strong><small>{{ $t('search.details.description') }}</small></strong>
           </p>
-          <h5 class="ion-no-margin" style="margin-top: 2px">{{ item.description }}</h5>
+          <h5
+              class="ion-no-margin"
+              style="margin-top: 2px"
+              v-html="highlightedDescription"
+          ></h5>
 
           <!-- Ingredients -->
           <p class="ion-margin-top">
@@ -182,6 +186,40 @@
                 @updated="handleProductUpdated"
             />
           </ion-modal>
+
+          <!-- === Discover More Products in Same Category === -->
+          <div v-if="relatedProducts.length">
+            <div class="card-header-row" style="margin-top: 10px">
+              <strong><small>{{ $t('search.details.relatedProducts') }}</small></strong>
+
+            </div>
+            <div class="discover-grid">
+              <ion-card
+                  v-for="p in relatedProducts"
+                  :key="p.barcode"
+                  class="discover-item"
+                  button
+                  @click="$router.replace(`/item/${p.barcode}`)"
+              >
+                <img
+                    :src="p.photo_front_url || 'https://placehold.co/200x200'"
+                    alt="product"
+                    class="discover-img"
+                />
+                <ion-label class="discover-label">
+                  <ion-chip
+                      :class="statusToChipClass(p.status)"
+                      style="font-size: 14px; margin-bottom: 4px;"
+                  >
+                    {{ p.status }}
+                  </ion-chip>
+                  <h3>{{ p.name }}</h3>
+                  <p>Added {{ fromNowToTaipei(p.created_at) }}</p>
+                </ion-label>
+              </ion-card>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -230,7 +268,7 @@
 import {
   IonPage,
   IonContent, IonSkeletonText, IonChip, IonButton, IonHeader, IonModal,
-    IonIcon, IonItem, IonLabel
+    IonIcon, IonItem, IonLabel, IonCard
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
 import { useRoute } from 'vue-router'
@@ -260,14 +298,78 @@ const ingredientDictionary = ref<Record<string, string>>({});
 
 import type { Product } from '@/types/Product'
 import router from "@/router";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+type RelatedProduct = {
+  barcode: string
+  name: string
+  status: string
+  photo_front_url?: string | null
+  product_category_id: number | null
+  created_at: string
+}
 
 const item = ref<Product | null>(null)
 const showImageModal = ref(false)
 const activeImageIndex = ref(0)
+const relatedProducts = ref<RelatedProduct[]>([])
 
 // If this page should show ads (set meta accordingly), keep this true and include the slot.
 // If you used meta:{noAds:true} you can leave the slot out and keep showAds = false.
 const showAds = false // set true only if meta.adSpaceId is configured
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(relativeTime)
+
+function fromNowToTaipei(dateString?: string) {
+  if (!dateString) return ''
+  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+}
+
+async function fetchRelatedProducts() {
+  if (!item.value?.product_category_id) return
+
+  const firstWord = item.value.name.split(" ")[0].toLowerCase()
+
+  // Fetch all products in the same category (or increase limit)
+  const { data, error } = await supabase
+      .from("products")
+      .select("barcode, name, status, photo_front_url, product_category_id, created_at")
+      .eq("approved", true)
+      .eq("product_category_id", item.value.product_category_id)
+      .neq("barcode", item.value.barcode)
+      .order("created_at", { ascending: false })
+      .limit(100) // ⬅ increase so we don’t cut off variants
+
+  if (!error && data) {
+    // All same-category products
+    const allCategoryProducts = data
+
+    // Variants with same brand/keyword
+    const similar = allCategoryProducts.filter(p =>
+        p.name.toLowerCase().includes(firstWord)
+    )
+
+    // Fallback: other products in same category
+    const others = allCategoryProducts.filter(p =>
+        !p.name.toLowerCase().includes(firstWord)
+    )
+
+    // Merge: similar first, then others
+    const combined = [...similar, ...others].slice(0, 15) // cap display
+
+    // Deduplicate
+    relatedProducts.value = Array.from(
+        new Map(combined.map(p => [p.barcode, p])).values()
+    )
+  }
+}
+
+
 
 function openImageModal(index: number) {
   activeImageIndex.value = index
@@ -397,6 +499,32 @@ const usedColors = computed(() => {
   return Array.from(colorSet)
 })
 
+const highlightedDescription = computed(() => {
+  if (!item.value?.description) return ""
+
+  // Words to highlight (lowercase check)
+  const keywords: Record<string, string> = {
+    "halal": "--ion-color-success",
+    "muslim-friendly": "--ion-color-primary",
+    "vegan": "--ion-color-primary",
+    "syubhah": "--ion-color-warning",
+  }
+
+  let text = item.value.description
+
+  // Replace each keyword with a span
+  for (const [word, color] of Object.entries(keywords)) {
+    const regex = new RegExp(`(${word})`, "gi")
+    text = text.replace(
+        regex,
+        `<span style="font-weight:600; color: var(${color});">$1</span>`
+    )
+  }
+
+  return text
+})
+
+
 // Map CSS colors to translation keys
 const colorLabels: Record<string, string> = {
   '--ion-color-success': 'search.details.legend.halal',
@@ -456,6 +584,11 @@ onMounted(async () => {
       console.error('Product load error:', prodRes.error)
     } else {
       item.value = prodRes.data
+    }
+
+    if (prodRes.data) {
+      item.value = prodRes.data
+      await fetchRelatedProducts() // 👈 fetch category peers
     }
 
     // highlights…
