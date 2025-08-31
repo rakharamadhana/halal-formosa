@@ -361,7 +361,13 @@ const highlightedIngredients = computed(() => {
     }
 
     if (matchedKey) {
-      const color = ingredientDictionary.value[matchedKey]
+      let color = ingredientDictionary.value[matchedKey]
+
+      // 🔄 If product is Muslim-friendly, convert Syubhah → Muslim-friendly
+      if (item.value?.status === 'Muslim-friendly' && color === '--ion-color-warning') {
+        color = '--ion-color-primary'
+      }
+
       return {
         html: `<span style="font-weight:600;color:var(${color});">${part}</span>`,
         highlighted: true
