@@ -1354,6 +1354,7 @@ async function handleSubmit() {
 
       if (error) throw error
       toastMessage.value = '✅ Product updated successfully!'
+      console.log('Product updated successfully')
       emit('updated')
     } else {
       // 🟢 INSERT new
@@ -1396,10 +1397,10 @@ async function handleSubmit() {
       // ✅ Reset barcode checks
       barcodeValid.value = null
       barcodeMessage.value = ''
+
+      console.log('Product inserted successfully')
     }
 
-
-    console.log('Product inserted successfully')
     showToast.value = true
 
   } catch (err: any) {
