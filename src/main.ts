@@ -47,7 +47,7 @@ if (Capacitor.isNativePlatform()) {
 }
 
 const i18n = createI18n({
-    legacy: false, // you must set `false`, to use Composition API,
+    legacy: false,
     locale: localStorage.getItem('lang') || 'en',
     fallbackLocale: 'en',
     messages: { en, id, zh }
@@ -60,11 +60,36 @@ const app = createApp(App).use(IonicVue).use(router).use(i18n)
 router.afterEach(() => scheduleBannerUpdate())
 if (Capacitor.isNativePlatform()) {
     CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) scheduleBannerUpdate()
+        if (isActive) {
+            scheduleBannerUpdate()
+            // 🔄 Refresh session/donor on resume
+            supabase.auth.getSession().then(({ data }) => {
+                const session = data.session
+                if (session?.user) {
+                    fetchDonorStatus(session.user.id).catch(console.error)
+                } else {
+                    fetchDonorStatus('').catch(console.error)
+                }
+            })
+        }
     })
 }
 
-// ✅ Auth events
+// ✅ Restore session once on boot
+supabase.auth.getSession().then(({ data }) => {
+    const session = data.session
+    if (session?.user) {
+        fetchDonorStatus(session.user.id).catch(console.error)
+        if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
+            const rawRedirect = router.currentRoute.value.query.redirect
+            router.push(typeof rawRedirect === 'string' && rawRedirect.trim() ? rawRedirect : '/profile')
+        }
+    } else {
+        fetchDonorStatus('').catch(console.error)
+    }
+})
+
+// ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
         fetchDonorStatus(session.user.id).catch(console.error)
