@@ -1,7 +1,7 @@
 {
   "name": "halal-formosa",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.5",
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
@@ -49,6 +49,7 @@
     "@vueup/vue-quill": "^1.2.0",
     "@zxing/library": "^0.21.3",
     "barcode-detector": "^3.0.5",
+    "canvas-confetti": "^1.9.3",
     "capacitor-plugin-safe-area": "^4.0.0",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
@@ -71,6 +72,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "7.4.2",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/google.maps": "^3.58.1",
     "@vitejs/plugin-legacy": "^5.0.0",
     "@vitejs/plugin-vue": "^4.0.0",

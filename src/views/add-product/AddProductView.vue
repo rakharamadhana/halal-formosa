@@ -314,7 +314,9 @@ import useHighlightCache from '@/composables/useHighlightCache'
 import useOcrPipeline from '@/composables/useOcrPipeline'
 import useError from '@/composables/useError'
 import { userRole, setUserRole } from '@/composables/userProfile'
+import { usePoints } from "@/composables/usePoints";
 
+const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
 
 import type { Product } from '@/types/Product'
@@ -1399,6 +1401,10 @@ async function handleSubmit() {
       barcodeMessage.value = ''
 
       console.log('Product inserted successfully')
+
+      // 🎁 Always award points once submitted
+      await awardAndCelebrate("add_product", 5000);
+
     }
 
     showToast.value = true

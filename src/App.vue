@@ -3,6 +3,38 @@
     <ion-router-outlet />
   </ion-app>
 
+  <!-- 🎁 Global Reward Popup -->
+  <div v-if="rewardOpen" class="reward-overlay">
+    <div class="reward-float ion-text-center">
+      <h2>🎉 {{ $t('main.congratulation') }}</h2>
+
+      <!-- Avatar -->
+      <ion-avatar style="margin: 0 auto; width: 80px; height: 80px;" v-if="rewardAvatar">
+        <img :src="rewardAvatar" alt="Profile Picture" />
+      </ion-avatar>
+
+      <!-- Reward points -->
+      <p style="margin-top: 1rem;">
+        {{ $t('main.increasePoint') }} <strong>+{{ rewardPoints }}</strong> {{ $t('main.point') }}
+        {{ $t('main.for') }} <em>{{ rewardAction }}</em>!
+      </p>
+
+      <!-- Animated EXP progress -->
+      <ion-progress-bar
+          :value="rewardProgress"
+          color="success"
+          style="margin-top: 10px; border-radius: 8px;"
+      ></ion-progress-bar>
+      <small>
+        Level {{ rewardLevel }} — {{ rewardDisplay }} / {{ rewardNextXp }} XP
+      </small>
+
+      <ion-button expand="block" color="success" @click="closeReward" style="margin-top: 1rem;">
+        OK
+      </ion-button>
+    </div>
+  </div>
+
   <!-- Only UI responsibilities left -->
   <ion-alert
       :is-open="showUpdateAlert"
@@ -16,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonApp, IonRouterOutlet, IonAlert } from '@ionic/vue';
+import { IonApp, IonRouterOutlet, IonAlert, IonButton, IonProgressBar, IonAvatar } from '@ionic/vue';
 import { onMounted, ref } from 'vue';
 import { Analytics } from "@vercel/analytics/vue";
 import { SpeedInsights } from '@vercel/speed-insights/vue';
@@ -24,6 +56,18 @@ import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { AppUpdate, AppUpdateAvailability } from '@capawesome/capacitor-app-update';
 import { AppReview } from '@capawesome/capacitor-app-review';
+
+import {
+  rewardOpen,
+  rewardPoints,
+  rewardAction,
+  closeReward,
+  rewardAvatar,
+  rewardDisplay,
+  rewardLevel,
+  rewardNextXp,
+  rewardProgress
+} from "@/composables/useRewardOverlay";
 
 const askedKey = 'askedLocationPermission';
 const showUpdateAlert = ref(false);

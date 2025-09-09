@@ -38,7 +38,13 @@ const routes: Array<RouteRecordRaw> = [
         path: '/admin/review-products',
         component: () => import('@/views/admin/ReviewProductsView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/admin/points-logs',
+        component: () => import('@/views/admin/PointsLogsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
     }
+
 ];
 
 const router = createRouter({

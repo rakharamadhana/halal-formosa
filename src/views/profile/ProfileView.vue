@@ -66,6 +66,7 @@
             </ion-badge>
           </ion-text>
 
+
           <ion-text v-if="userEmail" class="profile-email">
             <p>{{ userEmail }}</p>
           </ion-text>
@@ -89,6 +90,26 @@
         </ion-card>
       </div>
 
+      <ion-card v-if="userEmail" class="profile-card ion-text-center">
+        <ion-card-header>
+          <ion-card-title>{{ $t('profile.experiencePoints') }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <h2 style="font-size: 2rem; margin: 0; color: var(--ion-color-primary);">
+            {{ currentPoints }}
+          </h2>
+          <p>Level {{ level }}</p>
+          <ion-progress-bar
+              :value="progressPercent / 100"
+              color="success"
+              style="margin-top: 10px; border-radius: 8px;"
+          ></ion-progress-bar>
+          <small>{{ currentPoints }} / {{ nextLevelXp }} XP</small>
+        </ion-card-content>
+      </ion-card>
+
+
+
       <!-- Review Submissions -->
       <ion-list v-if="isAdmin" class="profile-menu" style="border-radius: 10px">
         <ion-item button @click="goToReviewSubmissions" style="--inner-border-width: 0">
@@ -104,6 +125,18 @@
             {{ pendingCount }}
           </ion-badge>
         </ion-item>
+
+        <!-- ✅ Admin Test Button -->
+        <ion-item button color="danger" @click="testAwardPoints">
+          <ion-icon :icon="giftOutline" />&nbsp;
+          <ion-label>Test Add Points</ion-label>
+        </ion-item>
+
+        <ion-item button @click="goToPointsLogs">
+          <ion-icon :icon="listOutline" />&nbsp;
+          <ion-label>View Points Logs</ion-label>
+        </ion-item>
+
       </ion-list>
 
       <!-- Menu -->
@@ -123,7 +156,7 @@
       </ion-list>
 
       <!-- Support -->
-      <ion-card class="app-info-card ion-text-center">
+      <ion-card class="profile-card ion-text-center">
         <ion-card-header>
           <ion-card-title>{{ $t('profile.support') }}</ion-card-title>
         </ion-card-header>
@@ -142,8 +175,9 @@
         </ion-card-content>
       </ion-card>
 
+
       <!-- App Info -->
-      <ion-card class="app-info-card ion-text-center">
+      <ion-card class="profile-card ion-text-center">
         <ion-card-header>
           <ion-card-title>{{ $t('profile.appInfo') }}</ion-card-title>
         </ion-card-header>
@@ -165,12 +199,12 @@
 </template>
 
 <script setup lang="ts">
-import {onBeforeUnmount, onMounted, ref} from 'vue'
-import { useRouter } from 'vue-router'
-import { supabase } from '@/plugins/supabaseClient'
+import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import { useRouter } from "vue-router";
+import { supabase } from "@/plugins/supabaseClient";
 
-// @ts-expect-error – because define() injects globals
-const appVersion = __APP_VERSION__
+// @ts-expect-error – injected global
+const appVersion = __APP_VERSION__;
 
 // ✅ Ionic components
 import {
@@ -190,127 +224,169 @@ import {
   IonIcon,
   IonText,
   IonNote,
-  IonBadge, IonSkeletonText
-} from '@ionic/vue'
+  IonBadge,
+  IonSkeletonText,
+  IonProgressBar,
+  onIonViewWillEnter,
+} from "@ionic/vue";
 
 // ✅ Icons
 import {
   settingsOutline,
   documentTextOutline,
   personCircleOutline,
-  peopleOutline, listOutline,
-} from 'ionicons/icons'
+  peopleOutline,
+  listOutline,
+  giftOutline,
+} from "ionicons/icons";
 
 // ✅ Composables
-import { donorBadge, isAdmin } from '@/composables/userProfile'
-import {Subscription} from "@supabase/supabase-js";
+import { donorBadge, isAdmin } from "@/composables/userProfile";
+import { Subscription } from "@supabase/supabase-js";
+import { usePoints } from "@/composables/usePoints";
+import { xpForLevel } from "@/utils/xp"
 
-// State
-const userEmail = ref('')
-const userDisplayName = ref('')
-const userAvatar = ref('')
-const router = useRouter()
-const pendingCount = ref(0)
-const loading = ref(true)
+const userEmail = ref("");
+const userDisplayName = ref("");
+const userAvatar = ref("");
+const router = useRouter();
+const pendingCount = ref(0);
+const loading = ref(true);
 
-let authSubscription: Subscription | null = null  // 👈 correct type
+// ✅ Points composable
+const { awardAndCelebrate, currentPoints, fetchCurrentPoints } = usePoints();
+
+let authSubscription: Subscription | null = null;
+
+const level = computed(() => {
+  const points = currentPoints.value || 0
+  let lvl = 1
+
+  // keep leveling up until next requirement is higher than points
+  while (points >= xpForLevel(lvl + 1)) {
+    lvl++
+  }
+  return lvl
+})
+
+const nextLevelXp = computed(() => xpForLevel(level.value + 1))
+const prevLevelXp = computed(() => xpForLevel(level.value))
+
+const progressPercent = computed(() => {
+  const points = currentPoints.value || 0
+  return ((points - prevLevelXp.value) / (nextLevelXp.value - prevLevelXp.value)) * 100
+})
+
+// 🎁 Simplified test button handler
+async function testAwardPoints() {
+  console.log("🚀 testAwardPoints called with action = add_product");
+
+  await awardAndCelebrate("add_product", 3000); // now it updates global overlay
+}
 
 async function fetchPendingCount() {
   if (!isAdmin.value) {
-    pendingCount.value = 0
-    return
+    pendingCount.value = 0;
+    return;
   }
 
   const { count, error } = await supabase
       .from("products")
       .select("*", { count: "exact", head: true })
-      .eq("approved", false)
+      .eq("approved", false);
 
   if (!error && count !== null) {
-    pendingCount.value = count
+    pendingCount.value = count;
   }
 }
 
-onMounted(async () => {
-  // Initial user check
-  const { data } = await supabase.auth.getUser()
+// ✅ Always refresh when ProfileView becomes active
+onIonViewWillEnter(async () => {
+  const { data } = await supabase.auth.getUser();
   if (data?.user) {
-    const u = data.user
-    userEmail.value = u.email || ''
+    await fetchCurrentPoints(data.user.id); // 🔄 refresh points on view enter
+  }
+});
+
+onMounted(async () => {
+  const { data } = await supabase.auth.getUser();
+  if (data?.user) {
+    const u = data.user;
+    userEmail.value = u.email || "";
     userDisplayName.value =
-        u.user_metadata?.full_name ||
-        u.user_metadata?.display_name ||
-        ''
-    userAvatar.value = u.user_metadata?.avatar_url || ''
+        u.user_metadata?.full_name || u.user_metadata?.display_name || "";
+    userAvatar.value = u.user_metadata?.avatar_url || "";
+
+    // ✅ fetch initial points
+    await fetchCurrentPoints(u.id);
   } else {
-    userEmail.value = ''
-    userDisplayName.value = ''
-    userAvatar.value = ''
+    userEmail.value = "";
+    userDisplayName.value = "";
+    userAvatar.value = "";
   }
 
-  if (isAdmin.value) await fetchPendingCount()
+  if (isAdmin.value) await fetchPendingCount();
 
-  // ✅ Set loading false after first check
-  loading.value = false
+  loading.value = false;
 
-  // Subscribe for auth changes
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
-      const u = session.user
-      userEmail.value = u.email || ''
+      const u = session.user;
+      userEmail.value = u.email || "";
       userDisplayName.value =
-          u.user_metadata?.full_name ||
-          u.user_metadata?.display_name ||
-          ''
-      userAvatar.value = u.user_metadata?.avatar_url || ''
+          u.user_metadata?.full_name || u.user_metadata?.display_name || "";
+      userAvatar.value = u.user_metadata?.avatar_url || "";
+
+      // ✅ refresh points on login change
+      fetchCurrentPoints(u.id);
     } else {
-      userEmail.value = ''
-      userDisplayName.value = ''
-      userAvatar.value = ''
+      userEmail.value = "";
+      userDisplayName.value = "";
+      userAvatar.value = "";
+      currentPoints.value = null;
     }
 
-    if (isAdmin.value) fetchPendingCount()
-  })
+    if (isAdmin.value) fetchPendingCount();
+  });
 
-  authSubscription = subscription
-})
+  authSubscription = subscription;
+});
 
 onBeforeUnmount(() => {
   if (authSubscription) {
-    authSubscription.unsubscribe()
-    authSubscription = null
+    authSubscription.unsubscribe();
+    authSubscription = null;
   }
-})
+});
 
 // Actions
 const handleLogout = async () => {
-  const { error } = await supabase.auth.signOut()
-  if (error) {
-    alert('Logout failed: ' + error.message)
-  } else {
-    userEmail.value = ''
-    router.push('/login')
+  const { error } = await supabase.auth.signOut();
+  if (!error) {
+    userEmail.value = "";
+    currentPoints.value = null; // reset points
+    router.push("/login");
   }
-}
-const goToReviewSubmissions = () => {
-  router.push('/admin/review-products')
-}
-const goToLogin = () => router.push('/login')
-const goToSettings = () => router.push('/settings')
-const goToLegal = () => router.push('/legal')
-const goToCredits = () => router.push('/credits')
+};
+const goToReviewSubmissions = () => router.push("/admin/review-products");
+const goToLogin = () => router.push("/login");
+const goToSettings = () => router.push("/settings");
+const goToLegal = () => router.push("/legal");
+const goToCredits = () => router.push("/credits");
+const goToPointsLogs = () => router.push("/admin/points-logs");
 </script>
+
+
 
 <style scoped>
 .profile-card {
-  margin: 2rem auto;
-  padding: 2rem 1.5rem;
+  margin: 1rem auto;
+  padding: 1rem 1rem;
   border-radius: 10px;
 }
-.app-info-card {
-  margin: 2rem auto;
-  border-radius: 10px;
-}
+
 .avatar-wrapper {
   display: flex;
   justify-content: center;
@@ -323,6 +399,7 @@ const goToCredits = () => router.push('/credits')
   object-fit: cover;
   border: 2px solid var(--ion-color-tertiary);
 }
+
 .profile-name h2 {
   margin: 0 0 0.25rem;
   font-weight: 700;

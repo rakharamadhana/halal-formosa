@@ -10,6 +10,7 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <!-- 🌙 Appearance -->
       <ion-list style="border-radius: 12px;">
         <ion-list-header>{{ $t('settings.appearance')}}</ion-list-header>
         <ion-list :inset="true">
@@ -18,13 +19,31 @@
                 :checked="paletteToggle"
                 @ionChange="(e) => {paletteToggle = e.detail.checked; toggleDarkPalette(e.detail.checked);}"
             >
-              {{ $t('settings.darkMode')}}
+              {{ $t('settings.darkMode') }}
             </ion-toggle>
           </ion-item>
         </ion-list>
       </ion-list>
 
-      <!-- 🌐 Language section -->
+      <!-- 🔒 Privacy: only if logged in -->
+      <ion-list
+          v-if="currentUser"
+          style="border-radius: 12px; margin-top: 20px;"
+      >
+        <ion-list-header>{{ $t('settings.privacy')}}</ion-list-header>
+        <ion-list :inset="true">
+          <ion-item v-if="isPublicLeaderboard !== null">
+            <ion-toggle
+                :checked="!!isPublicLeaderboard"
+                @ionChange="(e) => setPublicLeaderboard(e.detail.checked)"
+            >
+              {{ $t('settings.leaderboardPrivacy') }}
+            </ion-toggle>
+          </ion-item>
+        </ion-list>
+      </ion-list>
+
+      <!-- 🌐 Language -->
       <ion-list style="border-radius: 12px; margin-top: 20px;">
         <ion-list-header>{{ $t('settings.language')}}</ion-list-header>
         <ion-list :inset="true">
@@ -61,11 +80,17 @@ import {
   IonPage,
   IonSelect,
   IonSelectOption
-} from '@ionic/vue';
-import type { ToggleCustomEvent } from '@ionic/vue';
-import { personCircle, personCircleOutline, sunnyOutline, sunny } from 'ionicons/icons';
-import { defineComponent, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+} from '@ionic/vue'
+import { personCircle, personCircleOutline, sunnyOutline, sunny } from 'ionicons/icons'
+import { defineComponent, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+// 👉 import global state directly
+import {
+  currentUser,
+  isPublicLeaderboard,
+  setPublicLeaderboard,
+} from '@/composables/userProfile'
 
 export default defineComponent({
   components: {
@@ -84,64 +109,53 @@ export default defineComponent({
     IonSelectOption
   },
   setup() {
-    const { locale } = useI18n();
-    const lang = ref(locale.value);
+    const { locale } = useI18n()
+    const lang = ref(locale.value)
 
     const changeLanguage = () => {
-      locale.value = lang.value;
-      localStorage.setItem('lang', lang.value);
-    };
+      locale.value = lang.value
+      localStorage.setItem('lang', lang.value)
+    }
 
-    const paletteToggle = ref(false);
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const paletteToggle = ref(false)
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
 
     const toggleDarkPalette = (enabled: boolean) => {
-      document.documentElement.classList.toggle('ion-palette-dark', enabled);
-      localStorage.setItem('preferred-theme', enabled ? 'dark' : 'light');
-    };
+      document.documentElement.classList.toggle('ion-palette-dark', enabled)
+      localStorage.setItem('preferred-theme', enabled ? 'dark' : 'light')
+    }
 
     const initializeDarkPalette = (isDark: boolean) => {
-      paletteToggle.value = isDark;
-      toggleDarkPalette(isDark);
-    };
+      paletteToggle.value = isDark
+      toggleDarkPalette(isDark)
+    }
 
-    const toggleChange = (event: ToggleCustomEvent) => {
-      const isDark = event.detail.checked;
-      toggleDarkPalette(isDark);
-      localStorage.setItem('preferred-theme', isDark ? 'dark' : 'light');
-    };
-
-    const savedTheme = localStorage.getItem('preferred-theme');
+    const savedTheme = localStorage.getItem('preferred-theme')
     if (savedTheme === 'dark') {
-      initializeDarkPalette(true);
+      initializeDarkPalette(true)
     } else if (savedTheme === 'light') {
-      initializeDarkPalette(false);
+      initializeDarkPalette(false)
     } else {
-      initializeDarkPalette(prefersDark.matches);
+      initializeDarkPalette(prefersDark.matches)
     }
 
     prefersDark.addEventListener('change', (mediaQuery) =>
         initializeDarkPalette(mediaQuery.matches)
-    );
-
-    onMounted(() => {
-      if (savedTheme === 'dark') paletteToggle.value = true;
-      else if (savedTheme === 'light') paletteToggle.value = false;
-      else paletteToggle.value = prefersDark.matches;
-    });
+    )
 
     return {
       personCircle,
       personCircleOutline,
       sunnyOutline,
       sunny,
-      toggleChange,
-      toggleDarkPalette,
       paletteToggle,
+      toggleDarkPalette,
       changeLanguage,
-      lang
-    };
-  },
-});
+      lang,
+      currentUser,
+      isPublicLeaderboard,
+      setPublicLeaderboard
+    }
+  }
+})
 </script>
-

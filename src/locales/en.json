@@ -6,7 +6,11 @@
     "product": "Product",
     "explore": "Explore",
     "add": "Add Products",
-    "news": "News"
+    "news": "News",
+    "congratulation": "Congratulations",
+    "increasePoint": "You gained",
+    "point": "EXP",
+    "for": "for"
   },
   "home": {
     "title": "Halal Formosa",
@@ -20,7 +24,8 @@
     "mainFeature": "Featured Menu",
     "discoverProducts": "Discover Products",
     "discoverLocations": "Discover Locations",
-    "locationCategories": "Locations Status"
+    "locationCategories": "Locations Status",
+    "leaderboard": "Leaderboard"
   },
   "scanIngredients" :
   {
@@ -137,7 +142,9 @@
   "settings": {
     "title": "Settings",
     "appearance": "Appearance",
+    "privacy": "Privacy",
     "darkMode": "Dark Mode",
+    "leaderboardPrivacy": "Show my name on leaderboard",
     "language": "Language (Experimental)"
   },
   "profile": {
@@ -145,6 +152,7 @@
     "logout": "Logout",
     "donor": "Donor Status",
     "noUserLogged": "No user logged in",
+    "experiencePoints": "⭐ Experience Points",
     "login": "Login",
     "review": "Product Review",
     "settings": "Settings",
@@ -250,5 +258,8 @@
       "--ion-color-warning": "Syubhah",
       "--ion-color-danger": "Haram"
     }
+  },
+  "points": {
+    "title": "Review Points Logs"
   }
 }

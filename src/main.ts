@@ -28,9 +28,19 @@ import '@ionic/vue/css/palettes/dark.class.css'
 import './theme/variables.css'
 
 import { defineCustomElements } from '@ionic/pwa-elements/loader'
-import { fetchDonorStatus } from '@/composables/donorStatus'
 import { scheduleBannerUpdate } from '@/plugins/admob'
 import { initSafeArea } from "@/plugins/safeArea";
+
+// ✅ unified user profile composable
+import {
+    setDonorStatus,
+    setDonorType,
+    loadDonorFromCache,
+    loadUserRoleFromCache,
+    loadPublicLeaderboardFromCache,
+    loadUserProfile,
+    currentUser
+} from "@/composables/userProfile"
 
 defineCustomElements(window)
 
@@ -58,50 +68,75 @@ const app = createApp(App).use(IonicVue).use(router).use(i18n)
 
 // AdMob refresh after route changes
 router.afterEach(() => scheduleBannerUpdate())
+
+// 1. Load from cache first → no flicker
+loadDonorFromCache()
+loadUserRoleFromCache()
+loadPublicLeaderboardFromCache()
+
+/* Native: refresh on resume */
 if (Capacitor.isNativePlatform()) {
     CapacitorApp.addListener('appStateChange', ({ isActive }) => {
         if (isActive) {
-            scheduleBannerUpdate()
-            // 🔄 Refresh session/donor on resume
-            supabase.auth.getSession().then(({ data }) => {
-                const session = data.session
+            scheduleBannerUpdate();
+            supabase.auth.getSession().then(async ({ data }) => {
+                const session = data.session;
                 if (session?.user) {
-                    fetchDonorStatus(session.user.id).catch(console.error)
-                } else {
-                    fetchDonorStatus('').catch(console.error)
+                    currentUser.value = session.user;
+                    await loadUserProfile(session.user.id);
                 }
-            })
+            });
         }
-    })
+    });
 }
 
+
 // ✅ Restore session once on boot
-supabase.auth.getSession().then(({ data }) => {
-    const session = data.session
+supabase.auth.getSession().then(async ({ data }) => {
+    const session = data.session;
     if (session?.user) {
-        fetchDonorStatus(session.user.id).catch(console.error)
+        currentUser.value = session.user;
+        await loadUserProfile(session.user.id);
+
+        // Redirect logic...
         if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
-            const rawRedirect = router.currentRoute.value.query.redirect
-            router.push(typeof rawRedirect === 'string' && rawRedirect.trim() ? rawRedirect : '/profile')
+            const rawRedirect = router.currentRoute.value.query.redirect;
+            router.push(typeof rawRedirect === 'string' && rawRedirect.trim() ? rawRedirect : '/profile');
         }
     } else {
-        fetchDonorStatus('').catch(console.error)
+        console.log('⚠️ No session, resetting defaults');
+        currentUser.value = null;
+        setDonorStatus(false);
+        setDonorType('Free');
     }
-})
+});
+
 
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
-        fetchDonorStatus(session.user.id).catch(console.error)
+        // Only load profile if not already loaded
+        if (!currentUser.value) {
+            currentUser.value = session.user
+            loadUserProfile(session.user.id).catch(console.error)
+        }
 
+        // Handle redirect after login/signup
         if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
             const rawRedirect = router.currentRoute.value.query.redirect
-            router.push(typeof rawRedirect === 'string' && rawRedirect.trim() ? rawRedirect : '/profile')
+            router.push(
+                typeof rawRedirect === 'string' && rawRedirect.trim()
+                    ? rawRedirect
+                    : '/profile'
+            )
         }
     }
 
     if (event === 'SIGNED_OUT') {
-        fetchDonorStatus('').catch(console.error)
+        console.log('👋 Signed out, resetting profile state')
+        currentUser.value = null
+        setDonorStatus(false)
+        setDonorType('Free')
         router.push('/login')
     }
 })

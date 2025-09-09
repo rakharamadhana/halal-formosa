@@ -115,6 +115,7 @@ import { supabase } from '@/plugins/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import {usePoints} from "@/composables/usePoints";
 
 const user = ref<User | null>(null);
 const title = ref('');
@@ -135,6 +136,8 @@ const route = useRoute();
 const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
 const editingId = computed(() => route.params.id as string);
+
+const { awardAndCelebrate } = usePoints();
 
 // Prefill form if editing
 onMounted(async () => {
@@ -278,7 +281,15 @@ async function submitArticle() {
   }
 
   loading.value = false;
-  toastMessage.value = isEdit.value ? '✅ Article updated!' : '✅ Article published!';
+  if (!isEdit.value) {
+    // Only give points if it's a new article
+    await awardAndCelebrate("create_news", 3000);
+  }
+
+  toastMessage.value = isEdit.value
+      ? '✅ Article updated!'
+      : '✅ Article published!';
+
   showToast.value = true;
 
   // Clear form or redirect

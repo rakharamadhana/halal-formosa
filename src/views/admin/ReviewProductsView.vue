@@ -245,7 +245,7 @@ import {
   IonSelect,
   IonSelectOption,
   IonTextarea,
-    IonChip
+    IonChip, IonSkeletonText
 } from '@ionic/vue'
 
 import {ref, onMounted, computed} from 'vue'

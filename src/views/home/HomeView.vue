@@ -174,6 +174,61 @@
           <DoughnutChart ref="locationChartRef" :data="locationChartData" :options="chartOptions" />
         </div>
       </ion-card>
+
+      <!-- === Leaderboard === -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>{{ $t('home.leaderboard') }}</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <ion-list v-if="!loadingLeaderboard">
+            <ion-item v-for="(user, index) in leaderboard" :key="user.id" lines="none">
+              <div style="display: flex; align-items: center; width: 100%;">
+
+                <!-- Rank -->
+                <div style="width: 28px; text-align: center; font-weight: 600;">
+                  <span v-if="index === 0">🥇</span>
+                  <span v-else-if="index === 1">🥈</span>
+                  <span v-else-if="index === 2">🥉</span>
+                  <span v-else>{{ index + 1 }}</span>
+                </div>
+
+                <!-- Avatar -->
+                <ion-avatar style="width: 40px; height: 40px; margin: 0 10px;">
+                  <img :src="user.public_leaderboard ? (user.avatar_url || 'https://placehold.co/64x64') : 'https://placehold.co/64x64?text=?'" />
+                </ion-avatar>
+
+                <!-- Info -->
+                <ion-label style="flex: 1; min-width: 0;">
+                  <h2 style="margin: 0; font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ user.public_leaderboard ? user.display_name : `Anonymous #${index + 1}` }}
+                  </h2>
+                  <p style="margin: 0; font-size: 0.8rem; color: var(--ion-color-medium);">
+                    {{ getLevelLabel(user.points) }}
+                  </p>
+                </ion-label>
+
+                <!-- Points Badge -->
+                <ion-badge
+                    :color="getLevelColor(user.points)"
+                    style="white-space: nowrap; font-size: 0.75rem; min-width: 70px; text-align: center;"
+                >
+                  {{ user.points }} pts
+                </ion-badge>
+
+              </div>
+            </ion-item>
+          </ion-list>
+
+
+          <ion-skeleton-text
+              v-else
+              animated
+              style="width:100%;height:120px;border-radius:8px;"
+          />
+        </ion-card-content>
+      </ion-card>
     </ion-content>
   </ion-page>
 </template>
@@ -183,7 +238,8 @@
 import { ref, nextTick } from 'vue'
 import {
   IonPage, IonContent, IonCard, IonCardHeader, IonCardTitle,
-  IonCardContent, IonButton, IonIcon, IonHeader, onIonViewWillEnter, IonLabel, IonChip, IonSkeletonText
+  IonCardContent, IonButton, IonIcon, IonHeader, onIonViewWillEnter, IonLabel, IonChip, IonSkeletonText,
+    IonList, IonBadge, IonAvatar, IonItem
 } from '@ionic/vue'
 import { useRouter } from 'vue-router'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js'
@@ -196,6 +252,9 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import { barcodeOutline, scanOutline } from "ionicons/icons"
+import { useLeaderboard } from "@/composables/useLeaderboard";
+import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
+import { getLevelFromPoints } from '@/utils/xp'
 
 /* ---------------- Chart Setup ---------------- */
 ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale)
@@ -213,6 +272,8 @@ const loadingProducts = ref(true)
 const loadingLocations = ref(true)
 const recentProducts = ref<any[]>([])
 const recentLocations = ref<any[]>([])
+
+const { leaderboard, loading: loadingLeaderboard, fetchLeaderboard } = useLeaderboard();
 
 const ionColorDark = getComputedStyle(document.documentElement)
     .getPropertyValue('--ion-color-dark')
@@ -380,6 +441,7 @@ onIonViewWillEnter(async () => {
   fetchLocationCategoryStats()   // ✅ new
   fetchRecentProducts()
   fetchRecentLocations()
+  fetchLeaderboard()   // ✅ new
 })
 
 /* ---------------- Navigation ---------------- */

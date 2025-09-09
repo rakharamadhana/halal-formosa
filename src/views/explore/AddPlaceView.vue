@@ -137,6 +137,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { cameraOutline, cloudUploadOutline } from 'ionicons/icons'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
+import {usePoints} from "@/composables/usePoints";
 
 /* -------------------- Constants -------------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
@@ -146,7 +147,7 @@ let clickMarker: google.maps.marker.AdvancedMarkerElement | null = null
 let pinEl: any | null = null
 const mapLoading = ref(true)  // show skeleton
 const mapReady = ref(false)   // reveal map once real map is ready
-
+const { awardAndCelebrate } = usePoints();
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -492,6 +493,7 @@ const submitPlace = async () => {
     const { error } = await supabase.from('locations').insert([payload])
     if (error) throw error
 
+    await awardAndCelebrate("add_place", 3000);
     toast.value = { open: true, message: 'Place saved!', color: 'success' }
 
     // cleanup preview/file state
