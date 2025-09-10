@@ -3,6 +3,7 @@ import { ref } from "vue";
 import confetti from "canvas-confetti";
 import { usePointRules } from "@/composables/usePointRules";
 import { openReward, closeReward } from "@/composables/useRewardOverlay";
+import {Capacitor} from "@capacitor/core";
 
 const EDGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -18,6 +19,13 @@ const fallbackRules: Record<string, { points: number; label: string }> = {
 
 // 🎉 Confetti helper
 function fireConfetti() {
+    if (Capacitor.isNativePlatform()) {
+        // 👉 Skip confetti on native
+        console.log("🎉 Skipping confetti on native platform");
+        return;
+    }
+
+    // Web fallback
     confetti({ particleCount: 100, spread: 70, origin: { x: 0.5, y: 0.4 } });
     confetti({ particleCount: 60, spread: 100, origin: { x: 0.2, y: 0.6 } });
     confetti({ particleCount: 60, spread: 100, origin: { x: 0.8, y: 0.6 } });
