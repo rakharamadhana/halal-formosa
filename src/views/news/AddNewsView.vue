@@ -283,7 +283,7 @@ async function submitArticle() {
   loading.value = false;
   if (!isEdit.value) {
     // Only give points if it's a new article
-    await awardAndCelebrate("create_news", 3000);
+    await awardAndCelebrate("create_news", 10000);
   }
 
   toastMessage.value = isEdit.value

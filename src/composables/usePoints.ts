@@ -1,9 +1,10 @@
 import { supabase } from "@/plugins/supabaseClient";
 import { ref } from "vue";
-import confetti from "canvas-confetti";
 import { usePointRules } from "@/composables/usePointRules";
 import { openReward, closeReward } from "@/composables/useRewardOverlay";
-import {Capacitor} from "@capacitor/core";
+import confetti from "canvas-confetti";
+import lottie from "lottie-web";
+import { Capacitor } from "@capacitor/core";
 
 const EDGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -20,12 +21,30 @@ const fallbackRules: Record<string, { points: number; label: string }> = {
 // 🎉 Confetti helper
 function fireConfetti() {
     if (Capacitor.isNativePlatform()) {
-        // 👉 Skip confetti on native
-        console.log("🎉 Skipping confetti on native platform");
+        // 👉 Use Lottie for native
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.pointerEvents = "none";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+
+        lottie.loadAnimation({
+            container,
+            renderer: "svg",
+            loop: false,
+            autoplay: true,
+            path: "/lottie/Confetti.json",
+        });
+
+        setTimeout(() => container.remove(), 10000);
         return;
     }
 
-    // Web fallback
+    // 👉 Web fallback with canvas-confetti
     confetti({ particleCount: 100, spread: 70, origin: { x: 0.5, y: 0.4 } });
     confetti({ particleCount: 60, spread: 100, origin: { x: 0.2, y: 0.6 } });
     confetti({ particleCount: 60, spread: 100, origin: { x: 0.8, y: 0.6 } });

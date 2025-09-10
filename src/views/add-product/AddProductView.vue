@@ -1403,7 +1403,7 @@ async function handleSubmit() {
       console.log('Product inserted successfully')
 
       // 🎁 Always award points once submitted
-      await awardAndCelebrate("add_product", 5000);
+      await awardAndCelebrate("add_product", 10000); // now it updates global overlay
 
     }
 

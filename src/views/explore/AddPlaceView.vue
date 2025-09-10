@@ -493,7 +493,7 @@ const submitPlace = async () => {
     const { error } = await supabase.from('locations').insert([payload])
     if (error) throw error
 
-    await awardAndCelebrate("add_place", 3000);
+    await awardAndCelebrate("add_place", 10000);
     toast.value = { open: true, message: 'Place saved!', color: 'success' }
 
     // cleanup preview/file state

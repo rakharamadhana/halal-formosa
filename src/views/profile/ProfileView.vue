@@ -281,7 +281,7 @@ const progressPercent = computed(() => {
 async function testAwardPoints() {
   console.log("🚀 testAwardPoints called with action = add_product");
 
-  await awardAndCelebrate("add_product", 3000); // now it updates global overlay
+  await awardAndCelebrate("add_product", 10000); // now it updates global overlay
 }
 
 async function fetchPendingCount() {
