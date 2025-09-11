@@ -12,7 +12,7 @@ export const currentPoints = ref<number | null>(null); // 👈 exported
 
 const fallbackRules: Record<string, { points: number; label: string }> = {
     add_product: { points: 10, label: "Adding Product" },
-    add_place: { points: 15, label: "Adding Place" },
+    add_place: { points: 10, label: "Adding Place" },
     create_news: { points: 20, label: "Creating News" },
     share_card: { points: 5, label: "Sharing Card" },
 };
