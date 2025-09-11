@@ -3,10 +3,11 @@
     <ion-header>
       <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline">
         <template #actions>
-          <ion-item button @click="editItem" lines="none">
+          <ion-item v-if="canEdit" button @click="editItem" lines="none">
             <ion-icon :icon="createOutline" slot="start" />
             <ion-label>Edit</ion-label>
           </ion-item>
+
           <ion-item button @click="reportItem" lines="none">
             <ion-icon :icon="alertCircleOutline" slot="start" />
             <ion-label>Report</ion-label>
@@ -379,6 +380,21 @@ function closeImageModal() {
   showImageModal.value = false
 }
 
+const canEdit = computed(() => {
+  if (!item.value) return false
+  if (isAdmin.value) return true
+
+  // If product has an added_by column → allow edit if same user
+  if (userId.value && item.value.added_by === userId.value) {
+    return true
+  }
+
+  return false
+})
+
+const userId = ref<string | null>(null)
+
+
 function editItem() {
   // Open your edit modal
   showEditModal.value = true
@@ -568,6 +584,8 @@ onMounted(async () => {
 
     // role check…
     if (user) {
+      userId.value = user.id
+
       const { data: roleRow, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
