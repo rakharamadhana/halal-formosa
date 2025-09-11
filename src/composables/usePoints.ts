@@ -15,7 +15,6 @@ const fallbackRules: Record<string, { points: number; label: string }> = {
     add_place: { points: 15, label: "Adding Place" },
     create_news: { points: 20, label: "Creating News" },
     share_card: { points: 5, label: "Sharing Card" },
-    daily_login: { points: 2, label: "Daily Login" },
 };
 
 // 🎉 Confetti helper
