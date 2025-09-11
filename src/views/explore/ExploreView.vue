@@ -460,7 +460,6 @@ const activeCategoryId = ref<number|null>(null)
 const toggleCategory = (cat: LocationType) => {
   activeCategoryId.value = activeCategoryId.value === cat.id ? null : cat.id
   focusedPlaceId.value = null
-  searchQuery.value = ''
   if (infoWindow) infoWindow.close()
 }
 

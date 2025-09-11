@@ -7,7 +7,7 @@
           :showProfile="true"
           show-back
           :useRouterBack="false"
-          @back="emit('close')"
+          @back="handleBack"
       />
     </ion-header>
 
@@ -320,6 +320,7 @@ const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
 
 import type { Product } from '@/types/Product'
+import router from "@/router";
 
 
 // props
@@ -494,6 +495,16 @@ const barcodeMessage = ref<string>('') // feedback below input
 const html5QrCodeInstance = ref<Html5Qrcode | null>(null)
 const categories = ref<{ id: number; name: string }[]>([])
 const emit = defineEmits(['updated', 'close'])
+
+function handleBack() {
+  if (props.editProduct) {
+    // If editing, just close the editor (let parent decide what to do)
+    emit("close")
+  } else {
+    // Or you can still navigate directly if it's a fresh add
+    router.push("/search")
+  }
+}
 
 const fetchCategories = async () => {
   const { data, error } = await supabase
