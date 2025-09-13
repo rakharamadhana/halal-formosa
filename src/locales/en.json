@@ -119,7 +119,8 @@
         "muslimFriendly": "Permissible ingredient, but no halal certification",
         "syubhah": "Questionable (syubhah) ingredient, use caution",
         "haram": "Haram ingredient"
-      }
+      },
+      "availableAt": "Available at"
     },
     "status": {
       "Halal": "Halal",
@@ -198,6 +199,7 @@
     "ingredientsPlaceholder": "Enter text or use camera/gallery",
     "detectedText": "🔎 Detected Text",
     "category": "Category *",
+    "stores": "Store *",
     "description": "Description *",
     "descriptionPlaceholder": "Enter text",
     "frontImage": "Front Image *",

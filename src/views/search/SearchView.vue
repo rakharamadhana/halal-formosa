@@ -1,7 +1,12 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header :title="$t('search.title')" :icon="gridOutline" :showProfile="true" />
+      <app-header
+          :title="activeStore ? `${$t('search.title')} : ${activeStore.name}` : $t('search.title')"
+          :icon="gridOutline"
+          :showProfile="true"
+      />
+
       <ion-toolbar style="padding: 8px;">
         <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
           <!-- Searchbar -->
@@ -33,9 +38,35 @@
           </ion-button>
         </div>
       </ion-toolbar>
+
+      <!-- Row 1: Stores -->
+      <!-- Row 1: Stores -->
+      <ion-toolbar class="search-toolbar">
+        <div class="store-scroll">
+          <template v-if="loadingStores">
+            <ion-skeleton-text
+                v-for="n in 10"
+                :key="'store-skeleton-' + n"
+                animated
+                class="skeleton-store"
+            />
+          </template>
+
+          <template v-else>
+            <StoreLogoBar
+                :stores="stores"
+                mode="filter"
+                v-model:activeStore="activeStore"
+            />
+          </template>
+        </div>
+      </ion-toolbar>
+
+
+
+      <!-- Row 2: Categories -->
       <ion-toolbar class="search-toolbar">
         <div class="category-bar">
-          <!-- ✅ Skeletons while loading -->
           <template v-if="loadingCategories">
             <ion-skeleton-text
                 v-for="n in 4"
@@ -45,7 +76,6 @@
             />
           </template>
 
-          <!-- ✅ Real categories -->
           <template v-else>
             <ion-chip
                 v-for="cat in categories"
@@ -53,11 +83,12 @@
                 :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
                 @click="toggleCategory(cat)"
             >
-              <ion-label>{{ categoryIcons[cat.name] || "📦" }} {{ cat.name }}</ion-label>
+              <ion-label>{{ categoryIcons[cat.name] || '📦' }} {{ cat.name }}</ion-label>
             </ion-chip>
           </template>
         </div>
       </ion-toolbar>
+
 
     </ion-header>
     <!-- Native (mobile) AdMob banner -->
@@ -204,15 +235,14 @@
       </ion-fab>
     </ion-content>
 
-    <ion-footer >
-      <ion-toolbar>
-        <ion-text class="product-count" color="medium">
-          <small>
-            {{ $t('search.showingResults', { count: results.length, total: totalProductsCount }) }}
-          </small>
-        </ion-text>
-      </ion-toolbar>
+    <ion-footer>
+      <div class="footer-count">
+        <small>
+          {{ $t('search.showingResults', { count: results.length, total: totalProductsCount }) }}
+        </small>
+      </div>
     </ion-footer>
+
   </ion-page>
 </template>
 
@@ -225,7 +255,7 @@ import {
   IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
   onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton
 } from '@ionic/vue'
-import { ref, onMounted, nextTick } from 'vue'
+import {ref, onMounted, nextTick, watch} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
 import {
@@ -244,6 +274,7 @@ import timezone from 'dayjs/plugin/timezone'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import AppHeader from '@/components/AppHeader.vue'
 import { isDonor } from '@/composables/userProfile'
+import StoreLogoBar from "@/components/StoreLogoBar.vue";
 
 /* ---------------- Day.js ---------------- */
 dayjs.extend(utc)
@@ -307,11 +338,23 @@ const categoryIcons: Record<string, string> = {
   "Fresh Meat": "🥩",
 }
 
+const stores = ref<{id: string; name: string; logo_url?: string}[]>([])
+const activeStore = ref<{id: string; name: string} | null>(null)
+const loadingStores = ref(true)
+
 /* ---------------- Filters ---------------- */
-const toggleCategory = async (cat: {id:number, name:string}) => {
+
+watch([activeStore, activeCategory, searchQuery], () => {
+  allLoaded.value = false
+  currentPage.value = 0
+  fetchProducts(true)
+})
+
+
+const toggleCategory = (cat: { id: number; name: string }) => {
   activeCategory.value = activeCategory.value?.id === cat.id ? null : cat
-  await fetchProducts(true)
 }
+
 /* ---------------- Scanner ---------------- */
 function handleDismiss() {
   scanning.value = false
@@ -362,6 +405,16 @@ async function startScan() {
 }
 
 /* ---------------- Data Fetch ---------------- */
+const fetchStores = async () => {
+  loadingStores.value = true
+  const { data, error } = await supabase
+      .from("stores")
+      .select("id, name, logo_url")
+      .order("sort_order", { ascending: true })
+  if (!error && data) stores.value = data
+  loadingStores.value = false
+}
+
 const fetchCategories = async () => {
   loadingCategories.value = true
   const { data, error } = await supabase
@@ -390,22 +443,36 @@ const fetchProducts = async (reset = false) => {
     const from = currentPage.value * pageSize
     const to = from + pageSize - 1
 
+    let baseSelect = "*, product_categories(name)"
+
+    // if filtering by store, add the join
+    if (activeStore.value) {
+      baseSelect += ", product_stores!inner(store_id)"
+    }
+
     let query = supabase
         .from("products")
-        .select("*, product_categories(name)")   // ❌ removed count
+        .select(baseSelect)
         .eq("approved", true)
+
+    if (activeStore.value) {
+      query = query.eq("product_stores.store_id", activeStore.value.id)
+    }
 
     if (activeCategory.value) {
       query = query.eq("product_category_id", activeCategory.value.id)
     }
 
     if (searchQuery.value) {
-      query = query.or(`name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`)
+      query = query.or(
+          `name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`
+      )
     }
 
     query = query.order("created_at", { ascending: false }).range(from, to)
 
-    const { data, error } = await query
+    const { data, error } = await query.returns<Product[]>()
+
     if (error) {
       errorMsg.value = error.message
     } else {
@@ -416,7 +483,7 @@ const fetchProducts = async (reset = false) => {
         infiniteDisabled.value = false
       }
 
-      allProducts.value = reset ? (data || []) : [...allProducts.value, ...(data || [])]
+      allProducts.value = reset ? data : [...allProducts.value, ...data]
       results.value = [...allProducts.value]
       currentPage.value++
     }
@@ -425,6 +492,7 @@ const fetchProducts = async (reset = false) => {
     loadingProducts.value = false
   }
 }
+
 
 
 const fetchTotalCount = async () => {
@@ -441,12 +509,10 @@ const fetchTotalCount = async () => {
 }
 
 /* ---------------- Search ---------------- */
-const handleSearchInput = async (event: Event) => {
+const handleSearchInput = (event: Event) => {
   const target = event.target as HTMLInputElement
   searchQuery.value = target.value.trim()
-  await fetchProducts(true) // reset and fetch from page 1
 }
-
 
 /* ---------------- UI helpers ---------------- */
 function fromNowToTaipei(dateString?: string) {
@@ -520,7 +586,8 @@ onMounted(async () => {
   await Promise.all([
     fetchProducts(true),
     fetchTotalCount(),
-    fetchCategories()
+    fetchCategories(),
+    fetchStores()
   ])
 })
 
@@ -538,10 +605,14 @@ onIonViewDidEnter(async () => {
 
 
 <style>
-.product-count {
-  display: block;
+.footer-count {
   text-align: center;
+  padding: 3px 0;
+  font-size: 14px;
+  color: var(--ion-color-medium);
+  background: transparent;
 }
+
 
 #reader {
   width: 100%;
@@ -565,12 +636,6 @@ ion-chip {
   border-radius: 5px;
   width: 95%;
   text-align: center;
-}
-
-ion-skeleton-text {
-  --background: linear-gradient(90deg, #e0e0e0 25%, #f2f2f2 50%, #e0e0e0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
 }
 
 @keyframes shimmer {
@@ -632,9 +697,4 @@ ion-searchbar.rounded {
   flex-shrink: 0;
   width: auto;
 }
-.chip-carrot {
-  background: var(--ion-color-carrot);
-  color: white;
-}
-
 </style>

@@ -20,4 +20,7 @@ export interface Product {
 
     // ✅ relation
     product_categories: { id: number; name: string }
+
+    // ✅ stores (flattened for UI use)
+    stores?: { id: number; name: string; logo_url?: string | null }[]
 }

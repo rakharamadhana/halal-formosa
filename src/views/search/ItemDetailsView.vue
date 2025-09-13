@@ -134,6 +134,18 @@
             </ion-chip>
           </p>
 
+          <!-- Stores where this product is available -->
+          <div v-if="item.stores?.length" class="ion-margin-top">
+            <p>
+              <strong><small>{{ $t('search.details.availableAt') }}</small></strong>
+            </p>
+            <StoreLogoBar
+                :stores="item.stores"
+                mode="readonly"
+            />
+
+          </div>
+
           <!-- Description -->
           <p class="ion-margin-top">
             <strong><small>{{ $t('search.details.description') }}</small></strong>
@@ -283,6 +295,7 @@ import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
 import {alertCircleOutline, bagOutline, barcodeOutline, createOutline} from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
+import { userRole, setUserRole } from '@/composables/userProfile'
 
 const showEditModal = ref(false)
 const route = useRoute()
@@ -303,6 +316,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import relativeTime from "dayjs/plugin/relativeTime";
+import StoreLogoBar from "@/components/StoreLogoBar.vue";
 
 type RelatedProduct = {
   barcode: string
@@ -382,15 +396,14 @@ function closeImageModal() {
 
 const canEdit = computed(() => {
   if (!item.value) return false
-  if (isAdmin.value) return true
 
-  // If product has an added_by column → allow edit if same user
-  if (userId.value && item.value.added_by === userId.value) {
+  if (['admin', 'contributor'].includes(userRole.value || '')) {
     return true
   }
 
-  return false
+  return userId.value && item.value.added_by === userId.value
 })
+
 
 const userId = ref<string | null>(null)
 
@@ -415,12 +428,22 @@ async function handleProductUpdated() {
   showEditModal.value = false
   const { data, error } = await supabase
       .from('products')
-      .select(`*, product_categories ( id, name )`)
+      .select(`
+    *,
+    product_categories ( id, name ),
+    product_stores (
+      store_id,
+      stores ( id, name, logo_url )
+    )
+  `)
       .eq('barcode', barcode)
       .maybeSingle()
 
   if (!error && data) {
-    item.value = data
+    item.value = {
+      ...data,
+      stores: data.product_stores?.map((ps: any) => ps.stores) || []
+    }
   }
 }
 
@@ -564,8 +587,6 @@ function colorToChipClass(color: string): string {
   }
 }
 
-const isAdmin = ref(false)
-
 onMounted(async () => {
   loading.value = true
   try {
@@ -573,9 +594,13 @@ onMounted(async () => {
       supabase.auth.getUser(),
       supabase.from('products')
           .select(`
-          *,
-          product_categories ( id, name )
-        `)
+        *,
+        product_categories ( id, name ),
+        product_stores (
+          store_id,
+          stores ( id, name, logo_url )
+        )
+      `)
           .eq('barcode', barcode)
           .maybeSingle(),
       supabase.from('ingredient_highlights')
@@ -586,15 +611,13 @@ onMounted(async () => {
     if (user) {
       userId.value = user.id
 
-      const { data: roleRow, error: roleError } = await supabase
+      const { data: roleRow } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .maybeSingle()
 
-      if (!roleError && roleRow?.role === 'admin') {
-        isAdmin.value = true
-      }
+      setUserRole(roleRow?.role || 'user')
     }
 
     // product
@@ -605,8 +628,11 @@ onMounted(async () => {
     }
 
     if (prodRes.data) {
-      item.value = prodRes.data
-      await fetchRelatedProducts() // 👈 fetch category peers
+      item.value = {
+        ...prodRes.data,
+        stores: prodRes.data.product_stores?.map((ps: any) => ps.stores) || []
+      }
+      await fetchRelatedProducts()
     }
 
     // highlights…

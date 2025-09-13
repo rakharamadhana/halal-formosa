@@ -167,6 +167,14 @@
               </ion-select>
             </ion-item>
 
+            <ion-item lines="none">
+              <ion-label position="stacked">{{ $t('addProduct.stores') }}</ion-label>
+              <StoreLogoBar
+                  :stores="stores"
+                  mode="select"
+                  v-model:modelValue="form.store_ids"
+              />
+            </ion-item>
 
             <ion-item>
               <ion-textarea
@@ -279,8 +287,8 @@ import {
   IonTitle,
   IonToast,
   IonToolbar,
-    IonAccordion,
-    IonAccordionGroup, IonNote
+  IonAccordion,
+  IonAccordionGroup, IonNote
 } from '@ionic/vue';
 import {
   addOutline,
@@ -318,9 +326,28 @@ import { usePoints } from "@/composables/usePoints";
 
 const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
+const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
+
 
 import type { Product } from '@/types/Product'
 import router from "@/router";
+import StoreLogoBar from "@/components/StoreLogoBar.vue";
+
+const fetchStores = async () => {
+  const { data, error } = await supabase
+      .from("stores")
+      .select("id, name, logo_url, sort_order")
+      .order("sort_order", { ascending: true })
+
+  if (!error && data) {
+    stores.value = data.map(store => ({
+      ...store,
+      id: String(store.id)  // ✅ always string
+    }))
+  }
+}
+
+
 
 
 // props
@@ -370,17 +397,29 @@ onMounted(async () => {
       status: props.editProduct.status,
       product_category_id: props.editProduct.product_category_id ?? null,
       ingredients: props.editProduct.ingredients ?? '',
-      description: props.editProduct.description ?? ''
+      description: props.editProduct.description ?? '',
+      store_ids: []
     }
+
     frontPreview.value = props.editProduct.photo_front_url ?? null
     backPreview.value = props.editProduct.photo_back_url ?? null
+
+    const { data: linkedStores } = await supabase
+        .from('product_stores')
+        .select('store_id')
+        .eq('product_id', props.editProduct.id)
+
+    if (linkedStores) {
+      form.value.store_ids = linkedStores.map(s => s.store_id)
+    }
   }
 
-  // force fetch highlights & blacklist from DB and save to cache
-  await fetchHighlightsWithCache(true);
-  await fetchCategoryRules();
-  await fetchCategories();
-});
+  // 🟢 Add this
+  await fetchStores()
+  await fetchHighlightsWithCache(true)
+  await fetchCategoryRules()
+  await fetchCategories()
+})
 
 interface ProductForm {
   barcode: string
@@ -389,6 +428,7 @@ interface ProductForm {
   product_category_id: number | null
   ingredients: string
   description: string
+  store_ids: string[]   // ✅ string IDs
 }
 
 const form = ref<ProductForm>({
@@ -397,7 +437,8 @@ const form = ref<ProductForm>({
   status: 'Muslim-friendly',
   product_category_id: null,
   ingredients: '',
-  description: ''
+  description: '',
+  store_ids: []        // ✅ start empty
 })
 
 // ✅ rules fetched from DB
@@ -498,11 +539,13 @@ const emit = defineEmits(['updated', 'close'])
 
 function handleBack() {
   if (props.editProduct) {
-    // If editing, just close the editor (let parent decide what to do)
     emit("close")
   } else {
-    // Or you can still navigate directly if it's a fresh add
-    router.push("/search")
+    if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push("/search")
+    }
   }
 }
 
@@ -518,7 +561,7 @@ const fetchCategories = async () => {
 }
 
 const fetchCategoryRules = async () => {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from("category_rules")
       .select("keyword, category_id")
 
@@ -1220,6 +1263,47 @@ function calculateCheckDigit(digits: number[]) {
   return mod === 0 ? 0 : 10 - mod;
 }
 
+async function saveProductStores(
+    productId: string,
+    storeIds: string[],
+    userId: string
+) {
+  try {
+    if (storeIds.length > 0) {
+      const links = storeIds.map(storeId => ({
+        product_id: productId,
+        store_id: storeId,   // already string
+        added_by: userId,
+      }))
+
+      const { error: upsertError } = await supabase
+          .from("product_stores")
+          .upsert(links, { onConflict: "product_id,store_id" })
+
+      if (upsertError) throw upsertError
+
+      const { error: deleteError } = await supabase
+          .from("product_stores")
+          .delete()
+          .eq("product_id", productId)
+          .not("store_id", "in", `(${storeIds.join(",")})`)
+
+      if (deleteError) throw deleteError
+    } else {
+      await supabase
+          .from("product_stores")
+          .delete()
+          .eq("product_id", productId)
+    }
+
+    console.log("✅ Stores synced safely:", storeIds)
+  } catch (err) {
+    console.error("❌ Failed to save product_stores:", err)
+    throw err
+  }
+}
+
+
 
 async function handleSubmit() {
 
@@ -1256,48 +1340,16 @@ async function handleSubmit() {
       return;
     }
 
-    if (!form.value.name.trim()) {
-      setError('Product name is required.')
-      loading.value = false;
-      return;
-    }
+    if (!form.value.name.trim()) return setError('Product name is required.')
+    if (!form.value.status) return setError('Product status is required.')
+    if (!form.value.ingredients.trim()) return setError('Ingredients are required.')
+    if (!form.value.product_category_id) return setError('Product category is required.')
+    if (!form.value.description.trim()) return setError('Description is required.')
 
-    if (!form.value.status) {
-      setError('Product status is required.')
-      loading.value = false;
-      return;
-    }
+    if (!props.editProduct && !frontFile.value) return setError('Front image is required.')
+    if (!props.editProduct && !backFile.value) return setError('Back image is required.')
 
-    if (!form.value.ingredients.trim()) {
-      setError('Ingredients is required.')
-      loading.value = false;
-      return;
-    }
-
-    if (!form.value.product_category_id) {
-      setError('Product category is required.')
-      loading.value = false
-      return
-    }
-
-    if (!form.value.description.trim()) {
-      setError('Description is required.')
-      loading.value = false;
-      return;
-    }
-
-    if (!props.editProduct && !frontFile.value) {
-      setError('Front image is required.')
-      loading.value = false
-      return
-    }
-
-    if (!props.editProduct && !backFile.value) {
-      setError('Back image is required.')
-      loading.value = false
-      return
-    }
-
+    const { store_ids, ...productData } = form.value
 
     let frontUrl = props.editProduct?.photo_front_url || ''
     let backUrl  = props.editProduct?.photo_back_url || ''
@@ -1352,70 +1404,66 @@ async function handleSubmit() {
       console.log('Back image uploaded:', backUrl)
     }
 
+    // --- 🔹 Update vs. Create ---
     if (props.editProduct) {
-      // update existing
-      const { error } = await supabase.from('products').update({
-        ...form.value,
+      // UPDATE product
+      await supabase.from("products").update({
+        ...productData,
         photo_front_url: frontUrl,
         photo_back_url: backUrl,
         updated_at: new Date().toISOString(),
         updated_by: user.id,
-        approved: autoApprove ? true : props.editProduct?.approved,
-        approved_by: autoApprove ? user.id : props.editProduct?.approved_by,
-        approved_at: autoApprove ? new Date().toISOString() : props.editProduct?.approved_at,
-      }).eq('id', props.editProduct.id)
+        approved: autoApprove ? true : props.editProduct.approved,
+        approved_by: autoApprove ? user.id : props.editProduct.approved_by,
+        approved_at: autoApprove ? new Date().toISOString() : props.editProduct.approved_at,
+      }).eq("id", props.editProduct.id)
 
-      if (error) throw error
-      toastMessage.value = '✅ Product updated successfully!'
-      console.log('Product updated successfully')
-      emit('updated')
+      // 🟢 Always replace stores
+      await saveProductStores(
+          props.editProduct.id,
+          store_ids,  // 👈 convert string[] → number[]
+          user.id
+      )
+
+      toastMessage.value = "✅ Product updated successfully!"
+      emit("updated")
     } else {
-      // 🟢 INSERT new
-      const { error } = await supabase.from('products').insert([{
-        ...form.value,
-        photo_front_url: frontUrl,
-        photo_back_url: backUrl,
-        added_by: user.id,
-        approved: autoApprove,
-        approved_by: autoApprove ? user.id : null,
-        approved_at: autoApprove ? new Date().toISOString() : null,
-        created_at: new Date().toISOString(),
-      }])
-      if (error) throw error
-      toastMessage.value = autoApprove
-          ? '✅ Product published successfully!'
-          : '✅ Product submitted and awaiting approval.'
+      // CREATE
+      const { data: newProduct, error: insertError } = await supabase
+          .from("products")
+          .insert([{
+            ...productData,
+            barcode,
+            photo_front_url: frontUrl,
+            photo_back_url: backUrl,
+            added_by: user.id,
+            approved: autoApprove,
+            approved_by: autoApprove ? user.id : null,
+            approved_at: autoApprove ? new Date().toISOString() : null,
+            created_at: new Date().toISOString(),
+          }])
+          .select("id")
+          .single()
 
-      isResettingForm.value = true
-
-      form.value = {
-        barcode: '',
-        name: '',
-        status: 'Muslim-friendly',
-        product_category_id: null,
-        ingredients: '',
-        description: ''
+      if (insertError || !newProduct) {
+        throw insertError || new Error("❌ Failed to create product, no data returned")
       }
 
-      nextTick(() => {
-        isResettingForm.value = false
-      })
+      // 🟢 Insert stores fresh
+      await saveProductStores(newProduct.id, store_ids, user.id)
 
-      frontFile.value = null
-      backFile.value = null
-      frontPreview.value = null
-      backPreview.value = null
-      ingredientHighlights.value = []
 
-      // ✅ Reset barcode checks
-      barcodeValid.value = null
-      barcodeMessage.value = ''
+      toastMessage.value = autoApprove
+          ? "✅ Product published successfully!"
+          : "✅ Product submitted and awaiting approval."
 
-      console.log('Product inserted successfully')
-
-      // 🎁 Always award points once submitted
-      await awardAndCelebrate("add_product", 10000); // now it updates global overlay
-
+      // reset form
+      form.value = { barcode: '', name: '', status: 'Muslim-friendly',
+        product_category_id: null, ingredients: '', description: '', store_ids: [] }
+      frontFile.value = null; backFile.value = null
+      frontPreview.value = null; backPreview.value = null
+      ingredientHighlights.value = []; barcodeValid.value = null; barcodeMessage.value = ''
+      await awardAndCelebrate("add_product", 10000)
     }
 
     showToast.value = true
@@ -1479,3 +1527,4 @@ ion-content::part(scroll) {
   --border-color: var(--ion-color-danger);
 }
 </style>
+
