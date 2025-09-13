@@ -433,10 +433,12 @@ const fetchProducts = async (reset = false) => {
   loadingProducts.value = true
   if (isFetching.value || (allLoaded.value && !reset)) return
   isFetching.value = true
+
   if (reset) {
     currentPage.value = 0
     allLoaded.value = false
     allProducts.value = []
+    infiniteDisabled.value = false   // ✅ reset here
   }
 
   try {
@@ -444,29 +446,20 @@ const fetchProducts = async (reset = false) => {
     const to = from + pageSize - 1
 
     let baseSelect = "*, product_categories(name)"
-
-    // if filtering by store, add the join
     if (activeStore.value) {
       baseSelect += ", product_stores!inner(store_id)"
     }
 
-    let query = supabase
-        .from("products")
-        .select(baseSelect)
-        .eq("approved", true)
+    let query = supabase.from("products").select(baseSelect).eq("approved", true)
 
     if (activeStore.value) {
       query = query.eq("product_stores.store_id", activeStore.value.id)
     }
-
     if (activeCategory.value) {
       query = query.eq("product_category_id", activeCategory.value.id)
     }
-
     if (searchQuery.value) {
-      query = query.or(
-          `name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`
-      )
+      query = query.or(`name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`)
     }
 
     query = query.order("created_at", { ascending: false }).range(from, to)
@@ -479,8 +472,6 @@ const fetchProducts = async (reset = false) => {
       if (!data || data.length < pageSize) {
         allLoaded.value = true
         infiniteDisabled.value = true
-      } else {
-        infiniteDisabled.value = false
       }
 
       allProducts.value = reset ? data : [...allProducts.value, ...data]
@@ -492,6 +483,7 @@ const fetchProducts = async (reset = false) => {
     loadingProducts.value = false
   }
 }
+
 
 
 
