@@ -630,7 +630,11 @@ onMounted(async () => {
     if (prodRes.data) {
       item.value = {
         ...prodRes.data,
-        stores: prodRes.data.product_stores?.map((ps: any) => ps.stores) || []
+        stores: prodRes.data.product_stores?.map((ps: any) => ({
+          id: ps.stores.id as string,   // 👈 assert UUID string
+          name: ps.stores.name,
+          logo_url: ps.stores.logo_url ?? undefined,
+        })) || []
       }
       await fetchRelatedProducts()
     }

@@ -22,5 +22,5 @@ export interface Product {
     product_categories: { id: number; name: string }
 
     // ✅ stores (flattened for UI use)
-    stores?: { id: number; name: string; logo_url?: string | null }[]
+    stores?: { id: string; name: string; logo_url?: string | null }[]
 }

@@ -31,7 +31,7 @@ import { defineProps, defineEmits } from "vue"
 interface Store {
   id: string
   name: string
-  logo_url?: string
+  logo_url?: string | null   // allow null from DB
 }
 
 type Mode = "select" | "filter" | "readonly"
