@@ -179,6 +179,7 @@
       "dob": "Date of Birth",
       "nationality": "Nationality",
       "selectCountry": "Select Country",
+      "selectNationality": "Select Nationality",
       "gender": "Gender",
       "bio": "Bio",
       "consentTitle": "I understand that:",

@@ -178,6 +178,7 @@
       "dob": "Tanggal Lahir",
       "nationality": "Kebangsaan",
       "selectCountry": "Pilih Negara",
+      "selectNationality": "Pilih Kebangsaan",
       "gender": "Jenis Kelamin",
       "bio": "Bio",
       "consentTitle": "Saya mengerti bahwa:",

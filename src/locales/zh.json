@@ -178,6 +178,7 @@
       "dob": "出生日期",
       "nationality": "國籍",
       "selectCountry": "選擇國家",
+      "selectNationality": "選擇國家",
       "gender": "性別",
       "bio": "簡介",
       "consentTitle": "我明白：",
