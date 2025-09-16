@@ -42,6 +42,8 @@ import {
     currentUser
 } from "@/composables/userProfile"
 
+import { loadCountriesFromCache } from "@/composables/useCountries"
+
 defineCustomElements(window)
 
 // ✅ Init safe areas & system bars
@@ -73,6 +75,7 @@ router.afterEach(() => scheduleBannerUpdate())
 loadDonorFromCache()
 loadUserRoleFromCache()
 loadPublicLeaderboardFromCache()
+loadCountriesFromCache()
 
 /* Native: refresh on resume */
 if (Capacitor.isNativePlatform()) {

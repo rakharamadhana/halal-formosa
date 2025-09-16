@@ -98,10 +98,12 @@
   "search": {
     "title": "Product",
     "placeholder": "Search (e.g. Tea)",
+    "filters": "Filters",
     "registeredProductCount": "Count",
     "noProductFound": "Sorry, no product found...",
     "pullToRefresh": "Pull to refresh",
     "showingResults": "Showing {count} of {total} registered products",
+    "loadingMoreProduct": "Loading more products...",
     "details": {
       "title": "Product Details",
       "category": "Category",
@@ -138,7 +140,8 @@
   },
   "news": {
     "title": "Halal & Islam News",
-    "placeholder": "Search news..."
+    "placeholder": "Search news...",
+    "loadingMoreNews": "Loading more news..."
   },
   "settings": {
     "title": "Settings",
@@ -153,6 +156,9 @@
     "logout": "Logout",
     "donor": "Donor Status",
     "noUserLogged": "No user logged in",
+    "aboutMe": "About Me",
+    "edit": "Edit",
+    "bio": "Bio",
     "experiencePoints": "⭐ Experience Points",
     "login": "Login",
     "review": "Product Review",
@@ -167,7 +173,19 @@
     "appInfo": "App Info",
     "appNameTitle": "App Name",
     "appName": "Halal Formosa",
-    "appVersion": "Version"
+    "appVersion": "Version",
+    "editProfile": {
+      "title": "Edit Profile",
+      "dob": "Date of Birth",
+      "nationality": "Nationality",
+      "selectCountry": "Select Country",
+      "gender": "Gender",
+      "bio": "Bio",
+      "consentTitle": "I understand that:",
+      "consentContent1": "Date of birth, nationality, and gender are used only for anonymous statistics and never shared publicly.",
+      "consentContent2": "My Bio may be visible publicly if I enable \"Show my name on leaderboard\" in Settings.",
+      "save": "Save"
+    }
   },
   "credits": {
     "title": "Credits & Contributor",

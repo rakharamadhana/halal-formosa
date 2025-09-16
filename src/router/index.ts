@@ -20,6 +20,7 @@ const routes: Array<RouteRecordRaw> = [
             { path: 'news', component: () => import('@/views/news/NewsView.vue'), meta: { noAds: true } },
             { path: 'add', component: () => import('@/views/add-product/AddProductView.vue'), meta: { requiresAuth: true } },
             { path: 'profile', component: () => import('@/views/profile/ProfileView.vue'), meta: { noAds: true } },
+            { path: 'profile/edit', name: 'EditProfile', component: () => import('@/views/profile/EditProfileView.vue'), meta: { requiresAuth: true, noAds: true } },
         ],
     },
     { path: '/item/:barcode', name: 'item-details', component: () => import('@/views/search/ItemDetailsView.vue'), meta: { noAds: true } },

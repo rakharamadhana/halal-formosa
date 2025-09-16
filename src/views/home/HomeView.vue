@@ -183,7 +183,13 @@
 
         <ion-card-content>
           <ion-list v-if="!loadingLeaderboard">
-            <ion-item v-for="(user, index) in leaderboard" :key="user.id" lines="none">
+            <ion-item
+                v-for="(user, index) in leaderboard"
+                :key="user.id"
+                lines="none"
+                button
+                @click="openUserProfile(user, $event)"
+            >
               <div style="display: flex; align-items: center; width: 100%;">
 
                 <!-- Rank -->
@@ -196,7 +202,9 @@
 
                 <!-- Avatar -->
                 <ion-avatar style="width: 40px; height: 40px; margin: 0 10px;">
-                  <img :src="user.public_leaderboard ? (user.avatar_url || 'https://placehold.co/64x64') : 'https://placehold.co/64x64?text=?'" />
+                  <img
+                      :src="user.public_leaderboard ? (user.avatar_url || 'https://placehold.co/64x64') : 'https://placehold.co/64x64?text=?'"
+                      alt="Avatar"/>
                 </ion-avatar>
 
                 <!-- Info -->
@@ -230,6 +238,49 @@
         </ion-card-content>
       </ion-card>
     </ion-content>
+
+    <!-- 👇 Popover instead of modal -->
+    <ion-popover
+        :is-open="!!selectedUser"
+        :event="popoverEvent"
+        @didDismiss="closePopover"
+    >
+      <ion-content class="ion-padding" style="text-align:center; min-width: 220px;">
+        <div v-if="selectedUser">
+
+          <!-- ✅ Public profile shown -->
+          <template v-if="selectedUser.public_leaderboard">
+            <ion-avatar style="width:60px;height:60px;margin:auto;">
+              <img :src="selectedUser.avatar_url || 'https://placehold.co/60x60?text=?'"  alt="Avatar"/>
+            </ion-avatar>
+
+            <h3 style="margin-top:6px; font-size:1rem;">
+              {{ selectedUser.display_name }}
+            </h3>
+
+            <p style="margin:4px 0; font-size:0.85rem; color:var(--ion-color-medium);">
+              {{ getLevelLabel(selectedUser.points) }} ({{ selectedUser.points }} pts)
+            </p>
+
+            <p v-if="selectedUser.bio" style="margin-top:6px; font-size:0.8rem; color:var(--ion-color-dark)">
+              {{ selectedUser.bio }}
+            </p>
+          </template>
+
+          <!-- ❌ No public profile: only show XP -->
+          <template v-else>
+            <p style="margin:4px 0; font-size:0.9rem; font-weight:600;">
+              Anonymous
+            </p>
+            <p style="margin:4px 0; font-size:0.85rem; color:var(--ion-color-medium);">
+              {{ getLevelLabel(selectedUser.points) }} ({{ selectedUser.points }} pts)
+            </p>
+          </template>
+
+        </div>
+      </ion-content>
+    </ion-popover>
+
   </ion-page>
 </template>
 
@@ -239,7 +290,7 @@ import { ref, nextTick } from 'vue'
 import {
   IonPage, IonContent, IonCard, IonCardHeader, IonCardTitle,
   IonCardContent, IonButton, IonIcon, IonHeader, onIonViewWillEnter, IonLabel, IonChip, IonSkeletonText,
-    IonList, IonBadge, IonAvatar, IonItem
+    IonList, IonBadge, IonAvatar, IonItem, IonPopover
 } from '@ionic/vue'
 import { useRouter } from 'vue-router'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js'
@@ -254,7 +305,9 @@ import timezone from 'dayjs/plugin/timezone'
 import { barcodeOutline, scanOutline } from "ionicons/icons"
 import { useLeaderboard } from "@/composables/useLeaderboard";
 import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
-import { getLevelFromPoints } from '@/utils/xp'
+
+const selectedUser = ref<any | null>(null)
+const popoverEvent = ref<Event | null>(null)
 
 /* ---------------- Chart Setup ---------------- */
 ChartJS.register(Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale)
@@ -334,6 +387,16 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
     chart.data.datasets[0].data = newData
     chart.update('active')
   })
+}
+
+function openUserProfile(user: any, ev: Event) {
+  selectedUser.value = user
+  popoverEvent.value = ev   // 👈 attach the click event for positioning
+}
+
+function closePopover() {
+  selectedUser.value = null
+  popoverEvent.value = null
 }
 
 /* ---------------- Data Fetching ---------------- */

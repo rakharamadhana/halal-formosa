@@ -12,7 +12,7 @@ export function useLeaderboard() {
 
         const { data, error: err } = await supabase
             .from("user_profiles")
-            .select("id, display_name, avatar_url, points, donor_type, public_leaderboard")
+            .select("id, display_name, avatar_url, points, donor_type, public_leaderboard, bio")
             .gt("points", 0)
             .order("points", { ascending: false })
             .limit(limit);

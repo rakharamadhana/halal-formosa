@@ -4,19 +4,32 @@
         v-for="store in stores"
         :key="store.id"
         class="store-option"
-        :class="{
-        selected: isSelected(store),
-        readonly: mode === 'readonly'
-      }"
-        @click="onClick(store)"
+        :class="{ selected: isSelected(store), readonly: mode === 'readonly' }"
+        @click="mode === 'readonly' ? null : onClick(store)"
     >
       <!-- Logo -->
       <div class="store-logo-wrapper">
-        <img
-            :src="store.logo_url || 'https://via.placeholder.com/60.webp'"
-            :alt="store.name"
-            class="store-logo"
-        />
+        <template v-if="props.mode === 'readonly'">
+          <a
+              :href="`https://www.google.com/maps/search/?q=${encodeURIComponent(store.name)}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              @click.stop
+          >
+            <img
+                :src="store.logo_url || 'https://via.placeholder.com/60.webp'"
+                :alt="store.name"
+                class="store-logo"
+            />
+          </a>
+        </template>
+        <template v-else>
+          <img
+              :src="store.logo_url || 'https://via.placeholder.com/60.webp'"
+              :alt="store.name"
+              class="store-logo"
+          />
+        </template>
       </div>
       <!-- Name -->
       <span class="store-name">{{ store.name }}</span>
@@ -81,3 +94,10 @@ function onClick(store: Store) {
   }
 }
 </script>
+
+<style>
+.store-option.readonly a {
+  pointer-events: auto; /* make sure link can be clicked */
+}
+
+</style>

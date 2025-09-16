@@ -90,6 +90,40 @@
         </ion-card>
       </div>
 
+      <ion-card v-if="userEmail" class="profile-card">
+        <ion-card-header>
+          <ion-toolbar class="profile-toolbar">
+            <ion-title class="profile-title">
+              {{ $t('profile.aboutMe') }}
+            </ion-title>
+
+            <!-- Edit button -->
+            <ion-buttons slot="end">
+              <ion-button color="carrot" size="small" @click="goToEditProfile">
+                <ion-icon :icon="createOutline" slot="start" />
+                {{ $t('profile.edit') }}
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-card-header>
+
+        <ion-card-content>
+          <ion-list lines="none">
+            <ion-item>
+              <ion-label>{{ $t('profile.bio') }}</ion-label>
+              <ion-note slot="end">
+                <template v-if="userBio">
+                  {{ userBio }}
+                </template>
+                <template v-else>
+                  No bio added yet
+                </template>
+              </ion-note>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
       <ion-card v-if="userEmail" class="profile-card ion-text-center">
         <ion-card-header>
           <ion-card-title>{{ $t('profile.experiencePoints') }}</ion-card-title>
@@ -200,51 +234,52 @@
 
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref} from "vue";
-import { useRouter } from "vue-router";
-import { supabase } from "@/plugins/supabaseClient";
-
-// @ts-expect-error – injected global
-const appVersion = __APP_VERSION__;
-
+import {useRouter} from "vue-router";
+import {supabase} from "@/plugins/supabaseClient";
 // ✅ Ionic components
 import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
+  IonBadge,
+  IonButton,
+  IonButtons,
   IonCard,
+  IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonCardContent,
-  IonList,
+  IonContent,
+  IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
-  IonButton,
-  IonIcon,
-  IonText,
+  IonList,
   IonNote,
-  IonBadge,
-  IonSkeletonText,
+  IonPage,
   IonProgressBar,
-  onIonViewWillEnter,
+  IonSkeletonText,
+  IonText,
+  IonTitle,
+  IonToolbar,
+  onIonViewWillEnter
 } from "@ionic/vue";
 
 // ✅ Icons
 import {
-  settingsOutline,
+  createOutline,
   documentTextOutline,
-  personCircleOutline,
-  peopleOutline,
-  listOutline,
   giftOutline,
+  listOutline,
+  peopleOutline,
+  personCircleOutline,
+  settingsOutline,
 } from "ionicons/icons";
 
 // ✅ Composables
-import { donorBadge, isAdmin } from "@/composables/userProfile";
-import { Subscription } from "@supabase/supabase-js";
-import { usePoints } from "@/composables/usePoints";
-import { xpForLevel } from "@/utils/xp"
+import {donorBadge, isAdmin} from "@/composables/userProfile";
+import {Subscription} from "@supabase/supabase-js";
+import {usePoints} from "@/composables/usePoints";
+import {xpForLevel} from "@/utils/xp"
+
+// @ts-expect-error – injected global
+const appVersion = __APP_VERSION__;
 
 const userEmail = ref("");
 const userDisplayName = ref("");
@@ -252,6 +287,11 @@ const userAvatar = ref("");
 const router = useRouter();
 const pendingCount = ref(0);
 const loading = ref(true);
+
+const userDOB = ref<string | null>(null);
+const userNationality = ref<string | null>(null);
+const userGender = ref<string | null>(null);
+const userBio = ref<string | null>(null);
 
 // ✅ Points composable
 const { awardAndCelebrate, currentPoints, fetchCurrentPoints } = usePoints();
@@ -277,6 +317,15 @@ const progressPercent = computed(() => {
   return ((points - prevLevelXp.value) / (nextLevelXp.value - prevLevelXp.value)) * 100
 })
 
+const countriesList = ref<any[]>([]);
+const resolvedNationality = ref<string | null>(null);
+const resolvedFlag = ref<string | null>(null);
+
+async function fetchCountries() {
+  const response = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags");
+  countriesList.value = await response.json();
+}
+
 // 🎁 Simplified test button handler
 async function testAwardPoints() {
   console.log("🚀 testAwardPoints called with action = add_product");
@@ -300,15 +349,48 @@ async function fetchPendingCount() {
   }
 }
 
+async function fetchUserProfile(userId: string) {
+  const { data, error } = await supabase
+      .from("user_profiles")
+      .select("date_of_birth, nationality, gender, bio")
+      .eq("id", userId)
+      .single();
+
+  if (!error && data) {
+    userDOB.value = data.date_of_birth;
+    userNationality.value = data.nationality;
+    userGender.value = data.gender;
+    userBio.value = data.bio;
+
+    // 🚀 If missing required fields → redirect to EditProfile
+    if (!data.date_of_birth || !data.nationality || !data.gender) {
+      router.replace({ name: "EditProfile" });
+      return;
+    }
+
+    // ✅ resolve nationality flag if available
+    if (countriesList.value.length > 0 && data.nationality) {
+      const match = countriesList.value.find(c => c.cca2 === data.nationality);
+      if (match) {
+        resolvedNationality.value = match.name.common;
+        resolvedFlag.value = match.flags.png;
+      }
+    }
+  }
+}
+
+
 // ✅ Always refresh when ProfileView becomes active
 onIonViewWillEnter(async () => {
   const { data } = await supabase.auth.getUser();
   if (data?.user) {
-    await fetchCurrentPoints(data.user.id); // 🔄 refresh points on view enter
+    await fetchCurrentPoints(data.user.id);
+    await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
   }
 });
 
 onMounted(async () => {
+  await fetchCountries();
   const { data } = await supabase.auth.getUser();
   if (data?.user) {
     const u = data.user;
@@ -376,6 +458,8 @@ const goToSettings = () => router.push("/settings");
 const goToLegal = () => router.push("/legal");
 const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
+const goToEditProfile = () => router.push({ name: "EditProfile" });
+
 </script>
 
 
@@ -437,4 +521,16 @@ const goToPointsLogs = () => router.push("/admin/points-logs");
   font-size: 0.9rem;
   color: var(--ion-color-medium);
 }
+.profile-toolbar {
+  --padding-start: 0;
+  --padding-end: 0;
+  --min-height: 40px;
+}
+
+.profile-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
 </style>

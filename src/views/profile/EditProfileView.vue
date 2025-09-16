@@ -1,0 +1,222 @@
+<template>
+  <ion-page>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ $t('profile.editProfile.title') }}</ion-title>
+        <ion-buttons slot="start">
+          <ion-back-button
+              default-href="/profile"
+              :disabled="!wasComplete && !isProfileComplete"
+          />
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <ion-list>
+        <ion-item>
+          <ion-label>{{ $t('profile.editProfile.dob') }}</ion-label>
+          <ion-note slot="end">
+            <ion-datetime-button
+                datetime="dobPicker"
+            />
+          </ion-note>
+
+          <!-- Hidden datetime controlled by the button -->
+          <ion-modal keep-contents-mounted="true">
+            <ion-datetime
+                id="dobPicker"
+                color="carrot"
+                v-model="editDOB"
+                presentation="date"
+                :show-default-buttons="true"
+                done-text="OK"
+                cancel-text="Cancel"
+            ></ion-datetime>
+          </ion-modal>
+        </ion-item>
+
+        <ion-item button @click="showCountryModal = true">
+          <ion-label>{{ $t('profile.editProfile.nationality') }}</ion-label>
+          <ion-text slot="end" style="color: var(--ion-color-dark)">
+            <template v-if="!countries.length">
+              <ion-skeleton-text animated style="width:100px;height:16px;" />
+            </template>
+            <template v-else-if="selectedCountry">
+              <img :src="selectedCountry.flags.png" style="width:24px; height:16px; margin-right:8px;" alt="Country Flag" />
+              {{ selectedCountry.name.common }}
+            </template>
+            <template v-else>
+              {{ $t('profile.editProfile.selectCountry') }}
+            </template>
+
+          </ion-text>
+        </ion-item>
+
+        <ion-modal :is-open="showCountryModal" @didDismiss="showCountryModal = false">
+          <ion-header>
+            <ion-toolbar>
+              <ion-title>{{ $t('profile.editProfile.selectNationality') }}</ion-title>
+              <ion-buttons slot="end">
+                <ion-button @click="showCountryModal = false">Close</ion-button>
+              </ion-buttons>
+            </ion-toolbar>
+            <ion-toolbar>
+              <ion-searchbar v-model="searchQuery" placeholder="Search country"></ion-searchbar>
+            </ion-toolbar>
+          </ion-header>
+
+          <ion-content>
+            <ion-list>
+              <ion-item
+                  v-for="c in filteredCountries"
+                  :key="c.cca2"
+                  button
+                  @click="selectCountry(c)"
+              >
+                <img :src="c.flags.png" style="width:24px; height:16px; margin-right:8px;"  alt="Country Flag"/>
+                <ion-label>{{ c.name.common }}</ion-label>
+              </ion-item>
+            </ion-list>
+          </ion-content>
+        </ion-modal>
+
+        <ion-item>
+          <ion-label>{{ $t('profile.editProfile.gender') }}</ion-label>
+          <ion-select v-model="editGender" interface="popover" slot="end" placeholder="Select gender">
+            <ion-select-option value="Male">Male</ion-select-option>
+            <ion-select-option value="Female">Female</ion-select-option>
+            <ion-select-option value="Other">Other</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+
+        <ion-item >
+          <ion-label position="stacked">{{ $t('profile.editProfile.bio') }}</ion-label>
+          <ion-textarea
+              v-model="editBio"
+              auto-grow
+              placeholder="Write a short bio..."
+          ></ion-textarea>
+        </ion-item>
+      </ion-list>
+
+      <ion-item lines="none">
+        <ion-checkbox
+            :checked="acknowledged"
+            @ionChange="acknowledged = $event.detail.checked"
+            slot="start"
+        />
+        <ion-label>
+          {{ $t('profile.editProfile.consentTitle') }}
+          <ul style="margin: 0; padding-left: 1rem; font-size: 0.9rem;">
+            <li>{{ $t('profile.editProfile.consentContent1') }}</li>
+            <li>{{ $t('profile.editProfile.consentContent2') }}</li>
+          </ul>
+        </ion-label>
+      </ion-item>
+
+      <ion-button expand="block" color="carrot" @click="saveProfile" :disabled="!isProfileComplete">
+        {{ $t('profile.editProfile.save') }}
+      </ion-button>
+
+    </ion-content>
+  </ion-page>
+</template>
+
+<script setup lang="ts">
+import {
+  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons,
+  IonBackButton, IonList, IonItem, IonLabel, IonDatetime,
+  IonSelect, IonSelectOption, IonTextarea, IonButton, IonModal,
+  IonNote, IonSearchbar, IonDatetimeButton, IonText, IonCheckbox,
+    IonSkeletonText
+} from "@ionic/vue";
+
+import {
+  editDOB,
+  editNationality,
+  editGender,
+  editBio,
+  acknowledged,
+  isProfileComplete,
+  loadUserProfile,
+  updateUserProfile
+} from "@/composables/userProfile";
+
+import { countries, loadCountries } from "@/composables/useCountries"
+import { onBeforeMount, ref, computed } from "vue";
+import { supabase } from "@/plugins/supabaseClient";
+import { useRouter, onBeforeRouteLeave } from "vue-router";
+
+const router = useRouter();
+
+interface Country {
+  cca2: string;
+  name: { common: string };
+  flags: { png: string; svg: string };
+}
+
+
+let userId: string | null = null;
+
+const wasComplete = ref(false);
+
+// country modal state
+const showCountryModal = ref(false);
+const searchQuery = ref("");
+const selectedCountry = ref<Country | null>(null);
+const loadingProfile = ref(true);
+
+const filteredCountries = computed(() =>
+    countries.value.filter(c =>
+        c.name.common.toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
+)
+
+function selectCountry(c: Country) {
+  editNationality.value = c.cca2;
+  selectedCountry.value = c;
+  showCountryModal.value = false;
+}
+
+
+
+onBeforeMount(async () => {
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData?.user) {
+    router.push("/login")
+    return
+  }
+
+  userId = userData.user.id
+  await loadUserProfile(userId)
+
+  // If countries already in memory, skip fetch
+  if (!countries.value.length) {
+    await loadCountries()
+  }
+
+  if (editNationality.value) {
+    selectedCountry.value =
+        countries.value.find(c => c.cca2 === editNationality.value) || null
+  }
+
+  loadingProfile.value = false
+})
+
+onBeforeRouteLeave((to, from, next) => {
+  if (!wasComplete.value && !isProfileComplete.value) {
+    next(false);
+  } else {
+    next();
+  }
+});
+
+async function saveProfile() {
+  if (!userId) return;
+  await updateUserProfile(userId);
+  router.back();
+}
+</script>
+

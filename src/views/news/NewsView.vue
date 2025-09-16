@@ -82,7 +82,7 @@
       <ion-infinite-scroll ref="infiniteScroll" @ionInfinite="loadMore" threshold="100px">
         <ion-infinite-scroll-content
             loading-spinner="bubbles"
-            loading-text="Loading more news...">
+            :loading-text="$t('news.loadingMoreNews')">
         </ion-infinite-scroll-content>
       </ion-infinite-scroll>
 

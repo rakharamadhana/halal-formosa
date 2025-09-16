@@ -39,60 +39,73 @@
         </div>
       </ion-toolbar>
 
-      <!-- Row 1: Stores -->
-      <!-- Row 1: Stores -->
+      <!-- Native (mobile) AdMob banner -->
+      <div v-if="isNative && !isDonor" id="ad-space-search" style="height:60px;"></div>
+
+      <!-- Row: Filters -->
       <ion-toolbar class="search-toolbar">
-        <div class="store-scroll">
-          <template v-if="loadingStores">
-            <ion-skeleton-text
-                v-for="n in 10"
-                :key="'store-skeleton-' + n"
-                animated
-                class="skeleton-store"
-            />
-          </template>
-
-          <template v-else>
-            <StoreLogoBar
-                :stores="stores"
-                mode="filter"
-                v-model:activeStore="activeStore"
-            />
-          </template>
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+          <ion-text class="ion-padding-horizontal">
+            <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;" />
+            <strong>{{ $t('search.filters') }}</strong>
+          </ion-text>
+          <ion-button fill="clear" size="small" @click="toggleFilters">
+            <ion-icon :icon="showFilters ? chevronUpOutline : chevronDownOutline" />
+          </ion-button>
         </div>
-      </ion-toolbar>
 
+        <transition name="collapse">
+          <div v-show="showFilters" class="filter-section">
+            <!-- Stores -->
+            <div style="margin: 8px 0;">
+              <div class="store-scroll">
+                <template v-if="loadingStores">
+                  <ion-skeleton-text
+                      v-for="n in 10"
+                      :key="'store-skeleton-' + n"
+                      animated
+                      class="skeleton-store"
+                  />
+                </template>
+                <template v-else>
+                  <StoreLogoBar
+                      :stores="stores"
+                      mode="filter"
+                      v-model:activeStore="activeStore"
+                  />
+                </template>
+              </div>
+            </div>
 
-
-      <!-- Row 2: Categories -->
-      <ion-toolbar class="search-toolbar">
-        <div class="category-bar">
-          <template v-if="loadingCategories">
-            <ion-skeleton-text
-                v-for="n in 4"
-                :key="'cat-skeleton-' + n"
-                animated
-                style="width: 100px; height: 28px; border-radius: 5px; margin-right: 8px;"
-            />
-          </template>
-
-          <template v-else>
-            <ion-chip
-                v-for="cat in categories"
-                :key="cat.id"
-                :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
-                @click="toggleCategory(cat)"
-            >
-              <ion-label>{{ categoryIcons[cat.name] || '📦' }} {{ cat.name }}</ion-label>
-            </ion-chip>
-          </template>
-        </div>
+            <!-- Categories -->
+            <div style="margin: 8px 0;">
+              <div class="category-bar">
+                <template v-if="loadingCategories">
+                  <ion-skeleton-text
+                      v-for="n in 4"
+                      :key="'cat-skeleton-' + n"
+                      animated
+                      style="width: 100px; height: 28px; border-radius: 5px; margin-right: 8px;"
+                  />
+                </template>
+                <template v-else>
+                  <ion-chip
+                      v-for="cat in categories"
+                      :key="cat.id"
+                      :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
+                      @click="toggleCategory(cat)"
+                  >
+                    <ion-label>{{ categoryIcons[cat.name] || '📦' }} {{ cat.name }}</ion-label>
+                  </ion-chip>
+                </template>
+              </div>
+            </div>
+          </div>
+        </transition>
       </ion-toolbar>
 
 
     </ion-header>
-    <!-- Native (mobile) AdMob banner -->
-    <div v-if="isNative && !isDonor" id="ad-space-search" style="height:60px;"></div>
 
     <ion-content>
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
@@ -154,11 +167,11 @@
             </ion-card>
           </template>
 
-          <!-- Empty state -->
+          <!-- Empty state (no products at all after load) -->
           <template v-else-if="!loadingProducts && results.length === 0">
             <ion-card>
               <ion-card-content>
-                <p>😔 {{ $t('search.noProductFound') }} </p>
+                <p>😔 {{ $t('search.noProductFound') }}</p>
               </ion-card-content>
             </ion-card>
           </template>
@@ -170,7 +183,7 @@
                 v-for="product in results"
                 :key="product.barcode"
                 @click="openDetails(product)"
-                :class="getStatusClass(product.status)"
+                :class="['product-card', getStatusClass(product.status)]"
             >
               <div style="display: flex; align-items: center;">
                 <!-- Image -->
@@ -210,6 +223,11 @@
         </div>
       </div>
 
+      <!-- When there are results but we’ve loaded them all -->
+      <ion-text v-if="allLoaded && results.length > 0" class="end-of-list">
+        🙏 Sorry, you have reached the end
+      </ion-text>
+
       <!-- bind the ref so we can disable/enable it -->
       <ion-infinite-scroll
           ref="infiniteScroll"
@@ -219,7 +237,7 @@
       >
         <ion-infinite-scroll-content
             loading-spinner="bubbles"
-            loading-text="Loading more products..."
+            :loading-text="$t('search.loadingMoreProduct')"
         />
       </ion-infinite-scroll>
 
@@ -259,7 +277,7 @@ import {ref, onMounted, nextTick, watch} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
 import {
-  barcodeOutline, chevronDownCircleOutline, gridOutline, addOutline
+  barcodeOutline, chevronDownCircleOutline, gridOutline, addOutline, chevronUpOutline, chevronDownOutline, funnelOutline
 } from 'ionicons/icons'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -341,14 +359,22 @@ const categoryIcons: Record<string, string> = {
 const stores = ref<{id: string; name: string; logo_url?: string}[]>([])
 const activeStore = ref<{id: string; name: string} | null>(null)
 const loadingStores = ref(true)
+const showFilters = ref(true)
+
+function toggleFilters() {
+  showFilters.value = !showFilters.value
+}
+
 
 /* ---------------- Filters ---------------- */
 
 watch([activeStore, activeCategory, searchQuery], () => {
   allLoaded.value = false
   currentPage.value = 0
+  infiniteDisabled.value = false   // 👈 reset infinite scroll
   fetchProducts(true)
 })
+
 
 
 const toggleCategory = (cat: { id: number; name: string }) => {
@@ -430,7 +456,6 @@ const fetchCategories = async () => {
 
 
 const fetchProducts = async (reset = false) => {
-  loadingProducts.value = true
   if (isFetching.value || (allLoaded.value && !reset)) return
   isFetching.value = true
 
@@ -438,8 +463,12 @@ const fetchProducts = async (reset = false) => {
     currentPage.value = 0
     allLoaded.value = false
     allProducts.value = []
-    infiniteDisabled.value = false   // ✅ reset here
+    infiniteDisabled.value = false
+    results.value = [] // 👈 clear UI first
   }
+
+  // Only show skeleton if it's the *first* load
+  loadingProducts.value = reset
 
   try {
     const from = currentPage.value * pageSize
@@ -471,7 +500,6 @@ const fetchProducts = async (reset = false) => {
     } else {
       if (!data || data.length < pageSize) {
         allLoaded.value = true
-        infiniteDisabled.value = true
       }
 
       allProducts.value = reset ? data : [...allProducts.value, ...data]
@@ -483,9 +511,6 @@ const fetchProducts = async (reset = false) => {
     loadingProducts.value = false
   }
 }
-
-
-
 
 const fetchTotalCount = async () => {
   loadingCount.value = true
@@ -645,32 +670,29 @@ ion-searchbar.rounded {
 }
 
 .product-card {
+  border: 1px solid var(--border-color, transparent);
+  box-shadow: var(--box-shadow, none);
   transition: box-shadow 0.3s, border 0.3s;
-  cursor: pointer;
 }
 
-/* ✅ Halal = green glow */
-.status-halal {
-  border: 1px solid rgba(0, 200, 83, 0.2);
-  box-shadow: 0 0 15px rgba(0, 200, 83, 0.2);
+ion-card.status-halal {
+  --border-color: rgba(0, 200, 83, 0.6);
+  --box-shadow: 0 0 15px rgba(0, 200, 83, 0.4);
 }
 
-/* ✅ Muslim-friendly = blue glow */
-.status-muslim {
-  border: 1px solid rgba(0, 123, 255, 0.2);
-  box-shadow: 0 0 15px rgba(0, 123, 255, 0.2);
+ion-card.status-muslim {
+  --border-color: rgba(0, 123, 255, 0.6);
+  --box-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
 }
 
-/* ⚠️ Syubhah = yellow/orange glow */
-.status-syubhah {
-  border: 1px solid rgba(255, 193, 7, 0.2);
-  box-shadow: 0 0 15px rgba(255, 193, 7, 0.2);
+ion-card.status-syubhah {
+  --border-color: rgba(255, 193, 7, 0.6);
+  --box-shadow: 0 0 15px rgba(255, 193, 7, 0.4);
 }
 
-/* ❌ Haram = red glow */
-.status-haram {
-  border: 1px solid rgba(244, 67, 54, 0.2);
-  box-shadow: 0 0 15px rgba(244, 67, 54, 0.3);
+ion-card.status-haram {
+  --border-color: rgba(244, 67, 54, 0.6);
+  --box-shadow: 0 0 15px rgba(244, 67, 54, 0.4);
 }
 
 .category-bar {
@@ -689,4 +711,27 @@ ion-searchbar.rounded {
   flex-shrink: 0;
   width: auto;
 }
+
+.end-of-list {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--ion-color-medium);
+}
+
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+.collapse-enter-from,
+.collapse-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+.collapse-enter-to,
+.collapse-leave-from {
+  max-height: 200px; /* adjust to fit content */
+  opacity: 1;
+}
+
 </style>

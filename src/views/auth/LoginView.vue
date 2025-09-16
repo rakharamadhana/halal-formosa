@@ -137,9 +137,31 @@ async function login() {
 
   if (error) {
     errorMsg.value = error.message;
+    return;
   }
-  // ❌ no redirect or donor fetch here
+
+  // ✅ If login success, check profile
+  if (data.user) {
+    const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('date_of_birth, nationality, gender, bio')
+        .eq('id', data.user.id)
+        .single();
+
+    if (!profileError) {
+      // check if profile is incomplete
+      if (!profile?.date_of_birth || !profile?.nationality || !profile?.gender) {
+        router.push({ name: 'EditProfile' }); // 👈 force edit profile
+      } else {
+        router.push('/profile'); // or your default route
+      }
+    } else {
+      // if no profile row exists, also force edit
+      router.push({ name: 'EditProfile' });
+    }
+  }
 }
+
 
 async function loginWithGoogle() {
   errorMsg.value = '';
