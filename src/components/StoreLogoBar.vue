@@ -26,6 +26,7 @@
 import { defineProps, defineEmits } from "vue"
 import { Capacitor } from "@capacitor/core"
 import { Browser } from "@capacitor/browser"
+import { AppLauncher } from '@capacitor/app-launcher'
 
 interface Store {
   id: string
@@ -60,8 +61,14 @@ function isSelected(store: Store): boolean {
 
 async function openInMaps(storeName: string) {
   const query = encodeURIComponent(storeName)
-  const url = `https://www.google.com/maps/search/?api=1&query=${query}`
-  await Browser.open({ url })
+
+  if (Capacitor.getPlatform() === "android") {
+    await AppLauncher.openUrl({ url: `geo:0,0?q=${query}` })
+  } else if (Capacitor.getPlatform() === "ios") {
+    await AppLauncher.openUrl({ url: `maps://?q=${query}` })
+  } else {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank")
+  }
 }
 
 function onClick(store: Store) {
