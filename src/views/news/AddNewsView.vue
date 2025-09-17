@@ -116,6 +116,7 @@ import type { User } from '@supabase/supabase-js';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import {usePoints} from "@/composables/usePoints";
+import { useNotifier } from "@/composables/useNotifier"
 
 const user = ref<User | null>(null);
 const title = ref('');
@@ -137,6 +138,7 @@ const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
 const editingId = computed(() => route.params.id as string);
 
+const { notifyDiscord } = useNotifier()
 const { awardAndCelebrate } = usePoints();
 
 // Prefill form if editing
@@ -228,6 +230,12 @@ async function submitArticle() {
       loading.value = false;
       return;
     }
+
+    // 🔔 Notify Discord about edit
+    await notifyDiscord(
+        "📝 News Article Updated",
+        `**${title.value}**\nBy: ${user.value.email}`
+    )
   } else {
     const { data: insertResult, error: insertError } = await supabase
         .from('news')
@@ -248,6 +256,12 @@ async function submitArticle() {
       return;
     }
     newsId = insertResult.id;
+
+    // 🔔 Notify Discord about new article
+    await notifyDiscord(
+        "📰 New News Article Published",
+        `**${title.value}**\nBy: ${user.value.email}`
+    )
   }
 
   // Step 2: Upload image if selected

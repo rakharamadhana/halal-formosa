@@ -30,6 +30,7 @@ import './theme/variables.css'
 import { defineCustomElements } from '@ionic/pwa-elements/loader'
 import { scheduleBannerUpdate } from '@/plugins/admob'
 import { initSafeArea } from "@/plugins/safeArea";
+import { useNotifier } from "@/composables/useNotifier"
 
 // ✅ unified user profile composable
 import {
@@ -64,6 +65,8 @@ const i18n = createI18n({
     fallbackLocale: 'en',
     messages: { en, id, zh }
 })
+
+const { notifyDiscord } = useNotifier()
 
 /* Create app */
 const app = createApp(App).use(IonicVue).use(router).use(i18n)
@@ -116,8 +119,31 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 
 // ✅ Auth events (still needed for sign-in/out within app)
-supabase.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
+        const user = session.user
+
+        // Check if user has a role
+        const { data: role } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .maybeSingle()
+
+        if (!role) {
+            // Insert default role
+            await supabase.from("user_roles").insert({
+                user_id: user.id,
+                role: "user",
+            })
+
+            // Notify Discord
+            await notifyDiscord(
+                "🆕 New User Registered",
+                `Email: ${user.email}\nProvider: ${user.app_metadata?.provider || "email"}`
+            )
+        }
+
         // Only load profile if not already loaded
         if (!currentUser.value) {
             currentUser.value = session.user

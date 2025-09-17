@@ -323,7 +323,9 @@ import useOcrPipeline from '@/composables/useOcrPipeline'
 import useError from '@/composables/useError'
 import { userRole, setUserRole } from '@/composables/userProfile'
 import { usePoints } from "@/composables/usePoints";
+import { useNotifier } from "@/composables/useNotifier"
 
+const { notifyDiscord } = useNotifier()
 const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
 const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
@@ -1426,6 +1428,13 @@ async function handleSubmit() {
       )
 
       toastMessage.value = "✅ Product updated successfully!"
+
+      await notifyDiscord(
+          "✏️ Product Updated",
+          `**${form.value.name}** (${form.value.status})\nBarcode: ${barcode}`,
+          frontUrl || backUrl, // use whichever is available
+      )
+
       emit("updated")
     } else {
       // CREATE
@@ -1452,10 +1461,17 @@ async function handleSubmit() {
       // 🟢 Insert stores fresh
       await saveProductStores(newProduct.id, store_ids, user.id)
 
-
+      // ✅ Toast logic (already correct)
       toastMessage.value = autoApprove
           ? "✅ Product published successfully!"
           : "✅ Product submitted and awaiting approval."
+
+      // ✅ Discord notify — match toast
+      await notifyDiscord(
+          autoApprove ? "🆕 Product Published" : "🆕 Product Submitted",
+          `**${form.value.name}** (${form.value.status})\nBarcode: ${barcode}`,
+          frontUrl || backUrl,
+      )
 
       // reset form
       form.value = { barcode: '', name: '', status: 'Muslim-friendly',

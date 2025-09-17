@@ -138,6 +138,7 @@ import { cameraOutline, cloudUploadOutline } from 'ionicons/icons'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import {usePoints} from "@/composables/usePoints";
+import { useNotifier } from "@/composables/useNotifier"
 
 /* -------------------- Constants -------------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
@@ -148,6 +149,7 @@ let pinEl: any | null = null
 const mapLoading = ref(true)  // show skeleton
 const mapReady = ref(false)   // reveal map once real map is ready
 const { awardAndCelebrate } = usePoints();
+const { notifyDiscord } = useNotifier()
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -495,6 +497,12 @@ const submitPlace = async () => {
 
     await awardAndCelebrate("add_place", 10000);
     toast.value = { open: true, message: 'Place saved!', color: 'success' }
+
+    await notifyDiscord(
+        "📍 New Place Added",
+        `**${form.value.name}** (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || "Unknown"})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
+        form.value.image || undefined
+    )
 
     // cleanup preview/file state
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
