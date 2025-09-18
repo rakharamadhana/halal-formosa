@@ -121,29 +121,6 @@ supabase.auth.getSession().then(async ({ data }) => {
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
-        const user = session.user
-
-        // Check if user has a role
-        const { data: role } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .maybeSingle()
-
-        if (!role) {
-            // Insert default role
-            await supabase.from("user_roles").insert({
-                user_id: user.id,
-                role: "user",
-            })
-
-            // Notify Discord
-            await notifyDiscord(
-                "🆕 New User Registered",
-                `Email: ${user.email}\nProvider: ${user.app_metadata?.provider || "email"}`
-            )
-        }
-
         // Only load profile if not already loaded
         if (!currentUser.value) {
             currentUser.value = session.user
