@@ -209,6 +209,36 @@
         </ion-card-content>
       </ion-card>
 
+      <!-- ✅ Social Media / Follow Us -->
+      <ion-card class="profile-card ion-text-center">
+        <ion-card-header>
+          <ion-card-title>{{ $t('profile.followUs') }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <div class="social-links">
+            <!-- Instagram -->
+            <!-- Instagram -->
+            <a
+                href="https://www.instagram.com/halalformosa/"
+                target="_blank"
+                class="social-button instagram"
+            >
+              <ion-icon :icon="logoInstagram" class="social-icon"></ion-icon>
+              <span>Instagram</span>
+            </a>
+
+            <!-- LINE -->
+            <a
+                href="https://line.me/R/ti/p/@975schpu"
+                target="_blank"
+                class="social-button line"
+            >
+              <img src="/social-logo/line-logo.png" alt="LINE" class="social-icon" />
+              <span>LINE</span>
+            </a>
+          </div>
+        </ion-card-content>
+      </ion-card>
 
       <!-- App Info -->
       <ion-card class="profile-card ion-text-center">
@@ -263,10 +293,11 @@ import {
 
 // ✅ Icons
 import {
+  chatbubbleEllipses,
   createOutline,
   documentTextOutline,
   giftOutline,
-  listOutline,
+  listOutline, logoInstagram,
   peopleOutline,
   personCircleOutline,
   settingsOutline,
@@ -531,6 +562,44 @@ const goToEditProfile = () => router.push({ name: "EditProfile" });
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--ion-color-dark);
+}
+
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.social-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+  color: #fff;
+}
+
+.social-icon {
+  width: 30px;
+  height: 30px;
+}
+
+
+.social-button:hover {
+  transform: translateY(-2px);
+}
+
+.social-button.instagram {
+  background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4);
+}
+
+.social-button.line {
+  background-color: #06c755;
 }
 
 </style>
