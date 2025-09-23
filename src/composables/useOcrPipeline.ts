@@ -1,5 +1,5 @@
 import { Ref, ref, nextTick } from 'vue'
-import type { IngredientHighlight } from '@/types/ingredients'
+import type { IngredientHighlight } from '@/types/Ingredient'
 import { extractIonColor } from '@/utils/ingredientHelpers'
 
 export interface BlacklistPattern {
@@ -116,8 +116,8 @@ export default function useOcrPipeline({
 
             await nextTick();
 
-            // ✅ Run highlights on Chinese ingredients
-            await recheckHighlights(cleanedZh);
+            // ✅ Run highlights on both Chinese and English
+            await recheckHighlightsSmart();
 
             // ✅ Occasionally refresh cache
             const count = incrementUsageCount();
@@ -246,37 +246,38 @@ export default function useOcrPipeline({
     function cleanChineseOcrText(text: string): string {
         let cleaned = text
             .replace(/\r?\n+/g, ', ')
-            .replace(/[。、．。]/g, ',')
+            .replace(/[。、．]/g, ',')
             .replace(/\s{2,}/g, ' ')
             .replace(/品\s*,?\s*名/gi, '品名')
-            .replace(/成\s*,?\s*分/gi, '成分');
+            .replace(/成\s*,?\s*分/gi, '成分')
 
-        // ✅ Catch glued case: 品名...原料:
-        cleaned = cleaned.replace(/(品名[:：][^,，]*)原料[:：]/gi, '$1, Ingredients: ');
+        cleaned = cleaned.replace(/(品名[:：][^,，]*)原料[:：]/gi, '$1, Ingredients: ')
+        cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ')
+        cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ')
+        cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '')
 
-        // ✅ Catch normal case: 原料: / 成分: etc
-        cleaned = cleaned.replace(/(成分|配料|原料|材料|内容物|內容物)[:：]/gi, 'Ingredients: ');
+        console.log("🧹 Cleaned before blacklist:", cleaned)
 
-        // ✅ Normalize product name
-        cleaned = cleaned.replace(/品名[:：]/gi, 'Product name: ');
+        // ✅ Apply blacklist *only* outside ingredients
+        const [beforeIng, afterIng] = cleaned.split(/Ingredients:/i)
+        const safeAfter = afterIng || ''
 
-        // Remove duplicate commas
-        cleaned = cleaned.replace(/,\s*,+/g, ', ').replace(/^,|,$/g, '');
-
-        console.log("🧹 Cleaned before blacklist:", cleaned);
-
+        // 🚫 skip blacklist for ingredient section
+        // only run it on the part BEFORE "Ingredients:"
+        let safeBefore = beforeIng || ''
         for (const pattern of blacklistPatterns.value) {
-            const newCleaned = cleaned.replace(pattern, '').trim();
-            if (newCleaned.length > 5) {   // only accept if not wiping too much
-                cleaned = newCleaned;
-            } else {
-                console.warn("⚠️ Skipped blacklist pattern (too destructive):", pattern);
+            const newCleaned = safeBefore.replace(pattern, '').trim()
+            if (newCleaned.length > 5) {
+                safeBefore = newCleaned
             }
         }
 
-        console.log("🧹 Cleaned after blacklist:", cleaned);
-        return cleaned.trim();
+        cleaned = safeBefore + (afterIng ? 'Ingredients: ' + safeAfter : '')
+
+        console.log("🧹 Cleaned after safe blacklist:", cleaned)
+        return cleaned.trim()
     }
+
 
     function toProperCase(s: string) {
         return s.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase())
@@ -389,6 +390,29 @@ export default function useOcrPipeline({
         return 'unknown'
     }
 
+    async function recheckHighlightsSmart() {
+        const found: IngredientHighlight[] = []
+
+        if (ingredientsTextZh.value?.trim()) {
+            await recheckHighlights(ingredientsTextZh.value)
+            found.push(...ingredientHighlights.value)
+        }
+
+        if (ingredientsText.value?.trim()) {
+            await recheckHighlights(ingredientsText.value)
+            found.push(...ingredientHighlights.value)
+        }
+
+        // Deduplicate by matchedVariant or keyword
+        const unique = new Map(found.map(f => [f.matchedVariant || f.keyword, f]))
+        ingredientHighlights.value = Array.from(unique.values())
+
+        // Status logic (union)
+        const hasHaram = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'danger')
+        const hasSyubhah = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'warning')
+        autoStatus.value = hasHaram ? 'Haram' : hasSyubhah ? 'Syubhah' : 'Muslim-friendly'
+    }
+
     function expandCompoundIngredients(text: string): string[] {
         const compoundPattern = /([\u4e00-\u9fa5A-Za-z]+)\s*\(([^)]+)\)/g;
         const results: string[] = [];
@@ -430,8 +454,22 @@ export default function useOcrPipeline({
                     for (const variant of variants) {
                         const normVariant = variant.replace(/[,\s]/g, "")
 
-                        if (normalized.includes(normVariant)) {
-                            // 🚫 Skip if this variant is fully contained in an already matched variant
+                        let isMatch = false
+
+                        try {
+                            if (/[[\]|\\]/.test(variant)) {
+                                // treat as regex
+                                const regex = new RegExp(variant, "i") // already normalized
+                                isMatch = regex.test(normalized)
+                            } else {
+                                // plain substring
+                                isMatch = normalized.includes(normVariant)
+                            }
+                        } catch (e) {
+                            console.warn("⚠️ Invalid regex in keyword:", variant, e)
+                        }
+
+                        if (isMatch) {
                             if ([...found].some(f => f.matchedVariant && f.matchedVariant.includes(normVariant))) {
                                 console.log(`⏩ Skipping smaller match: ${variant} (already covered)`)
                                 continue
@@ -440,6 +478,7 @@ export default function useOcrPipeline({
                             console.log("✅ Match detected:", variant, "→", h)
                             found.push({ ...h, matchedVariant: variant })
                         }
+
                     }
                 }
             }
@@ -459,13 +498,14 @@ export default function useOcrPipeline({
     return {
         runOcr,
         recheckHighlights,
+        recheckHighlightsSmart,
         ingredientHighlights,
         ingredientsTextZh,
         autoStatus,
         productName,
         ingredientsText,
         showOk,
-        checkingIngredients,   // ✅ expose it
+        checkingIngredients,
         detectedLanguage,
         cleanChineseOcrText,
     }

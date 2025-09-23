@@ -10,3 +10,8 @@ export interface IngredientHighlight {
 export interface BlacklistPattern {
     pattern: string
 }
+
+export type HighlightedIngredient = {
+    html: string
+    highlighted: boolean
+}

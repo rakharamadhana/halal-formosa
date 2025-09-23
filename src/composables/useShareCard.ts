@@ -4,7 +4,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Clipboard } from '@capacitor/clipboard'
 import { loadImageFromFile, loadImageFromUrl, roundRect, blobToBase64 } from '@/utils/imageHelpers'
 import type { Ref } from 'vue'
-import type { IngredientHighlight } from '@/types/ingredients'
+import type { IngredientHighlight } from '@/types/Ingredient'
 import { extractIonColor } from '@/utils/ingredientHelpers'
 
 interface ShareCardOptions {

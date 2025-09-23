@@ -200,6 +200,7 @@
                 v-model="productName"
                 :label="$t('scanIngredients.scan.productName')"
                 label-placement="stacked"
+                :value="productName || 'Unknown Product'"
                 readonly
             />
           </ion-item>
@@ -222,7 +223,7 @@
                   label-placement="stacked"
                   :auto-grow="true"
                   readonly
-                  @ionBlur="() => recheckHighlights(ingredientsText)"
+                  @ionBlur="() => recheckHighlightsSmart()"
               />
             </ion-item>
 
@@ -346,20 +347,15 @@ import type { PluginListenerHandle } from '@capacitor/core'
 
 import useDisclaimer from "@/composables/useDisclaimer";
 import useShareCard from "@/composables/useShareCard";
-import useOcrPipeline from "@/composables/useOcrPipeline";
 import useError from '@/composables/useError'
 import useHighlightCache from '@/composables/useHighlightCache'
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
-import {BlacklistPattern} from "@/types/ingredients";
+import {BlacklistPattern} from "@/types/Ingredient";
 import useAISummary from '@/composables/useAISummary'
 import {isDonor} from "@/composables/userProfile";
-
+import { useCropperOcr } from "@/composables/useCropperOcr"
 
 /** ---------- State ---------- */
-const showCropper = ref(false)
-const cropperSrc = ref<string | null>(null)
-const cropperRef = ref<any>(null)
-const ocrLoading = ref(false)
 const showCopied = ref(false)
 const { errorMsg, showErr, setError, clearError } = useError()
 
@@ -367,7 +363,6 @@ const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
 
 const originalPreviewUrl = ref<string | null>(null) // original file preview
-const croppedPreviewUrl  = ref<string | null>(null) // cropped area preview
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
@@ -379,7 +374,6 @@ const {
   acceptDisclaimer,
   closeDetailedDisclaimer,
   declineDisclaimer,
-  incrementDisclaimerCount
 } = useDisclaimer()
 
 /** ---------- Boot: fetch highlight data ---------- */
@@ -422,58 +416,6 @@ function scanFromGallery() {
   input.click()
 }
 
-function openCropper(file: File) {
-  // Revoke old object URLs if any
-  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
-  if (cropperSrc.value) URL.revokeObjectURL(cropperSrc.value)
-
-  const url = URL.createObjectURL(file)
-  originalPreviewUrl.value = url
-  cropperSrc.value = url
-  showCropper.value = true
-}
-
-function recrop() {
-  if (!originalPreviewUrl.value) return
-  cropperSrc.value = originalPreviewUrl.value   // restore the image
-  showCropper.value = true
-}
-
-
-function closeCropper() {
-  showCropper.value = false
-  cropperSrc.value = null
-  // (Keep originalPreviewUrl so user can re-crop if they want)
-}
-
-async function confirmCrop() {
-  if (!cropperRef.value) return
-  const result = cropperRef.value.getResult()
-  if (!result || !result.canvas) return setError('No crop result available.')
-
-  ocrLoading.value = true
-  const blob = await new Promise<Blob | null>((resolve) =>
-      result.canvas.toBlob((b: Blob | null) => resolve(b), 'image/jpeg', 0.9)
-  )
-  if (!blob) {
-    ocrLoading.value = false
-    return setError('Failed to create image from crop.')
-  }
-
-  // ✅ keep a preview URL (for UI)
-  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
-  croppedPreviewUrl.value = URL.createObjectURL(blob)
-
-  // ✅ keep a File you can share/reuse later
-  croppedFile.value = new File([blob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' })
-
-  // OCR against the same file you just created
-  await runOcr(croppedFile.value as File)
-
-  ocrLoading.value = false
-  closeCropper()
-}
-
 const summaryUsed = ref(false)
 
 async function handleSummaryClick() {
@@ -490,24 +432,33 @@ const {
   generateSummary
 } = useAISummary()
 
-/** ---------- OCR pipeline ---------- */
+/** ---------- Cropper OCR pipeline ---------- */
 const {
-  runOcr,
-  recheckHighlights,
+  reset,
+  cropperRef,
+  cropperSrc,
+  showCropper,
+  croppedPreviewUrl,
+  ocrLoading,
+  openCropper,
+  confirmCrop,
+  closeCropper,   // ✅ available now
+  recrop,         // ✅ available now
+  showOk,
   ingredientHighlights,
-  ingredientsTextZh,  // ✅ now matches
+  ingredientsText,
+  ingredientsTextZh,
   autoStatus,
   productName,
-  ingredientsText,
-  showOk
-} = useOcrPipeline({
+  recheckHighlightsSmart,
+} = useCropperOcr({
   allHighlights,
   blacklistPatterns,
-  incrementDisclaimerCount,
-  incrementUsageCount,
   fetchHighlightsWithCache,
-  setError
+  incrementUsageCount,
+  setError,
 })
+
 
 /** ---------- Share card ------------*/
 
@@ -548,24 +499,11 @@ onUnmounted(() => {
 /** ---------- Utility actions ---------- */
 
 function clearAll() {
-  ingredientsText.value = ''
-  ingredientsTextZh.value = ''
-  productName.value = ''
-  ingredientHighlights.value = []
-  autoStatus.value = ''
+  reset()
   originalFile.value = null
   croppedFile.value = null
   overallNote.value = ''
-  summaryUsed.value = false  // ✅ reset when user clears
-
-  if (originalPreviewUrl.value) {
-    URL.revokeObjectURL(originalPreviewUrl.value);
-    originalPreviewUrl.value = null
-  }
-  if (croppedPreviewUrl.value) {
-    URL.revokeObjectURL(croppedPreviewUrl.value);
-    croppedPreviewUrl.value = null
-  }
+  summaryUsed.value = false
 }
 </script>
 

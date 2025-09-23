@@ -154,7 +154,7 @@
                 <template v-if="highlight.matchedVariant">
                   ({{ highlight.matchedVariant }})
                 </template>
-                — {{ getColorMeaning(extractIonColor(highlight.color)) }}
+                — {{ colorMeaning(extractIonColor(highlight.color)) }}
               </ion-chip>
             </div>
 
@@ -311,6 +311,7 @@ import {
 } from '@capacitor/barcode-scanner'
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 
 // Import Camera plugin and types
 import {Camera, CameraDirection, CameraResultType, CameraSource} from '@capacitor/camera'
@@ -319,21 +320,22 @@ import 'vue-advanced-cropper/dist/style.css';
 import AppHeader from "@/components/AppHeader.vue";
 
 import useHighlightCache from '@/composables/useHighlightCache'
-import useOcrPipeline from '@/composables/useOcrPipeline'
 import useError from '@/composables/useError'
 import { userRole, setUserRole } from '@/composables/userProfile'
 import { usePoints } from "@/composables/usePoints";
 import { useNotifier } from "@/composables/useNotifier"
+import { useImageResizer } from "@/composables/useImageResizer";
+import { useCropperOcr } from "@/composables/useCropperOcr"
+import type { Product } from '@/types/Product'
+import router from "@/router";
+import StoreLogoBar from "@/components/StoreLogoBar.vue";
 
 const { notifyDiscord } = useNotifier()
 const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
 const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
-
-
-import type { Product } from '@/types/Product'
-import router from "@/router";
-import StoreLogoBar from "@/components/StoreLogoBar.vue";
+const checkingIngredients = ref(false)
+const { resizeImage } = useImageResizer();
 
 const fetchStores = async () => {
   const { data, error } = await supabase
@@ -349,9 +351,6 @@ const fetchStores = async () => {
   }
 }
 
-
-
-
 // props
 const props = defineProps<{
   editProduct?: Product
@@ -362,20 +361,40 @@ const { allHighlights, blacklistPatterns, fetchHighlightsWithCache, incrementUsa
     useHighlightCache()
 
 const {
-  recheckHighlights,
+  cropperRef,
+  cropperSrc,
+  showCropper,
+  croppedPreviewUrl,
+  ocrLoading,
+  openCropper,
+  confirmCrop,
+  closeCropper,
   ingredientHighlights,
   ingredientsText,
   autoStatus,
   productName,
-  checkingIngredients,
-  cleanChineseOcrText
-} = useOcrPipeline({
+  recheckHighlightsSmart,
+} = useCropperOcr({
   allHighlights,
   blacklistPatterns,
-  incrementUsageCount,
   fetchHighlightsWithCache,
-  setError,   // ✅ use composable directly
+  incrementUsageCount,
+  setError,
+  setBackFile: (file: File) => {
+    backFile.value = file
+    if (backPreview.value) {
+      URL.revokeObjectURL(backPreview.value)
+    }
+    backPreview.value = URL.createObjectURL(file) // ✅ show preview
+  }
+})
 
+
+// 🟢 Keep product-specific syncing into form
+watch([autoStatus, productName, ingredientsText], ([newStatus, newName, newIngredients]) => {
+  if (newStatus) form.value.status = newStatus
+  if (newName && !form.value.name.trim()) form.value.name = newName
+  if (newIngredients) form.value.ingredients = newIngredients
 })
 
 // ✅ Fetch highlights & blacklist once when component mounts
@@ -526,18 +545,35 @@ const showErrorToast = ref(false)
 const toastMessage = ref('')
 const scanning = ref(false)
 
-const showCropper = ref(false);
-const cropperSrc = ref<string | null>(null);
-const cropperRef = ref<any>(null);
 const rawChineseOcr = ref('')  // keep original OCR before cleaning
 const scannedOnce = ref(false);
 const isResettingForm = ref(false)
+const originalFile = ref<File | null>(null)
 
 const barcodeValid = ref<null | boolean>(null)
 const barcodeMessage = ref<string>('') // feedback below input
 const html5QrCodeInstance = ref<Html5Qrcode | null>(null)
 const categories = ref<{ id: number; name: string }[]>([])
 const emit = defineEmits(['updated', 'close'])
+
+function onProductNameInput(ev: Event) {
+  const target = ev.target as HTMLInputElement
+  console.log("✏️ Product name typed:", target.value)
+}
+
+function handleIngredientsInput(ev: Event) {
+  const target = ev.target as HTMLTextAreaElement
+  console.log("🥬 Ingredients input:", target.value)
+}
+
+async function recheckHighlights() {
+  checkingIngredients.value = true
+  try {
+    await recheckHighlightsSmart()
+  } finally {
+    checkingIngredients.value = false
+  }
+}
 
 function handleBack() {
   if (props.editProduct) {
@@ -575,437 +611,32 @@ const fetchCategoryRules = async () => {
   }
 }
 
-function openCropper(file: File) {
-  cropperSrc.value = URL.createObjectURL(file);
-  showCropper.value = true;
-
-  // 🟢 Save the original file temporarily for later resizing
-  backFile.value = file;
-}
-
-function closeCropper() {
-  if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
-  }
-  showCropper.value = false
-  cropperSrc.value = null
-}
-
-
-async function confirmCrop() {
-  if (!cropperRef.value) {
-    setError('❌ Cropper ref is null');
-    return;
-  }
-
-  const result = cropperRef.value.getResult();
-  if (!result || !result.canvas) {
-    setError('No crop result available.');
-    return;
-  }
-
-  ocrLoading.value = true;
-
-  // 🟢 OCR: cropped image
-  const { canvas } = result;
-  const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((b: Blob | null) => resolve(b), 'image/jpeg', 0.9)
-  );
-
-  if (blob) {
-    const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
-      type: 'image/jpeg',
-    });
-
-    const resizedCropped = await resizeImage(
-        URL.createObjectURL(croppedFile),
-        1000,
-        0.7
-    );
-
-    // Run OCR on the cropped+resized image
-    await runOcrOnFile(resizedCropped);
-  }
-
-  // 🟢 Back image: resize the original (not cropped)
-  if (backFile.value) {
-    const resizedOriginal = await resizeImage(
-        URL.createObjectURL(backFile.value),
-        1200, // maybe bigger, since it's background
-        0.7
-    );
-
-    backPreview.value = URL.createObjectURL(resizedOriginal);
-    backFile.value = resizedOriginal;
-  }
-
-  ocrLoading.value = false;
-  closeCropper();
-}
-
-const ocrLoading = ref(false);
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms)
-    promise
-        .then((value) => {
-          clearTimeout(timer)
-          resolve(value)
-        })
-        .catch((err) => {
-          clearTimeout(timer)
-          reject(err)
-        })
-  })
-}
-
-async function extractTextFromImage(file: File): Promise<string> {
-  try {
-    const base64 = await fileToBase64(file);
-
-    const res = await withTimeout(
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-ocr`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ imageBase64: base64 }),
-        }),
-        15000 // 15s timeout
-    );
-
-    const json = await res.json();
-
-    if (!res.ok || json.error) {
-      setError(`OCR failed: ${json.error || 'Google OCR server error'}`);
-      return '';
-    }
-
-    return json.text || '';
-  } catch (e: any) {
-    if (e.message === 'timeout') {
-      setError('OCR server is busy, please try again later.');
-    } else {
-      setError('Failed to connect to OCR server. Please try again later.');
-    }
-    console.error('❌ OCR service error:', e);
-    return '';
-  }
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1]; // remove data URL prefix
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 async function scanIngredientsWithCamera() {
-  scannedOnce.value = false;  // reset here
-  console.log('📸 Taking picture from camera...');
-
-  // 🟢 Clear old values before new scan
-  form.value.ingredients = '';
-  form.value.product_category_id = null;
-  form.value.description = '';
-  userTouchedDescription.value = false
-  ingredientHighlights.value = [];
-  rawChineseOcr.value = '';
-
   const image = await Camera.getPhoto({
     quality: 90,
     allowEditing: false,
     resultType: CameraResultType.Uri,
     source: CameraSource.Camera,
-  });
-
-  console.log('📸 Camera image received:', image.webPath);
-
-  const blob = await fetch(image.webPath!).then((r) => r.blob());
-  const file = new File([blob], `ingredients-${Date.now()}.jpg`, { type: 'image/jpeg' });
-
-  openCropper(file); // 🔹 open cropper before OCR
+    direction: CameraDirection.Rear,
+  })
+  const blob = await fetch(image.webPath!).then(r => r.blob())
+  const file = new File([blob], `ingredients-${Date.now()}.jpg`, { type: 'image/jpeg' })
+  originalFile.value = file
+  openCropper(file)
 }
 
 function scanIngredientsFromGallery() {
-  scannedOnce.value = false;  // reset here too
-
-  // 🟢 Clear old values before new scan
-  form.value.ingredients = '';
-  form.value.product_category_id = null;
-  form.value.description = '';
-  userTouchedDescription.value = false
-  ingredientHighlights.value = [];
-  rawChineseOcr.value = '';
-
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = (event: Event) => {
-    const target = event.target as HTMLInputElement;
+  const input = document.createElement("input")
+  input.type = "file"
+  input.accept = "image/*"
+  input.onchange = (e: Event) => {
+    const target = e.target as HTMLInputElement
     if (target.files && target.files[0]) {
-      openCropper(target.files[0]); // 🔹 open cropper before OCR
-    } else {
-      console.warn('⚠️ No file selected');
-    }
-  };
-  input.click();
-}
-
-async function translateToEnglish(text: string) {
-  const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string;
-
-  const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
-  const body = {
-    q: text,
-    source: 'zh',       // or 'auto'
-    target: 'en',
-    format: 'text',
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  const result = await response.json();
-  if (result.data?.translations?.[0]) {
-    return result.data.translations[0].translatedText;
-  } else {
-    setError('Translation failed, please try again later.')
-    console.error('Translation failed:', result);
-    return '';
-  }
-}
-
-function cleanTranslatedIngredients(text: string): string {
-  let extracted = text;
-  const idx = text.toLowerCase().indexOf('ingredients:');
-  if (idx !== -1) {
-    extracted = text.substring(idx + 'ingredients:'.length).trim();
-  }
-
-  extracted = extracted.replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ');
-
-  // Apply blacklist patterns from DB if available
-  blacklistPatterns.value.forEach((pattern) => {
-    extracted = extracted.replace(pattern, '').trim();
-  });
-
-  // Split and clean
-  let parts = extracted
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean); // ✅ Remove any empty parts
-
-  // Remove weight-only items like 800g, 1kg, 250 ml
-  parts = parts.filter((p) => !/^\d+\s*(g|kg|ml|毫升|公克)$/i.test(p));
-
-  // Remove title-case product names with digits if first
-  if (parts.length && /^[A-Z][a-z]+.*\d+.*$/i.test(parts[0])) {
-    parts.shift();
-  }
-
-  // ✅ Remove incomplete items like "(" or ")" or ending commas
-  parts = parts.filter((p) => !/^[(),]+$/.test(p));
-
-  // ✅ Join and remove trailing punctuation
-  return parts.map(toProperCase).join(', ')
-      .replace(/[\s,]+$/g, '')   // remove trailing spaces/commas
-      .replace(/\(\s*$/g, '');
-}
-
-function toProperCase(str: string): string {
-  return str
-      .replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1).toLowerCase());
-}
-
-function extractProductName(text: string) {
-  const lower = text.toLowerCase();
-  const nameKeywords = ['product name', 'name:', 'item:', '品名', '品項'];
-
-  for (const keyword of nameKeywords) {
-    const idx = lower.indexOf(keyword);
-    if (idx !== -1) {
-      let remainder = text.substring(idx + keyword.length).trim();
-
-      remainder = remainder
-          .split(/ingredients?:/i)[0]
-          .split(/[,(\n]/)[0]
-          .replace(/[:：]/g, '')
-          .trim();
-
-      if (remainder.length > 1) {
-        const productName = toProperCase(remainder);
-        console.log('🏷 Extracted Product Name:', productName);
-        form.value.name = productName;
-        return productName; // ✅ return if valid
-      } else {
-        console.warn('⚠️ Potential product name found but skipped (too short or single word):', remainder);
-        return ''; // ✅ return here too so we don't fall through
-      }
+      originalFile.value = target.files[0]
+      openCropper(target.files[0])
     }
   }
-
-  setError('⚠️ Could not detect product name, please enter manually.')
-  console.warn('⚠️ Product name could not be extracted from OCR text.');
-  return '';
-}
-
-async function runOcrOnFile(file: File) {
-  // reset user edits on every scan
-  userTouchedDescription.value = false
-
-  const ocrText = await extractTextFromImage(file);
-
-  if (!ocrText) {
-    setError('OCR failed to detect any text.');
-    return;
-  }
-
-  rawChineseOcr.value = ocrText   // 🟢 store the raw Chinese OCR here
-  console.log("🈶 Raw OCR assigned:", ocrText);
-
-  // 1️⃣ Clean Chinese OCR first
-  const cleanedChinese = cleanChineseOcrText(ocrText);
-  if (!cleanedChinese) {
-    setError("⚠️ OCR returned no usable text after cleaning");
-    return;
-  }
-  console.log('✨ Cleaned Chinese OCR:', cleanedChinese);
-
-  // 2️⃣ Translate to English
-  const translatedText = await translateToEnglish(cleanedChinese);
-  if (!translatedText) {
-    setError("⚠️ Translation failed or returned empty text");
-    return;
-  }
-
-  // 3️⃣ Check if translated text likely has ingredients
-  const lowerTranslated = translatedText.toLowerCase();
-  if (!/(ingredient|ingredients|material|materials|content|contents)/.test(lowerTranslated)) {
-    setError('⚠️ Ingredients not detected. Please crop the correct ingredients section.');
-    console.warn('⚠️ Ingredients keyword not detected, trying fallback extraction…');
-  }
-
-  // 4️⃣ Extract product name if available
-  extractProductName(translatedText);
-
-  // 5️⃣ Extract ingredients text
-  let readableText = '';
-  const idx = translatedText.toLowerCase().indexOf('ingredients:');
-  if (idx !== -1) {
-    // normal path: found "Ingredients:"
-    readableText = translatedText.substring(idx + 'ingredients:'.length).trim();
-  } else {
-    // fallback: try after product name
-    const parts = translatedText.split(/product name:/i);
-    if (parts[1]) readableText = parts[1].slice(0, 400).trim();
-  }
-
-  // clean & normalize
-  readableText = cleanTranslatedIngredients(readableText);
-
-  if (!readableText.trim()) {
-    setError('⚠️ No valid ingredients detected after OCR. Please try cropping the ingredients section more precisely.');
-    return;
-  }
-
-  // 6️⃣ Populate form and highlight
-  if (readableText.trim()) {
-    form.value.ingredients = toProperCase(readableText) // apply ProperCase here once
-    ingredientsText.value = form.value.ingredients
-    scannedOnce.value = true   // mark as processed
-    await recheckHighlights(cleanedChinese)
-    showOcrToast.value = true
-  }
-
-  // Focus the ingredients textarea
-  nextTick(() => {
-    const textarea = document.querySelector('ion-textarea');
-    if (textarea && (textarea as any).setFocus) {
-      (textarea as any).setFocus();
-    }
-  })
-
-  // 7️⃣ Show OCR success toast
-  showOcrToast.value = true;
-}
-
-watch(() => form.value.barcode, async (newVal) => {
-  if (!newVal) {
-    barcodeValid.value = null
-    barcodeMessage.value = ''
-    return
-  }
-
-  if (newVal.length >= 8) {
-    const { data, error } = await supabase
-        .from("products")
-        .select("id, barcode")
-        .eq("barcode", newVal)
-        .limit(1)
-
-    if (!error && data && data.length > 0) {
-      // 🟢 allow if this is the same product we’re editing
-      if (props.editProduct && data[0].id === props.editProduct.id) {
-        const result = validateBarcode(newVal)
-        barcodeValid.value = result.isValid
-        barcodeMessage.value = result.message
-      } else {
-        barcodeValid.value = false
-        barcodeMessage.value = "❌ This barcode already exists in the database."
-      }
-    } else {
-      const result = validateBarcode(newVal)
-      barcodeValid.value = result.isValid
-      barcodeMessage.value = result.message
-    }
-  }
-})
-
-
-function onProductNameInput(event: Event) {
-  const input = event.target as HTMLTextAreaElement;
-
-  if (!scannedOnce.value) {
-    input.value = toProperCase(input.value);
-  }
-
-  form.value.name = input.value;
-}
-
-function onIngredientsInput(event: Event) {
-  const input = event.target as HTMLTextAreaElement;
-
-  if (!scannedOnce.value) {
-    // before scan: normalize (maybe if user types all-caps by mistake)
-    input.value = toProperCase(input.value);
-  }
-
-  form.value.ingredients = input.value;
-}
-
-function getColorMeaning(color: string) {
-  switch (color) {
-    case 'danger': return 'Haram'
-    case 'warning': return 'Syubhah'
-    case 'primary': return 'Muslim-friendly'
-    default: return 'Unknown'
-  }
-}
-
-function extractIonColor(fullColor: string) {
-  const parts = fullColor.split('-')
-  return parts[parts.length - 1] // last part = "warning"
+  input.click()
 }
 
 async function startBarcodeScan() {
@@ -1081,9 +712,10 @@ async function startBarcodeScan() {
   }
 }
 
-let isUnmounted = false
+const isUnmounted = false
 onUnmounted(() => {
-  isUnmounted = true
+  if (cropperSrc.value) URL.revokeObjectURL(cropperSrc.value)
+  if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
 })
 
 async function takeFrontPicture() {
@@ -1166,51 +798,6 @@ function uploadBackFromGallery() {
     }
   };
   input.click();
-}
-
-async function resizeImage(webPath: string, maxWidth = 600, quality = 0.6): Promise<File> {
-  const response = await fetch(webPath)
-  const blob = await response.blob()
-  const img = await createImageBitmap(blob)
-
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')!
-
-  const ratio = img.width / img.height
-  canvas.width = Math.min(img.width, maxWidth)
-  canvas.height = canvas.width / ratio
-
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-  return new Promise((resolve) => {
-    canvas.toBlob(
-        (compressedBlob) => {
-          if (compressedBlob) {
-            resolve(new File([compressedBlob], 'image.jpg', { type: 'image/jpeg' }))
-          } else {
-            setError('❌ Failed to compress image, please try again.')
-          }
-        },
-        'image/jpeg',
-        quality
-    )
-  })
-}
-
-
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
-function handleIngredientsInput(event: Event) {
-  onIngredientsInput(event)
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(async () => {
-    try {
-      await recheckHighlights();
-    } catch (err: any) {
-      setError('❌ Failed to recheck highlights.');
-      console.error(err);
-    }
-  }, 800);
 }
 
 function validateBarcode(barcode: string) {

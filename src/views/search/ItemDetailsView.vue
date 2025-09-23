@@ -317,6 +317,8 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import relativeTime from "dayjs/plugin/relativeTime";
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
+import {highlightIngredients} from "@/utils/useIngredientHighlighter";
+import { statusToChipClass } from '@/utils/ingredientHelpers'
 
 type RelatedProduct = {
   barcode: string
@@ -447,21 +449,6 @@ async function handleProductUpdated() {
   }
 }
 
-function statusToChipClass(status: string): string {
-  switch (status) {
-    case 'Halal':
-      return 'chip-success'
-    case 'Muslim-friendly':
-      return 'chip-primary'
-    case 'Syubhah':
-      return 'chip-warning'
-    case 'Haram':
-      return 'chip-danger'
-    default:
-      return 'chip-medium'
-  }
-}
-
 const visibleIngredients = computed(() => {
   if (!highlightedIngredients.value) return []
   return showAllIngredients.value
@@ -469,57 +456,30 @@ const visibleIngredients = computed(() => {
       : highlightedIngredients.value.slice(0, maxVisible)
 })
 
+type HighlightedIngredient = {
+  html: string
+  highlighted: boolean
+}
+
 const highlightedIngredients = computed(() => {
   if (!item.value || !item.value.ingredients) return []
 
-  // 🚫 If product is Halal → return plain ingredients (no highlighting)
-  if (item.value.status === 'Halal') {
+  // 🚫 If product is Halal → no highlighting
+  if (item.value.status === "Halal") {
     return item.value.ingredients
-        .split(',')
+        .split(",")
         .map((p: string) => ({ html: p.trim(), highlighted: false }))
-        .filter((p) => p.html.length > 0)
+        .filter(p => p.html.length > 0)
   }
 
-  // ✅ Otherwise, do the highlight logic
-  const rawIngredients: string = item.value.ingredients ?? ''
-  const parts: string[] = rawIngredients
-      .split(',')
-      .map((p: string) => p.trim())
-      .filter((p: string) => p.length > 0)
-
-  const sortedKeys: string[] = Object.keys(ingredientDictionary.value)
-      .sort((a: string, b: string) => b.length - a.length)
-
-  const processed = parts.map((part: string) => {
-    const lowerPart = part.toLowerCase()
-    let matchedKey: string | null = null
-
-    for (const key of sortedKeys) {
-      if (lowerPart.includes(key.toLowerCase())) {
-        matchedKey = key
-        break
-      }
-    }
-
-    if (matchedKey) {
-      let color = ingredientDictionary.value[matchedKey]
-
-      // 🔄 If product is Muslim-friendly, convert Syubhah → Muslim-friendly
-      if (item.value?.status === 'Muslim-friendly' && color === '--ion-color-warning') {
-        color = '--ion-color-primary'
-      }
-
-      return {
-        html: `<span style="font-weight:600;color:var(${color});">${part}</span>`,
-        highlighted: true
-      }
-    } else {
-      return { html: part, highlighted: false }
-    }
-  })
-
-  processed.sort((a, b) => Number(b.highlighted) - Number(a.highlighted))
-  return processed
+  // ✅ use the new helper
+  return highlightIngredients(
+      item.value.ingredients,
+      ingredientDictionary.value,
+      item.value.status
+  ).sort((a: HighlightedIngredient, b: HighlightedIngredient) =>
+      Number(b.highlighted) - Number(a.highlighted)
+  )
 })
 
 
