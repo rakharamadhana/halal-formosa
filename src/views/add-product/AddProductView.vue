@@ -40,12 +40,18 @@
           <ion-item-group>
             <ion-item :class="{ 'barcode-valid': barcodeValid === true, 'barcode-invalid': barcodeValid === false }">
               <ion-input
+                  ref="barcodeInput"
                   v-model="form.barcode"
                   required
+                  type="tel"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  :maxlength="14"
+                  :minlength="8"
                   :label="$t('addProduct.barcode')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.barcodePlaceholder')"
-              ></ion-input>
+              />
 
               <ion-icon
                   v-if="barcodeValid !== null"
@@ -329,6 +335,7 @@ import { useCropperOcr } from "@/composables/useCropperOcr"
 import type { Product } from '@/types/Product'
 import router from "@/router";
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
+import { BarcodeValidator } from "@/utils/barcodeValidator";
 
 const { notifyDiscord } = useNotifier()
 const { awardAndCelebrate } = usePoints();
@@ -336,6 +343,7 @@ const { errorMsg, setError } = useError()
 const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
 const checkingIngredients = ref(false)
 const { resizeImage } = useImageResizer();
+const barcodeInput = ref<any>(null)
 
 const fetchStores = async () => {
   const { data, error } = await supabase
@@ -388,6 +396,7 @@ const {
     backPreview.value = URL.createObjectURL(file) // ✅ show preview
   }
 })
+
 
 
 // 🟢 Keep product-specific syncing into form
@@ -527,6 +536,41 @@ watch(() => form.value.status, (newStatus) => {
   nextTick(() => { programmaticDescUpdate.value = false })
   userTouchedDescription.value = false
 })
+
+async function checkBarcodeExists(barcode: string) {
+  const { data } = await supabase
+      .from("products")
+      .select("id")
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+  return !!data; // true if already exists
+}
+
+watch(() => form.value.barcode, async (newBarcode) => {
+  if (!newBarcode) {
+    barcodeValid.value = null;
+    barcodeMessage.value = "";
+    return;
+  }
+
+  const validation = validateBarcode(newBarcode);
+  if (!validation.isValid) {
+    barcodeValid.value = false;
+    barcodeMessage.value = validation.message;
+    return;
+  }
+
+  // check duplicates
+  const exists = await checkBarcodeExists(newBarcode);
+  if (exists) {
+    barcodeValid.value = false;
+    barcodeMessage.value = "❌ This barcode already exists in the database";
+  } else {
+    barcodeValid.value = true;
+    barcodeMessage.value = validation.message;
+  }
+});
 
 
 const autoStatusApplied = ref(false)
@@ -694,6 +738,12 @@ async function startBarcodeScan() {
             await Haptics.impact({ style: ImpactStyle.Medium })
             form.value.barcode = decodedText
 
+            // also push into IonInput DOM
+            await nextTick()
+            if (barcodeInput.value) {
+              barcodeInput.value.$el.value = decodedText
+            }
+
             // auto stop after detection
             await html5QrCode.stop()
             document.getElementById('reader')!.innerHTML = ''
@@ -801,55 +851,25 @@ function uploadBackFromGallery() {
 }
 
 function validateBarcode(barcode: string) {
-  if (!/^\d+$/.test(barcode)) return { isValid: false, message: 'Barcode must be digits only' };
+  const clean = barcode.replace(/-/g, "");
 
-  const len = barcode.length;
-  let type = '';
-  switch (len) {
-    case 8: type = 'EAN-8'; break;
-    case 12: type = 'UPC-A'; break;
-    case 13: type = 'EAN-13'; break;
-    case 14: type = 'GTIN-14'; break;
-    default:
-      return { isValid: false, message: 'Barcode must be 8, 12, 13, or 14 digits' };
+  if (
+      BarcodeValidator.isValidEAN8(clean) ||
+      BarcodeValidator.isValidEAN13(clean) ||
+      BarcodeValidator.isValidEAN14(clean) ||
+      BarcodeValidator.isValidUPCA(clean) ||
+      BarcodeValidator.isValidUPCE(clean) ||
+      BarcodeValidator.isValidISBN(clean) ||
+      BarcodeValidator.isValidIMEI(clean) ||
+      BarcodeValidator.isValidGSIN(clean) ||
+      BarcodeValidator.isValidSSCC(clean) ||
+      BarcodeValidator.isValidGLN(clean) ||
+      BarcodeValidator.isValidASIN(clean)
+  ) {
+    return { isValid: true, message: "✅ Valid barcode" };
   }
 
-  const digits = barcode.split('').map(Number);
-  const checkDigit = digits.pop()!;
-  const calcCheckDigit = calculateCheckDigit(digits);
-
-  const isValid = checkDigit === calcCheckDigit;
-  const correctBarcode = isValid ? null : [...digits, calcCheckDigit].join('');
-
-  return {
-    isValid,
-    type,
-    checkDigit: calcCheckDigit,
-    correctBarcode,
-    message: isValid
-        ? `✅ Valid ${type} barcode`
-        : `❌ Invalid ${type}.`
-  };
-}
-
-function calculateCheckDigit(digits: number[]) {
-  const len = digits.length;
-  let sumOdd = 0;
-  let sumEven = 0;
-
-  // GS1 logic: positions are counted from the right (rightmost = position 1)
-  for (let i = 0; i < len; i++) {
-    const digit = digits[len - 1 - i];
-    if ((i + 1) % 2 === 1) {
-      sumOdd += digit;  // odd position from right
-    } else {
-      sumEven += digit; // even position from right
-    }
-  }
-
-  const total = sumOdd * 3 + sumEven;
-  const mod = total % 10;
-  return mod === 0 ? 0 : 10 - mod;
+  return { isValid: false, message: "❌ Invalid barcode" };
 }
 
 async function saveProductStores(
@@ -922,9 +942,9 @@ async function handleSubmit() {
       barcode
     } = form.value
 
-    const barcodeValidation = validateBarcode(barcode);
+    const barcodeValidation = validateBarcode(form.value.barcode);
     if (!barcodeValidation.isValid) {
-      setError(barcodeValidation.message)
+      setError(barcodeValidation.message);
       loading.value = false;
       return;
     }
