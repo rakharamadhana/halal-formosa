@@ -787,7 +787,16 @@ async function startBarcodeScan() {
     } else {
       // 🌐 Web → html5-qrcode
       await nextTick()
-      const html5QrCode = new Html5Qrcode('reader')
+
+      const readerEl = document.getElementById('reader')
+
+      if (!readerEl) {
+        console.error("❌ #reader container not found")
+        scanning.value = false
+        return
+      }
+
+      const html5QrCode = new Html5Qrcode('reader', { verbose: false }) // ✅ always inline, never fullscreen
       html5QrCodeInstance.value = html5QrCode
 
       const config = {
@@ -1196,10 +1205,20 @@ ion-toast {
 
 #reader {
   width: 100%;
-  max-height: 100%;
+  height: 260px;       /* 🔹 fixed height so library doesn't auto-popup */
   border-radius: 8px;
   overflow: hidden;
-  margin: 0 auto; /* center horizontally */
+  margin: 12px auto;
+  background: #000;    /* black background behind video */
+  position: relative;  /* ensures inline placement */
+}
+
+/* kill any unwanted modal overlay injected by html5-qrcode */
+#reader__scan_region,
+#reader__dashboard_section_csr {
+  position: relative !important;
+  inset: auto !important;
+  max-width: 100% !important;
 }
 
 /* For larger screens */
