@@ -741,6 +741,9 @@ async function switchCamera(camId: string) {
           document.getElementById('reader')!.innerHTML = ''
           html5QrCodeInstance.value = null
           scanning.value = false
+        },
+        (errorMessage) => {
+          console.log('📡 Scan error:', errorMessage)
         }
     )
 
