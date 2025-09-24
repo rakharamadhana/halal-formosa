@@ -75,6 +75,18 @@
               {{ barcodeMessage }}
             </ion-note>
 
+            <div v-if="scanning && cameras.length > 1" class="ion-padding">
+              <ion-item>
+                <ion-label>Camera</ion-label>
+                <ion-select v-model="selectedCameraId" @ionChange="switchCamera($event.detail.value)">
+                  <ion-select-option v-for="cam in cameras" :key="cam.id" :value="cam.id">
+                    {{ cam.label }}
+                  </ion-select-option>
+                </ion-select>
+              </ion-item>
+            </div>
+
+
             <div v-if="scanning && !Capacitor.isNativePlatform()" id="reader"></div>
 
             <ion-item>
@@ -683,6 +695,62 @@ function scanIngredientsFromGallery() {
   input.click()
 }
 
+const cameras = ref<{ id: string; label: string }[]>([])
+const selectedCameraId = ref<string | null>(null)
+
+async function loadCameras() {
+  try {
+    const devices = await Html5Qrcode.getCameras()
+    cameras.value = devices.map(d => ({ id: d.id, label: d.label || `Camera ${d.id}` }))
+
+    // default: pick back camera if possible
+    const backCam = devices.find(d => /back|rear|environment/i.test(d.label))
+    selectedCameraId.value = backCam ? backCam.id : devices[0]?.id || null
+  } catch (err) {
+    console.error('❌ Failed to get cameras:', err)
+  }
+}
+
+async function switchCamera(camId: string) {
+  if (!html5QrCodeInstance.value) return
+
+  try {
+    await html5QrCodeInstance.value.stop()
+    document.getElementById('reader')!.innerHTML = ''
+
+    const config = {
+      fps: 15,
+      qrbox: { width: 300, height: 150 },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+      ],
+    }
+
+    await html5QrCodeInstance.value.start(
+        camId,
+        config,
+        async (decodedText) => {
+          console.log('✅ Web barcode detected:', decodedText)
+          form.value.barcode = decodedText
+          await Haptics.impact({ style: ImpactStyle.Medium })
+
+          await html5QrCodeInstance.value?.stop()
+          document.getElementById('reader')!.innerHTML = ''
+          html5QrCodeInstance.value = null
+          scanning.value = false
+        }
+    )
+
+    selectedCameraId.value = camId
+  } catch (err) {
+    console.error('❌ Failed to switch camera:', err)
+  }
+}
+
+
 async function startBarcodeScan() {
   if (scanning.value) {
     // 🛑 If already scanning → stop
@@ -730,8 +798,27 @@ async function startBarcodeScan() {
         ],
       }
 
+      // 🔍 Get available cameras
+      const devices = await Html5Qrcode.getCameras()
+      if (!devices || !devices.length) {
+        console.error('❌ No cameras found')
+        scanning.value = false
+        return
+      }
+
+      // Pick rear/back/environment camera if available, else fallback to first
+      const backCam = devices.find(d => /back|rear|environment/i.test(d.label))
+      const camId = backCam ? backCam.id : devices[0].id
+
+      await loadCameras()
+      if (!selectedCameraId.value) {
+        console.error('❌ No camera available')
+        scanning.value = false
+        return
+      }
+
       await html5QrCode.start(
-          { facingMode: 'environment' },
+          camId, // 👈 use specific camera ID
           config,
           async (decodedText) => {
             console.log('✅ Web barcode detected:', decodedText)
@@ -751,8 +838,7 @@ async function startBarcodeScan() {
             scanning.value = false
           },
           (errorMessage) => {
-            // gets called often — keep silent or log if needed
-            console.log(errorMessage)
+            console.log(errorMessage) // gets called often
           }
       )
     }
