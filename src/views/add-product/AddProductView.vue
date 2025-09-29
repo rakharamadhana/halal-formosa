@@ -506,11 +506,12 @@ watch(() => form.value.description, (newDesc, oldDesc) => {
 // after your useOcrPipeline call
 watch([autoStatus, productName, ingredientsText],
     ([newStatus, newName]) => {
+
       if (newStatus) {
         form.value.status = newStatus
-        autoStatusApplied.value = true   // ✅ mark that auto status was applied
+        autoStatusApplied.value = true
         console.log("⚡ AutoStatus applied:", newStatus)
-
+        scannedOnce.value = true   // ✅ mark scan complete here too
         if (!form.value.description?.trim()) {
           form.value.description = statusDescriptions[newStatus] ?? ""
         }
@@ -538,16 +539,16 @@ watch([autoStatus, productName, ingredientsText],
 watch(() => form.value.status, (newStatus) => {
   if (!newStatus) return
   if (isResettingForm.value) return   // 🚫 skip if resetting form
+  if (!scannedOnce.value) return      // 🚫 only apply after first scan
 
-  if (!scannedOnce.value) return      // 🚫 skip if not after scan
-
-  // reset + overwrite description
-  form.value.description = ""
-  programmaticDescUpdate.value = true
-  form.value.description = statusDescriptions[newStatus] ?? ""
-  nextTick(() => { programmaticDescUpdate.value = false })
-  userTouchedDescription.value = false
+  // Only overwrite if user hasn't typed their own description
+  if (!userTouchedDescription.value) {
+    programmaticDescUpdate.value = true
+    form.value.description = statusDescriptions[newStatus] ?? ""
+    nextTick(() => { programmaticDescUpdate.value = false })
+  }
 })
+
 
 async function checkBarcodeExists(barcode: string) {
   const { data } = await supabase
@@ -739,6 +740,7 @@ async function switchCamera(camId: string) {
         async (decodedText) => {
           console.log('✅ Web barcode detected:', decodedText)
           form.value.barcode = decodedText
+          scannedOnce.value = true   // ✅ mark as scanned
           await Haptics.impact({ style: ImpactStyle.Medium })
 
           await html5QrCodeInstance.value?.stop()
@@ -840,7 +842,7 @@ async function startBarcodeScan() {
             console.log('✅ Web barcode detected:', decodedText)
             await Haptics.impact({ style: ImpactStyle.Medium })
             form.value.barcode = decodedText
-
+            scannedOnce.value = true   // ✅ mark as scanned
             // also push into IonInput DOM
             await nextTick()
             if (barcodeInput.value) {
