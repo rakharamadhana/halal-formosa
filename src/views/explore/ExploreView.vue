@@ -208,7 +208,7 @@ type Place = {
   name: string
   position: { lat: number; lng: number }
   image?: string | null
-  typeId: number
+  typeId: number | null
   type: string
 }
 
@@ -218,8 +218,8 @@ type LocationRow = {
   lat: number
   lng: number
   image?: string | null
-  type_id: number
-  location_types: { name: string }[]   // ✅ array
+  type_id: number | null
+  location_types: { name: string } | null   // 👈 not array
 }
 
 // Local type for ion-content (no external import needed)
@@ -437,6 +437,7 @@ const fetchLocations = async () => {
     `)
 
   if (!error && data) {
+    //@ts-expect-error LocationRow
     const typedData = data as LocationRow[]
 
     locations.value = typedData.map((loc) => ({
@@ -445,7 +446,7 @@ const fetchLocations = async () => {
       position: { lat: loc.lat, lng: loc.lng },
       image: loc.image,
       typeId: loc.type_id,
-      type: loc.location_types[0]?.name ?? ''   // ✅ pick first
+      type: loc.location_types?.name ?? ''   // 👈 safe access
     }))
   }
 

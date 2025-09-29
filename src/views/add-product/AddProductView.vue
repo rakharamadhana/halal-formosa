@@ -573,16 +573,20 @@ watch(() => form.value.barcode, async (newBarcode) => {
     return;
   }
 
-  // check duplicates
-  const exists = await checkBarcodeExists(newBarcode);
-  if (exists) {
-    barcodeValid.value = false;
-    barcodeMessage.value = "❌ This barcode already exists in the database";
-  } else {
-    barcodeValid.value = true;
-    barcodeMessage.value = validation.message;
+  // 🚫 Only check duplicates when creating, not editing
+  if (!props.editProduct) {
+    const exists = await checkBarcodeExists(newBarcode);
+    if (exists) {
+      barcodeValid.value = false;
+      barcodeMessage.value = "❌ This barcode already exists in the database";
+      return;
+    }
   }
+
+  barcodeValid.value = true;
+  barcodeMessage.value = validation.message;
 });
+
 
 
 const autoStatusApplied = ref(false)
