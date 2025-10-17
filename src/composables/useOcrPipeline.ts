@@ -33,6 +33,7 @@ export default function useOcrPipeline({
     const ingredientsText = ref('')
     const showOk = ref(false)
     const detectedLanguage = ref<'chinese' | 'english' | 'mixed' | 'unknown'>('unknown')
+    const ocrRawText = ref('')
 
     function normalizeIngredients(text: string): string {
         return text
@@ -80,6 +81,13 @@ export default function useOcrPipeline({
             }
             console.log('📄 Raw OCR text detected:', raw);
 
+            // ✅ Save raw OCR text for logging
+            ocrRawText.value = raw || ''
+
+            if (!raw || !raw.trim()) {
+                return setError('OCR failed to detect any text.');
+            }
+
             detectedLanguage.value = detectLanguage(raw);
             console.log('🌐 OCR detected language:', detectedLanguage.value);
 
@@ -121,8 +129,9 @@ export default function useOcrPipeline({
             }
 
             // ✅ Guard: ensure we actually got a reasonable ingredient list
-            if (!translated || translated.trim().split(/[,\n]/).length < 2) {
-                return setError('Ingredients not detected or text too short. Please crop the ingredients section.');
+            const ingKeywords = /(ingredient|contains|成分|成份|配料|原料|內容物|内容物|材料)/i;
+            if (!ingKeywords.test(raw) && !ingKeywords.test(translated)) {
+                throw new Error('No ingredient keywords detected. Please crop the ingredients section only.');
             }
 
             // ✅ Save Chinese ingredients
@@ -152,9 +161,15 @@ export default function useOcrPipeline({
             }
 
             showOk.value = true;
-        } catch (e) {
-            console.error(e);
-            setError('OCR failed.');
+        } catch (e: any) {
+            console.error("❌ OCR pipeline error:", e);
+
+            // if the error already has a message, keep it
+            const message = e?.message || 'OCR failed.';
+            setError(message);
+
+            // rethrow so outer layers (useOcrService / confirmCrop) can react properly
+            throw e;
         }
     }
 
@@ -547,5 +562,6 @@ export default function useOcrPipeline({
         checkingIngredients,
         detectedLanguage,
         cleanChineseOcrText,
+        ocrRawText,
     }
 }

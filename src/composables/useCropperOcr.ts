@@ -12,8 +12,8 @@ export function useCropperOcr(options: any) {
     const croppedPreviewUrl = ref<string | null>(null)
     const ocrLoading = ref(false)
 
-    // 🔹 NEW: keep track of original uncropped file
     const originalFile = ref<File | null>(null)
+    const ocrRaw = ref("") // ✅ store raw OCR text
 
     // pipeline refs from OCR service
     const {
@@ -29,7 +29,7 @@ export function useCropperOcr(options: any) {
 
     function openCropper(file: File) {
         if (cropperSrc.value) URL.revokeObjectURL(cropperSrc.value)
-        originalFile.value = file // ✅ keep reference
+        originalFile.value = file
         cropperSrc.value = URL.createObjectURL(file)
         showCropper.value = true
     }
@@ -41,7 +41,6 @@ export function useCropperOcr(options: any) {
 
         ocrLoading.value = true
         try {
-            // --- Cropped blob for OCR ---
             const blob = await new Promise<Blob | null>((resolve) =>
                 result.canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.9)
             )
@@ -56,13 +55,21 @@ export function useCropperOcr(options: any) {
 
             // Compress cropped for OCR
             const resizedCropped = await resizeImage(croppedFile)
-            await processFile(resizedCropped)
+
+            // ✅ Run OCR once and store result
+            const rawResult = await processFile(resizedCropped)
+            if (rawResult?.ocrRaw) {
+                ocrRaw.value = rawResult.ocrRaw
+            }
 
             // --- 🔹 Also prepare compressed original for back image ---
             if (originalFile.value) {
                 const resizedBack = await resizeImage(originalFile.value)
-                options?.setBackFile?.(resizedBack) // ✅ caller can inject setter
+                options?.setBackFile?.(resizedBack)
             }
+        } catch (err) {
+            console.error('❌ OCR failed in confirmCrop:', err)
+            throw err // 👈 rethrow to let handleConfirmCrop() know it failed
         } finally {
             ocrLoading.value = false
             showCropper.value = false
@@ -81,6 +88,7 @@ export function useCropperOcr(options: any) {
         ingredientsTextZh.value = ""
         productName.value = ""
         autoStatus.value = ""
+        ocrRaw.value = "" // ✅ reset too
         originalFile.value = null
     }
 
@@ -117,5 +125,6 @@ export function useCropperOcr(options: any) {
         autoStatus,
         productName,
         recheckHighlightsSmart,
+        ocrRaw, // ✅ exported correctly
     }
 }

@@ -8,6 +8,7 @@ export interface OcrResult {
     highlights: IngredientHighlight[]
     autoStatus: string
     detectedLanguage: string
+    ocrRaw?: string
 }
 
 export function useOcrService(options: Parameters<typeof useOcrPipeline>[0]) {
@@ -32,10 +33,11 @@ export function useOcrService(options: Parameters<typeof useOcrPipeline>[0]) {
                 highlights: pipeline.ingredientHighlights.value,
                 autoStatus: pipeline.autoStatus.value,
                 detectedLanguage: pipeline.detectedLanguage.value,
+                ocrRaw: pipeline.ocrRawText.value, // 👈 works perfectly now
             }
-        } catch (e) {
-            console.error("❌ OCR Service failed:", e)
-            return null
+        } catch (e: any) {
+            console.error("❌ OCR Service failed:", e);
+            throw e; // ✅ keep throwing upward
         }
     }
 

@@ -280,7 +280,7 @@
           <ion-toolbar>
             <ion-title>{{ $t('scanIngredients.scan.cropTitle') }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="confirmCrop">{{ $t('scanIngredients.scan.done') }}</ion-button>
+              <ion-button @click="handleConfirmCrop">{{ $t('scanIngredients.scan.done') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -354,6 +354,8 @@ import {BlacklistPattern} from "@/types/Ingredient";
 import useAISummary from '@/composables/useAISummary'
 import {isDonor} from "@/composables/userProfile";
 import { useCropperOcr } from "@/composables/useCropperOcr"
+import { Device } from '@capacitor/device'
+import { supabase } from '@/plugins/supabaseClient'
 
 /** ---------- State ---------- */
 const showCopied = ref(false)
@@ -363,6 +365,11 @@ const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
 
 const originalPreviewUrl = ref<string | null>(null) // original file preview
+
+const currentSource = ref<'camera' | 'gallery' | null>(null)
+const ocrStartTime = ref<number | null>(null)
+// @ts-expect-error – injected global
+const appVersion = __APP_VERSION__;
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
@@ -386,8 +393,85 @@ const {
   incrementUsageCount
 } = useHighlightCache()
 
+/** ---------- Log Scan ------------ */
+async function logIngredientScan({
+                                   source,
+                                   errorMessage = null,
+                                   startTime = null
+                                 }: {
+  source: 'camera' | 'gallery'
+  errorMessage?: string | null
+  startTime?: number | null
+}) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return console.warn('⏩ No user logged in, skipping log');
+
+    const pipelineSucceeded = !!ingredientsTextZh.value?.trim() || !!ingredientsText.value?.trim();
+    if (!pipelineSucceeded && !errorMessage) {
+      console.warn('⚠️ Skipping empty scan log (pipeline did not produce results)');
+      return;
+    }
+
+    const duration = startTime ? Date.now() - startTime : null;
+    const info = await Device.getInfo();
+    const { model, platform } = info;
+
+    const { error } = await supabase.from('ingredient_scan_logs').insert([
+      {
+        user_id: user.id,
+        product_name: productName.value || 'Unknown Product',
+        ingredients_text_zh: ingredientsTextZh.value,
+        ingredients_text_en: ingredientsText.value,
+        ocr_raw: ocrRaw.value,
+        auto_status: autoStatus.value,
+        highlight_summary: ingredientHighlights.value,
+        source,
+        error_message: errorMessage,
+        app_version: appVersion,
+        processing_time_ms: duration,
+        device_model: model,
+        platform
+      }
+    ]);
+
+    if (error) console.error('❌ Log insert failed:', error);
+    else console.log(errorMessage ? '⚠️ Logged failed scan' : '✅ Logged successful scan');
+  } catch (err) {
+    console.error('Error logging scan:', err);
+  }
+}
+
+
+async function handleConfirmCrop() {
+  try {
+    ocrStartTime.value = Date.now()
+    await confirmCrop()
+    showOk.value = true
+
+    // ✅ Only log if ingredients were actually found
+    if (ingredientsTextZh.value?.trim()) {
+      await logIngredientScan({
+        source: currentSource.value || 'camera',
+        startTime: ocrStartTime.value
+      })
+    } else {
+      console.warn('🚫 OCR text found but no ingredient section detected, skipping log')
+    }
+  } catch (err: any) {
+    setError(err.message || 'OCR failed')
+
+    await logIngredientScan({
+      source: currentSource.value || 'camera',
+      errorMessage: err.message || 'OCR failed',
+      startTime: ocrStartTime.value
+    })
+  }
+}
+
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
+  currentSource.value = 'camera'
   const image = await Camera.getPhoto({
     quality: 90,
     allowEditing: false,
@@ -403,6 +487,7 @@ async function scanFromCamera() {
 
 // Gallery
 function scanFromGallery() {
+  currentSource.value = 'gallery'
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
@@ -450,6 +535,7 @@ const {
   ingredientsTextZh,
   autoStatus,
   productName,
+  ocrRaw,
   recheckHighlightsSmart,
 } = useCropperOcr({
   allHighlights,
@@ -458,7 +544,6 @@ const {
   incrementUsageCount,
   setError,
 })
-
 
 /** ---------- Share card ------------*/
 
