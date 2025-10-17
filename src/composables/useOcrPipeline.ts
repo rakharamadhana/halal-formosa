@@ -49,6 +49,17 @@ export default function useOcrPipeline({
             .replace(/土\s*粉/g, "士粉") // fix 起土 粉 → 起士粉
     }
 
+    function normalizeEnglishIngredients(text: string): string {
+        return text
+            .replace(/\s*[,，]\s*/g, ', ') // normalize commas
+            .replace(/\s*[:：]\s*/g, ': ') // normalize colons
+            .replace(/\s{2,}/g, ' ')       // remove extra spaces
+            .replace(/；/g, ';')
+            .replace(/\( /g, '(')
+            .replace(/ \)/g, ')')
+            .trim();
+    }
+
     async function runOcr(file: File) {
         try {
             if (incrementDisclaimerCount) incrementDisclaimerCount();
@@ -63,7 +74,7 @@ export default function useOcrPipeline({
             }
 
             // ✅ OCR
-            const raw = await extractTextFromImage(file);
+            let raw = await extractTextFromImage(file);
             if (!raw || !raw.trim()) {
                 return setError('OCR failed to detect any text.');
             }
@@ -74,14 +85,15 @@ export default function useOcrPipeline({
 
             let translated = '';
             let cleanedZh = raw;
+            let ingredientsOnlyZh = '';  // ✅ <--- Declare here so it's visible everywhere
 
             if (detectedLanguage.value === 'english') {
                 // ✅ Already English → no need to clean Chinese
                 translated = raw;
             } else {
-                // ✅ Clean Chinese OCR → ingredients only
-                cleanedZh = cleanChineseOcrText(raw);
-                cleanedZh = normalizeIngredients(cleanedZh);
+                // ✅ Normalize and clean
+                raw = normalizeIngredients(raw);
+                cleanedZh = normalizeIngredients(cleanChineseOcrText(raw));
 
                 if (!cleanedZh.trim()) {
                     return setError('OCR detected text but nothing meaningful remained after cleanup.');
@@ -89,37 +101,45 @@ export default function useOcrPipeline({
 
                 console.log('🀄 Cleaned Chinese OCR:', cleanedZh);
 
-                // ✅ Translate FULL raw text → keeps product name + ingredients
-                const result = await translateToEnglish(raw);
-                if (result === null) return;
-                translated = result;
+                // 🧹 Extract ingredients-only before translation
+                ingredientsOnlyZh = stripToIngredientsOnly(cleanedZh);
+                console.log('🀄 Cleaned Chinese OCR (ingredients-only):', ingredientsOnlyZh);
+
+                // 🧠 Translate both full and ingredients-only versions
+                const translatedFull = normalizeEnglishIngredients(await translateToEnglish(raw) || '');
+                const translatedClean = normalizeEnglishIngredients(await translateToEnglish(ingredientsOnlyZh) || '');
+
+                if (translatedFull === null || translatedClean === null) {
+                    return; // stop if either translation failed
+                }
+
+                // 🟢 Extract product name from full translation
+                productName.value = extractProductName(translatedFull) || '';
+
+                // 🟢 Use the cleaned translation for ingredients
+                translated = translatedClean;
             }
 
-            // ✅ Guard: must contain "ingredients"
-            if (!translated.toLowerCase().includes('ingredient')) {
-                return setError('Ingredients not detected. Please crop the ingredients section.');
+            // ✅ Guard: ensure we actually got a reasonable ingredient list
+            if (!translated || translated.trim().split(/[,\n]/).length < 2) {
+                return setError('Ingredients not detected or text too short. Please crop the ingredients section.');
             }
 
-            // ✅ Save ingredients-only Chinese
-            cleanedZh = stripToIngredientsOnly(cleanedZh);
-            ingredientsTextZh.value = cleanedZh;
-            console.log('🀄 Cleaned Chinese OCR (ingredients-only):', cleanedZh);
+            // ✅ Save Chinese ingredients
+            ingredientsTextZh.value = ingredientsOnlyZh || stripToIngredientsOnly(cleanedZh);
+            console.log('🀄 Final ingredients-only Chinese:', ingredientsTextZh.value);
 
-            // ✅ Extract product name (English)
-            productName.value = extractProductName(translated) || '';
-
-            // ✅ Clean translated text → English ingredient list only
-            ingredientsText.value = cleanTranslatedIngredients(translated);
+            // ✅ Clean translated English
+            ingredientsText.value = cleanTranslatedIngredients(translated)
+                .replace(/^(ingredients|contains)[:：]?\s*/i, '')
+                .trim();
 
             console.log("🏷 Product Name (EN):", productName.value);
             console.log("🌍 Translated Ingredients:", ingredientsText.value);
 
             await nextTick();
-
-            // ✅ Run highlights on both Chinese and English
             await recheckHighlightsSmart();
 
-            // ✅ Occasionally refresh cache
             const count = incrementUsageCount();
             if (count >= 5) {
                 const fresh = await fetchHighlightsWithCache(true);
@@ -138,19 +158,27 @@ export default function useOcrPipeline({
         }
     }
 
+
     function stripToIngredientsOnly(text: string): string {
         if (!text) return '';
 
-        // 1️⃣ Keep only the part starting from 成分/Ingredients marker
-        let stripped = text.replace(/^[\s\S]*?(成分|配料|原料|材料|內容物|ingredients?)[:：]/i, '');
+        // 🧭 Start at the first occurrence of 'Ingredients:' or '成份:'
+        const startMatch = text.match(/(成分|成份|配料|原料|材料|內容物|ingredients?)[:：]/i);
+        if (!startMatch) return text;
 
-        // 2️⃣ Cut off after common "end markers" like Nutrition Facts / Net Weight / Manufacturer
-        stripped = stripped.replace(
-            /(營養成分|營養標示|nutrition facts|淨重|重量|製造商|廠商|保存方法|有效日期)[\s\S]*$/i,
-            ''
+        let stripped = text.slice(startMatch.index! + startMatch[0].length);
+
+        // ⛔ Stop before non-ingredient sections
+        const stopMatch = stripped.match(
+            /(過敏原|有效日期|製造日期|保存方法|保存期限|淨重|原產地|進口商|地址|營養|熱量|nutrition|expiration|storage|origin|importer|address)/i
         );
+        if (stopMatch) {
+            stripped = stripped.slice(0, stopMatch.index);
+            console.log(`🧩 stripToIngredientsOnly stopped at: ${stopMatch[0]}`);
+        }
 
-        return stripped.trim();
+        // 🧽 Final cleanup
+        return stripped.trim().replace(/^[·•*]+|[·•*]+$/g, '');
     }
 
     function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -211,9 +239,9 @@ export default function useOcrPipeline({
         })
     }
 
-    async function translateToEnglish(text: string) {
+    async function translateToEnglish(text: string, attempt = 1): Promise<string | null> {
         try {
-            const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string
+            const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATION_API_KEY as string;
             const res = await withTimeout(
                 fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
                     method: 'POST',
@@ -226,20 +254,19 @@ export default function useOcrPipeline({
                     }),
                 }),
                 10000
-            )
-            const json = await res.json()
+            );
+            const json = await res.json();
             if (!json?.data?.translations?.[0]?.translatedText) {
-                setError(`Translation server error: ${json?.error?.message || 'No result'}`)
-                return null
+                throw new Error(json?.error?.message || 'Empty translation');
             }
-            return json.data.translations[0].translatedText
-        } catch (e: any) {
-            if (e.message === 'timeout') {
-                setError('Translation server is busy, please try again later.')
-            } else {
-                setError('Failed to connect to translation server. Please try again later.')
+            return json.data.translations[0].translatedText;
+        } catch (e) {
+            if (attempt < 2) {
+                console.warn(`Retrying translation (attempt ${attempt + 1})...`);
+                return translateToEnglish(text, attempt + 1);
             }
-            return null
+            setError('Translation server failed after retry.');
+            return null;
         }
     }
 
@@ -266,7 +293,15 @@ export default function useOcrPipeline({
         // only run it on the part BEFORE "Ingredients:"
         let safeBefore = beforeIng || ''
         for (const pattern of blacklistPatterns.value) {
+            const matches = safeBefore.match(pattern)
+            if (matches && matches.length) {
+                console.warn("🧨 Blacklist pattern triggered:", pattern)
+                console.warn("   Removed fragment(s):", matches)
+            }
+
             const newCleaned = safeBefore.replace(pattern, '').trim()
+
+            // Only keep if something remains (avoid erasing entire text accidentally)
             if (newCleaned.length > 5) {
                 safeBefore = newCleaned
             }
@@ -393,6 +428,9 @@ export default function useOcrPipeline({
     async function recheckHighlightsSmart() {
         const found: IngredientHighlight[] = []
 
+        ingredientsTextZh.value = normalizeIngredients(ingredientsTextZh.value);
+        ingredientsText.value = normalizeEnglishIngredients(ingredientsText.value);
+
         if (ingredientsTextZh.value?.trim()) {
             await recheckHighlights(ingredientsTextZh.value)
             found.push(...ingredientHighlights.value)
@@ -447,42 +485,43 @@ export default function useOcrPipeline({
             const found: IngredientHighlight[] = []
 
             for (const part of parts) {
-                const normalized = part.replace(/[,\s]/g, "")
+                // 👇 normalize the ingredient part to lowercase, remove commas/spaces
+                const normalized = part.replace(/[,\s]/g, "").toLowerCase();
 
                 for (const h of highlights) {
-                    const variants = h.keyword_zh?.split("|").map(v => v.trim()) ?? []
-                    for (const variant of variants) {
-                        const normVariant = variant.replace(/[,\s]/g, "")
+                    const variants = h.keyword_zh?.split("|").map(v => v.trim()) ?? [];
 
-                        let isMatch = false
+                    for (const variant of variants) {
+                        // 👇 normalize the highlight keyword too
+                        const normVariant = variant.replace(/[,\s]/g, "").toLowerCase();
+
+                        let isMatch = false;
 
                         try {
                             if (/[[\]|\\]/.test(variant)) {
                                 // treat as regex
-                                const regex = new RegExp(variant, "i") // already normalized
-                                isMatch = regex.test(normalized)
+                                const regex = new RegExp(variant, "i"); // already case-insensitive
+                                isMatch = regex.test(normalized);
                             } else {
-                                // plain substring
-                                isMatch = normalized.includes(normVariant)
+                                // plain substring, lowercase match
+                                isMatch = normalized.includes(normVariant);
                             }
                         } catch (e) {
-                            console.warn("⚠️ Invalid regex in keyword:", variant, e)
+                            console.warn("⚠️ Invalid regex in keyword:", variant, e);
                         }
 
                         if (isMatch) {
                             if ([...found].some(f => f.matchedVariant && f.matchedVariant.includes(normVariant))) {
-                                console.log(`⏩ Skipping smaller match: ${variant} (already covered)`)
-                                continue
+                                console.log(`⏩ Skipping smaller match: ${variant} (already covered)`);
+                                continue;
                             }
 
-                            console.log("✅ Match detected:", variant, "→", h)
-                            found.push({ ...h, matchedVariant: variant })
+                            console.log("✅ Match detected:", variant, "→", h);
+                            found.push({ ...h, matchedVariant: variant });
                         }
-
                     }
                 }
             }
-
 
             ingredientHighlights.value = found
 
