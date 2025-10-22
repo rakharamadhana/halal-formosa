@@ -23,6 +23,8 @@ const routes: Array<RouteRecordRaw> = [
             { path: 'profile/edit', name: 'EditProfile', component: () => import('@/views/profile/EditProfileView.vue'), meta: { requiresAuth: true, noAds: true } },
         ],
     },
+    { path: '/place/:id', name: 'PlaceDetail', component: () => import('@/views/explore/PlaceDetailsView.vue'), props: true, meta: { noAds: true }},
+    { path: '/place/:id/report', name: 'ReportPlaceView', component: () => import('@/views/explore/ReportPlaceView.vue'), props: true },
     { path: '/item/:barcode', name: 'item-details', component: () => import('@/views/search/ItemDetailsView.vue'), meta: { noAds: true } },
     { path: '/scan', component: ScanIngredientsView, meta: { requiresAuth: true, noAds: true } },
     { path: '/news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), props: true, meta: { adSpaceId: 'ad-space-news-detail', adId: import.meta.env.VITE_ADMOB_NEWS_BANNER_ID } },

@@ -139,7 +139,7 @@
                 :key="loc.id"
                 class="discover-item"
                 button
-                @click="$router.push(`/explore/${loc.id}`)"
+                @click="$router.push(`/place/${loc.id}`)"
             >
               <img
                   :src="loc.image || 'https://placehold.co/200x200'"

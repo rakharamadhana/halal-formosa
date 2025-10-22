@@ -92,18 +92,6 @@
 
     </ion-toolbar>
 
-    <ion-toolbar
-        v-if="focusedPlaceId !== null"
-        class="toolbar-inline"
-    >
-      <div class="toolbar-inline-content">
-        <span>{{ $t('explore.showingPlace') }}</span>
-        <ion-button size="small" fill="outline" @click="focusedPlaceId = null">
-          {{ $t('explore.clear') }}
-        </ion-button>
-      </div>
-    </ion-toolbar>
-
     <!-- Place list scrolls -->
     <ion-content class="ion-padding" style="margin-top:0; --padding-top:0;" ref="contentRef">
       <div class="place-list">
@@ -157,12 +145,26 @@
                     @error="onImageError"
                 />
               </ion-thumbnail>
+
               <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
                   <h5 class="title-text">{{ place.name }}</h5>
                   <p class="type-text">{{ place.type }}</p>
                 </div>
+
                 <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
+
+                <!-- 🧭 Details Button -->
+                <ion-button
+                    fill="clear"
+                    size="small"
+                    color="carrot"
+                    @click.stop="goToDetail(place.id)"
+                    style="align-self: flex-start;"
+                >
+                  <ion-icon slot="start" :icon="informationCircleOutline" />
+                  Details
+                </ion-button>
               </div>
             </div>
           </ion-card>
@@ -185,7 +187,7 @@ import {
   compassOutline,
   navigateCircleOutline,
   addOutline,
-  restaurant, restaurantOutline
+  restaurant, restaurantOutline, informationCircleOutline
 } from 'ionicons/icons'
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
@@ -198,6 +200,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
 import { Cluster, Renderer } from "@googlemaps/markerclusterer"
 import { isDonor } from '@/composables/userProfile'
+import useSharePlace from '@/composables/useSharePlace'
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
@@ -257,7 +260,7 @@ let advancedMarkerLib: typeof google.maps.marker | null = null
 let infoWindow: google.maps.InfoWindow | null = null
 const markerMap = new Map<number, google.maps.marker.AdvancedMarkerElement>()
 const userMarker = ref<google.maps.marker.AdvancedMarkerElement | null>(null)
-
+const { sharePlace } = useSharePlace()
 const locationTypes = ref<LocationType[]>([])
 let clusterer: MarkerClusterer | null = null
 
@@ -367,14 +370,30 @@ const carrotRippleClusterRenderer: Renderer = {
 
 
 const buildInfoHtml = (p: Place) => `
-  <div>
-    <strong>${p.name}</strong><br>
-    ${p.type}<br>
-    <a
-      href="https://www.google.com/maps/dir/?api=1&destination=${p.position.lat},${p.position.lng}"
-      target="_blank" rel="noopener noreferrer"
-      style="color: var(--ion-color-primary); text-decoration: none;"
-    >Navigate</a>
+  <div style="max-width: 230px;">
+    <img
+      src="${p.image || 'https://placehold.co/200x100'}"
+      alt="${p.name}"
+      style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;"
+      onerror="this.src='https://placehold.co/200x100';"
+    />
+    <strong style="display:block; font-size: 14px; margin-bottom: 2px;">${p.name}</strong>
+    <span style="color: gray; font-size: 13px;">${p.type}</span><br>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+      <a
+        href="https://www.google.com/maps/dir/?api=1&destination=${p.position.lat},${p.position.lng}"
+        target="_blank" rel="noopener noreferrer"
+        style="color: var(--ion-color-carrot); font-weight: 500; text-decoration: none; font-size: 13px;"
+      >📍 Navigate</a>
+
+      <button
+        class="share-btn"
+        data-id="${p.id}"
+        style="background:none;border:none;color:var(--ion-color-carrot);font-size:13px;cursor:pointer;"
+      >🔗 Share</button>
+
+    </div>
   </div>
 `
 
@@ -535,40 +554,50 @@ const initMarkers = (places: Place[] = locations.value) => {
 }
 
 
-watch([activeCategoryId, locations, focusedPlaceId], () => {
+watch([activeCategoryId, locations], () => {
   let filtered = [...locations.value]
-
-  if (focusedPlaceId.value !== null) {
-    // focus mode → only that marker
-    filtered = filtered.filter(l => l.id === focusedPlaceId.value)
-  } else if (activeCategoryId.value !== null) {
-    // filter by type_id
+  if (activeCategoryId.value !== null) {
     filtered = filtered.filter(l => l.typeId === activeCategoryId.value)
   }
-
   initMarkers(filtered)
 })
 
 
 
-
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {
-  focusedPlaceId.value = place.id   // 🔑 triggers watcher
   selectedPlace.value = place
   scrollCardIntoView(place.id)
 
   if (!mapInstance) return
+
+  const currentZoom = mapInstance.getZoom() || 14
+  const targetZoom = currentZoom < 16 ? 17 : currentZoom
   mapInstance.panTo(place.position)
+  mapInstance.setZoom(targetZoom)
 
   const m = markerMap.get(place.id)
   if (m && infoWindow) {
     infoWindow.setContent(buildInfoHtml(place))
     infoWindow.open(mapInstance, m)
-    setTimeout(applyInfoWindowDarkClass, 50)
+
+    setTimeout(() => {
+      applyInfoWindowDarkClass()
+      const shareBtn = document.querySelector('.share-btn')
+      if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+          sharePlace({
+            name: place.name,
+            type: place.type,
+            imageUrl: place.image || 'https://placehold.co/200x100',
+            lat: place.position.lat,
+            lng: place.position.lng
+          })
+        })
+      }
+    }, 50)
   }
 }
-
 
 const centerOnUser = async () => {
   try {
@@ -619,28 +648,7 @@ const centerOnUser = async () => {
 }
 
 const onSearchInput = (event: CustomEvent) => {
-  focusedPlaceId.value = null // typing cancels focus mode
   searchQuery.value = (event.detail?.value ?? '') as string
-  searchPlace()
-}
-
-const searchPlace = () => {
-  if (!searchQuery.value.trim() || !mapInstance) return
-  const q = searchQuery.value.toLowerCase().trim()
-  const matched = locations.value.find(loc => loc.name.toLowerCase().includes(q))
-  if (!matched) return
-
-  focusedPlaceId.value = matched.id   // 🔑 markers also filtered
-  selectedPlace.value = matched
-  scrollCardIntoView(matched.id)
-
-  mapInstance.panTo(matched.position)
-  const marker = markerMap.get(matched.id)
-  if (marker && infoWindow) {
-    infoWindow.setContent(buildInfoHtml(matched))
-    infoWindow.open(mapInstance, marker)
-    setTimeout(applyInfoWindowDarkClass, 50)
-  }
 }
 
 /* ---------------- Derived ---------------- */
@@ -652,13 +660,13 @@ const sortedLocations = computed(() => {
     base = base.filter(l => l.typeId === activeCategoryId.value)
   }
 
-  // search
+  // ✅ search (this already works for all matches)
   const q = searchQuery.value?.toLowerCase().trim()
   if (q) {
     base = base.filter(l => l.name.toLowerCase().includes(q))
   }
 
-  // sort by distance if userLocation available
+  // sort by distance if available
   if (userLocation.value) {
     base.sort((a, b) => getDistanceInKm(a.position) - getDistanceInKm(b.position))
   }
@@ -693,6 +701,10 @@ observer.observe(document.documentElement, { attributes: true, attributeFilter: 
 /* ---------------- Navigation ---------------- */
 const goToAddPlace = async () => {
   router.push('/explore/add')
+}
+
+const goToDetail = (id: number) => {
+  router.push(`/place/${id}`)
 }
 </script>
 

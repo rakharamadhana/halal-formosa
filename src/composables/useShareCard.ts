@@ -33,7 +33,7 @@ export default function useShareCard(
 ) {
     const shareCTA = `
 Join us and contribute to make Halal Formosa more beneficial for others 🌟
-Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalformosa
+Get it here: bit.ly/DownloadHalalFormosa
 (iOS coming soon)
 `
 
@@ -323,7 +323,7 @@ Get it here: https://play.google.com/store/apps/details?id=com.rcreative.halalfo
         ctx.fillStyle = '#777'
         ctx.font = '500 26px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial'
         const year = new Date().getFullYear()
-        ctx.fillText(`Halal Formosa (c) ${year}`, contentX, y)
+        ctx.fillText(`Halal Formosa © ${year}`, contentX, y)
 
         const blob: Blob = await new Promise(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92))
         return new File([blob], `halal-formosa-card-${Date.now()}.jpg`, { type: 'image/jpeg' })

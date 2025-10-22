@@ -136,7 +136,10 @@
     "title": "Explore",
     "placeholder": "Search places (e.g. Mosque)",
     "clear": "Clear",
-    "showingPlace": "Showing 1 place"
+    "showingPlace": "Showing 1 place",
+    "details": {
+      "title": "Place Details"
+    }
   },
   "news": {
     "title": "Halal & Islam News",

@@ -262,7 +262,7 @@
 
             <div v-if="ingredientsText" class="actions">
               <ion-button size="small" fill="outline" @click="onShareClick">
-                <ion-icon slot="start" :icon="shareOutline" />
+                <ion-icon slot="start" :icon="shareSocialOutline" />
                 {{ $t('scanIngredients.scan.share') }}
               </ion-button>
               <ion-button size="small" color="medium" fill="outline" @click="clearAll">
@@ -335,7 +335,14 @@ import {
   IonTextarea, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonToast,
   IonSpinner, IonProgressBar, IonChip, IonLabel, onIonViewWillEnter, IonList, IonAccordionGroup, IonAccordion
 } from '@ionic/vue'
-import {cameraOutline, cloudUploadOutline, refreshOutline, scanOutline, shareOutline} from 'ionicons/icons'
+import {
+  cameraOutline,
+  cloudUploadOutline,
+  refreshOutline,
+  scanOutline,
+  shareOutline,
+  shareSocialOutline
+} from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
 import {ref, onUnmounted} from 'vue'
 
