@@ -28,7 +28,7 @@
     </ion-header>
 
     <ion-content>
-      <div v-if="place">
+      <div v-if="!loading && place">
         <!-- 🖼️ Image carousel (Swiper) -->
         <Swiper
             v-if="place.image"
@@ -40,7 +40,7 @@
         >
           <SwiperSlide>
             <img
-                :src="place.image"
+                :src="place?.image || 'https://placehold.co/200x100'"
                 alt="Place image"
                 style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
                 @click="openImageModal"
@@ -101,7 +101,7 @@
         >
           <SwiperSlide>
             <div class="swiper-zoom-container">
-              <img :src="place?.image" alt="Place Image" />
+              <img :src="place?.image || 'https://placehold.co/200x100'" alt="Place Image" />
             </div>
           </SwiperSlide>
         </Swiper>
@@ -136,12 +136,22 @@ import {
   createOutline,
   mapOutline,
   navigateOutline,
-  shareOutline, shareSocialOutline,
+  shareSocialOutline,
 } from 'ionicons/icons'
+
+type PlaceDetail = {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  image?: string | null
+  type: string
+  location_types: { name: string } | null
+}
 
 const route = useRoute()
 const router = useRouter()
-const place = ref<any>(null)
+const place = ref<PlaceDetail | null>(null)
 const canEdit = ref(false)
 const modules = [Pagination, Zoom]
 
@@ -153,23 +163,37 @@ function closeImageModal() {
   showImageModal.value = false
 }
 
+const loading = ref(true)
+
 onMounted(async () => {
-  const { data } = await supabase
+  loading.value = true
+  const { data, error } = await supabase
       .from('locations')
       .select(`id, name, lat, lng, image, location_types(name)`)
       .eq('id', route.params.id)
-      .single()
+      .maybeSingle() // ✅ safer than .single()
+
+  if (error) {
+    console.error(error)
+    return
+  }
 
   if (data) {
+    const locationType = Array.isArray(data.location_types)
+        ? data.location_types[0]
+        : data.location_types
+
     place.value = {
       id: data.id,
       name: data.name,
       image: data.image,
-      type: data.location_types?.name ?? 'Halal Location',
+      type: locationType?.name ?? 'Halal Location',
       lat: data.lat,
       lng: data.lng,
+      location_types: locationType ?? null
     }
   }
+  loading.value = false
 })
 
 const share = async () => {
@@ -187,6 +211,7 @@ const reportItem = () => {
   router.push(`/place/${place.value.id}/report`)
 }
 </script>
+
 
 <style>
 .place-swiper {
