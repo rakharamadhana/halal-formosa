@@ -221,7 +221,7 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
 
     lastHandledUrl = url; // ✅ Mark this as already handled
 
-    if (url.startsWith('myapp://item/') || url.startsWith('myapp://place/')) {
+    if (url.startsWith('myapp://item/') || url.startsWith('myapp://place/') || url.startsWith('myapp://news/')) {
         const path = url.replace('myapp://', '/');
         console.log('➡️ Navigating to:', path);
         import('@/router').then(({ default: router }) => router.push(path));

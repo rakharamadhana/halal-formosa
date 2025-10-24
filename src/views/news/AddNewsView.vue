@@ -138,7 +138,7 @@ const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
 const editingId = computed(() => route.params.id as string);
 
-const { notifyDiscord } = useNotifier()
+const { notifyEvent } = useNotifier()
 const { awardAndCelebrate } = usePoints();
 
 // Prefill form if editing
@@ -232,10 +232,14 @@ async function submitArticle() {
     }
 
     // 🔔 Notify Discord about edit
-    await notifyDiscord(
+    await notifyEvent(
+        "update_article",
         "📝 News Article Updated",
-        `**${title.value}**\nBy: ${user.value.email}`
-    )
+        `${title.value}`,
+        headerPreview.value || undefined,   // use preview (existing or uploaded)
+        { id: newsId }                      // use the correct article ID
+    );
+
   } else {
     const { data: insertResult, error: insertError } = await supabase
         .from('news')
@@ -257,11 +261,13 @@ async function submitArticle() {
     }
     newsId = insertResult.id;
 
-    // 🔔 Notify Discord about new article
-    await notifyDiscord(
+    await notifyEvent(
+        "new_article",
         "📰 New News Article Published",
-        `**${title.value}**\nBy: ${user.value.email}`
-    )
+        `${title.value}`,
+        headerPreview.value || undefined,   // show header image preview (if any)
+        { id: newsId }                      // pass article ID for deep link
+    );
   }
 
   // Step 2: Upload image if selected

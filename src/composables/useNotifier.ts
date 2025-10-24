@@ -1,5 +1,4 @@
 import { supabase } from "@/plugins/supabaseClient";
-import { Capacitor } from "@capacitor/core";
 
 /**
  * Centralized notifier composable
@@ -26,24 +25,19 @@ export function useNotifier() {
         data: Record<string, any> = {}
     ) => {
         try {
-            // 🧩 1️⃣ Identify platform for Edge Function
-            const isNative = Capacitor.isNativePlatform();
-            data.isNative = isNative;
 
             // 🧩 2️⃣ Base URL — automatic switch for native/web
-            const baseUrl = "myapp:/";
+            const baseUrl = "myapp://";
 
             // 🧩 3️⃣ Generate a deep link automatically if missing
             if (!data.link) {
                 if ((type === "new_product" || type === "update_product") && data.barcode) {
                     // no slash after baseUrl for native (myapp://item/...)
-                    data.link = isNative
-                        ? `${baseUrl}item/${data.barcode}`
-                        : `${baseUrl}/item/${data.barcode}`;
+                    data.link = `${baseUrl}item/${data.barcode}`;
                 } else if ((type === "new_place" || type === "update_place") && data.id) {
-                    data.link = isNative
-                        ? `${baseUrl}place/${data.id}`
-                        : `${baseUrl}/place/${data.id}`;
+                    data.link = `${baseUrl}place/${data.id}`;
+                } else if ((type === "new_article" || type === "update_article") && data.id) {
+                    data.link = `${baseUrl}news/${data.id}`;
                 }
             }
 
