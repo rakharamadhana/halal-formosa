@@ -44,6 +44,7 @@ import {
 } from "@/composables/userProfile"
 
 import { loadCountriesFromCache } from "@/composables/useCountries"
+import OneSignal from 'onesignal-cordova-plugin';
 
 defineCustomElements(window)
 
@@ -65,8 +66,6 @@ const i18n = createI18n({
     fallbackLocale: 'en',
     messages: { en, id, zh }
 })
-
-const { notifyDiscord } = useNotifier()
 
 /* Create app */
 const app = createApp(App).use(IonicVue).use(router).use(i18n)
@@ -147,17 +146,99 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 })
 
-// Handle deep link
-CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
-    if (!url?.startsWith('myapp://callback')) return
-    const hash = new URL(url).hash.substring(1)
-    const params = new URLSearchParams(hash)
-    const access_token = params.get('access_token')
-    const refresh_token = params.get('refresh_token')
-    if (access_token && refresh_token) {
-        await supabase.auth.setSession({ access_token, refresh_token })
+let lastHandledUrl: string | null = null;
+
+/* 🧩 OneSignal v5 Initialization (Capacitor Native + Vue) */
+document.addEventListener('deviceready', async () => {
+    try {
+        // Enable verbose logs (disable in production)
+        OneSignal.Debug.setLogLevel(6);
+
+        // Initialize your OneSignal App ID
+        await OneSignal.initialize(import.meta.env.VITE_ONESIGNAL_APP_ID);
+
+        // Wait for OneSignal to finish setting up the push service
+        const deviceState = await OneSignal.User.pushSubscription.getIdAsync();
+        console.log('📱 OneSignal Player ID:', deviceState);
+
+        // Prompt for permission if needed
+        const hasPermission = await OneSignal.Notifications.hasPermission();
+        if (!hasPermission) {
+            const accepted = await OneSignal.Notifications.requestPermission(false);
+            console.log('🔔 User accepted notifications:', accepted);
+        }
+
+        // 🧭 Handle incoming push when tapped/opened
+
+        // 🧭 Handle incoming push when tapped/opened
+        OneSignal.Notifications.addEventListener('click', (event: any) => {
+            console.log('📬 Notification opened (full event):', JSON.stringify(event, null, 2));
+
+            const link =
+                event?.notification?.additionalData?.link ||
+                event?.notification?.url ||
+                event?.notification?.launchURL;
+
+            console.log('🔍 Extracted link:', link);
+
+            if (link) {
+                // 🛑 Prevent duplicate routing if already handled by appUrlOpen
+                if (lastHandledUrl === link) {
+                    console.log('⏭️ Skipping duplicate navigation for', link);
+                    return;
+                }
+                lastHandledUrl = link;
+
+                try {
+                    const path = new URL(link).pathname;
+                    console.log('🔗 Navigating to:', path);
+                    import('@/router').then(({ default: router }) => router.push(path));
+                } catch (err) {
+                    console.warn('⚠️ Invalid deep link:', link, err);
+                }
+            } else {
+                console.warn('⚠️ No link field found in notification payload');
+            }
+        });
+
+        // 🏷️ Tag the logged-in user for targeting
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await OneSignal.User.addTag('user_id', user.id);
+            console.log('🏷️ Tagged user_id:', user.id);
+        }
+
+        console.log('✅ OneSignal v5 initialized');
+    } catch (err) {
+        console.warn('⚠️ OneSignal init failed:', err);
     }
-})
+});
+
+// 🔗 Handle OS-level deep link (when app cold-starts)
+CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+    if (!url) return;
+    console.log('🌐 appUrlOpen:', url);
+
+    lastHandledUrl = url; // ✅ Mark this as already handled
+
+    if (url.startsWith('myapp://item/') || url.startsWith('myapp://place/')) {
+        const path = url.replace('myapp://', '/');
+        console.log('➡️ Navigating to:', path);
+        import('@/router').then(({ default: router }) => router.push(path));
+        return;
+    }
+
+    if (url.startsWith('myapp://callback')) {
+        const hash = new URL(url).hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+            supabase.auth.setSession({ access_token, refresh_token });
+            console.log('🔐 OAuth session restored.');
+        }
+    }
+});
 
 /* Mount */
 router.isReady().then(() => {

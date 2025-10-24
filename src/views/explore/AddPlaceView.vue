@@ -127,7 +127,7 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonItem, IonInput, IonSelect, IonSelectOption,
-  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonIcon
+  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonIcon, IonSkeletonText
 } from '@ionic/vue'
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -149,7 +149,7 @@ let pinEl: any | null = null
 const mapLoading = ref(true)  // show skeleton
 const mapReady = ref(false)   // reveal map once real map is ready
 const { awardAndCelebrate } = usePoints();
-const { notifyDiscord } = useNotifier()
+const { notifyEvent } = useNotifier();
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -492,17 +492,30 @@ const submitPlace = async () => {
     }
     if (user) payload.created_by = user.id
 
-    const { error } = await supabase.from('locations').insert([payload])
-    if (error) throw error
+    // 1️⃣ Insert and get new place ID
+    const { data: newPlace, error } = await supabase
+        .from("locations")
+        .insert([payload])
+        .select("id")
+        .single();
+
+    if (error) throw error;
 
     await awardAndCelebrate("add_place", 10000);
     toast.value = { open: true, message: 'Place saved!', color: 'success' }
 
-    await notifyDiscord(
-        "📍 New Place Added",
-        `**${form.value.name}** (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || "Unknown"})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
-        form.value.image || undefined
-    )
+    await notifyEvent(
+        "new_place",
+        "🕌 New Halal Place Added!",
+        `${form.value.name} (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || "Unknown"})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
+        form.value.image ?? undefined,
+        {
+          id: newPlace.id,
+          lat: form.value.lat,
+          lng: form.value.lng,
+          isNative: true, // ✅ Auto-detect native app
+        }
+    );
 
     // cleanup preview/file state
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)

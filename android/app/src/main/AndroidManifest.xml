@@ -40,14 +40,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link for Supabase OAuth redirect -->
+            <!-- Handle ALL myapp:// deep links -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="myapp" android:host="callback" />
+                <data android:scheme="myapp" />
             </intent-filter>
-
         </activity>
 
         <provider

@@ -349,7 +349,7 @@ import router from "@/router";
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
 import { BarcodeValidator } from "@/utils/barcodeValidator";
 
-const { notifyDiscord } = useNotifier()
+const { notifyEvent } = useNotifier();
 const { awardAndCelebrate } = usePoints();
 const { errorMsg, setError } = useError()
 const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
@@ -1140,11 +1140,17 @@ async function handleSubmit() {
 
       toastMessage.value = "✅ Product updated successfully!"
 
-      await notifyDiscord(
+      await notifyEvent(
+          "update_product",
           "✏️ Product Updated",
-          `**${form.value.name}** (${form.value.status})\nBarcode: ${barcode}`,
-          frontUrl || backUrl, // use whichever is available
-      )
+          `${form.value.name} (${form.value.status})\nBarcode: ${form.value.barcode}`,
+          frontUrl || backUrl,
+          {
+            barcode: form.value.barcode,
+            status: form.value.status,
+            isNative: true, // 👈 important for mobile deep link
+          }
+      );
 
       emit("updated")
     } else {
@@ -1177,12 +1183,18 @@ async function handleSubmit() {
           ? "✅ Product published successfully!"
           : "✅ Product submitted and awaiting approval."
 
-      // ✅ Discord notify — match toast
-      await notifyDiscord(
-          autoApprove ? "🆕 Product Published" : "🆕 Product Submitted",
-          `**${form.value.name}** (${form.value.status})\nBarcode: ${barcode}`,
+      // ✅ Notification
+      await notifyEvent(
+          "new_product",
+          "🆕 New Product Added!",
+          `${form.value.name} (${form.value.status})\nBarcode: ${form.value.barcode}`,
           frontUrl || backUrl,
-      )
+          {
+            barcode: form.value.barcode,
+            status: form.value.status,
+            isNative: true, // ✅ Auto-detect platform
+          }
+      );
 
       // reset form
       form.value = { barcode: '', name: '', status: 'Muslim-friendly',
