@@ -125,6 +125,37 @@
 
       <ion-card>
         <ion-card-content>
+          <!-- Tutorial Image Carousel (shows before scanning) -->
+          <div v-if="showTutorial" style="text-align:center; margin-bottom:24px;">
+            <h2 style="font-size:16px; font-weight:700; color:var(--ion-color-carrot); margin-bottom:12px;">
+              🧭 Tips: How to Scan Correctly
+            </h2>
+
+            <swiper
+                :modules="[Autoplay, Pagination]"
+                :autoplay="{ delay: 2000 }"
+                :loop="true"
+                :pagination="{ clickable: true }"
+                style="width:100%; max-width:340px; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1);"
+            >
+              <swiper-slide v-for="n in 5" :key="n" style="display:flex; align-items:center; justify-content:center; background:var(--ion-color-light);">
+                <img
+                    :src="`/hints/hints${n}.png`"
+                    :alt="`Tutorial hint ${n}`"
+                    style="max-width:100%; max-height:220px; object-fit:contain; border-radius:8px;"
+                />
+              </swiper-slide>
+            </swiper>
+
+            <div style="margin-top:14px; line-height:1.6;">
+              <p style="font-size:14px; font-weight:700; color:var(--ion-color-dark); margin-bottom:8px;">
+                📸 Take a clear photo of the <strong>ingredients (成分 / 原料 / 內容物)</strong> and
+                <strong>product name (品名)</strong> side.
+              </p>
+            </div>
+          </div>
+
+
           <!-- Big Buttons Row -->
           <div style="display: flex; gap: 12px; margin-bottom: 16px;" v-if="!ingredientsText">
             <!-- Camera Button -->
@@ -340,11 +371,14 @@ import {
   cloudUploadOutline,
   refreshOutline,
   scanOutline,
-  shareOutline,
   shareSocialOutline
 } from 'ionicons/icons'
 import AppHeader from '@/components/AppHeader.vue'
 import {ref, onUnmounted} from 'vue'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { Autoplay, Pagination } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/pagination'
 
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
@@ -367,6 +401,7 @@ import { supabase } from '@/plugins/supabaseClient'
 /** ---------- State ---------- */
 const showCopied = ref(false)
 const { errorMsg, showErr, setError, clearError } = useError()
+const showTutorial = ref(true)
 
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
@@ -458,6 +493,7 @@ async function handleConfirmCrop() {
 
     // ✅ Only log if ingredients were actually found
     if (ingredientsTextZh.value?.trim()) {
+      showTutorial.value = false
       await logIngredientScan({
         source: currentSource.value || 'camera',
         startTime: ocrStartTime.value
@@ -596,6 +632,7 @@ function clearAll() {
   croppedFile.value = null
   overallNote.value = ''
   summaryUsed.value = false
+  showTutorial.value = true
 }
 </script>
 
