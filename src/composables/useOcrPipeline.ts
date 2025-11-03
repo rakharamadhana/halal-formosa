@@ -129,7 +129,7 @@ export default function useOcrPipeline({
             }
 
             // ✅ Guard: ensure we actually got a reasonable ingredient list
-            const ingKeywords = /(ingredient|contains|成分|成份|配料|原料|內容物|内容物|材料)/i;
+            const ingKeywords = /(ingredient|成分|成份|配料|原料|內容物|内容物|材料)/i;
             if (!ingKeywords.test(raw) && !ingKeywords.test(translated)) {
                 throw new Error('No ingredient keywords detected. Please crop the ingredients section only.');
             }
@@ -140,7 +140,7 @@ export default function useOcrPipeline({
 
             // ✅ Clean translated English
             ingredientsText.value = cleanTranslatedIngredients(translated)
-                .replace(/^(ingredients|contains)[:：]?\s*/i, '')
+                .replace(/^(ingredients)[:：]?\s*/i, '')
                 .trim();
 
             console.log("🏷 Product Name (EN):", productName.value);
@@ -150,7 +150,7 @@ export default function useOcrPipeline({
             await recheckHighlightsSmart();
 
             const count = incrementUsageCount();
-            if (count >= 5) {
+            if (count >= 1) {
                 const fresh = await fetchHighlightsWithCache(true);
                 if (fresh) {
                     allHighlights.value = fresh.highlights;
@@ -463,7 +463,17 @@ export default function useOcrPipeline({
         // Status logic (union)
         const hasHaram = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'danger')
         const hasSyubhah = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'warning')
-        autoStatus.value = hasHaram ? 'Haram' : hasSyubhah ? 'Syubhah' : 'Muslim-friendly'
+        const hasMuslimFriendly = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'primary')
+
+        // Prioritize detection
+                autoStatus.value = hasHaram
+                    ? 'Haram'
+                    : hasSyubhah
+                        ? 'Syubhah'
+                        : hasMuslimFriendly
+                            ? 'Muslim-friendly'
+                            : 'No ingredients detected'; // fallback if no highlight matched
+
     }
 
     function expandCompoundIngredients(text: string): string[] {

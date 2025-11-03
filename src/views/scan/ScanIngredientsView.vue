@@ -258,10 +258,10 @@
               />
             </ion-item>
 
-            <!-- Highlights -->
-            <div v-if="ingredientHighlights.length" class="ion-padding-top">
+            <!-- Highlights (skip Muslim-Friendly) -->
+            <div v-if="ingredientHighlights.some(h => extractIonColor(h.color) !== 'primary')" class="ion-padding-top">
               <ion-chip
-                  v-for="(h, idx) in ingredientHighlights"
+                  v-for="(h, idx) in ingredientHighlights.filter(h => extractIonColor(h.color) !== 'primary')"
                   :key="idx"
                   class="ion-margin-end ion-margin-bottom"
                   :class="['chip-' + extractIonColor(h.color)]"
@@ -273,6 +273,35 @@
                 — {{ colorMeaning(extractIonColor(h.color)) }}
               </ion-chip>
             </div>
+
+            <!-- Muslim-Friendly Toggle -->
+            <div v-if="ingredientHighlights.some(h => extractIonColor(h.color) === 'primary')" class="ion-margin-vertical">
+              <ion-button
+                  fill="outline"
+                  expand="block"
+                  size="small"
+                  color="primary"
+                  @click="showMuslimFriendly = !showMuslimFriendly"
+              >
+                {{ showMuslimFriendly ? 'Hide' : 'Show' }} Muslim-Friendly Ingredients
+              </ion-button>
+
+              <div v-if="showMuslimFriendly" class="ion-padding-top">
+                <ion-chip
+                    v-for="(h, idx) in ingredientHighlights.filter(h => extractIonColor(h.color) === 'primary')"
+                    :key="idx"
+                    class="ion-margin-end ion-margin-bottom"
+                    :class="['chip-' + extractIonColor(h.color)]"
+                >
+                  {{ h.keyword }}
+                  <template v-if="h.matchedVariant">
+                    ({{ h.matchedVariant }})
+                  </template>
+                  — {{ colorMeaning(extractIonColor(h.color)) }}
+                </ion-chip>
+              </div>
+            </div>
+
 
             <ion-button
                 v-if="isDonor && ingredientsTextZh && !summaryUsed"
@@ -402,6 +431,7 @@ import { supabase } from '@/plugins/supabaseClient'
 const showCopied = ref(false)
 const { errorMsg, showErr, setError, clearError } = useError()
 const showTutorial = ref(true)
+const showMuslimFriendly = ref(false)
 
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
