@@ -24,6 +24,7 @@ const routes: Array<RouteRecordRaw> = [
         ],
     },
     { path: '/place/:id', name: 'PlaceDetail', component: () => import('@/views/explore/PlaceDetailsView.vue'), props: true, meta: { noAds: true }},
+    { path: '/place/:id/edit', name: 'EditPlace',component: () => import('@/views/explore/AddPlaceView.vue'),},
     { path: '/place/:id/report', name: 'ReportPlaceView', component: () => import('@/views/explore/ReportPlaceView.vue'), props: true },
     { path: '/item/:barcode', name: 'item-details', component: () => import('@/views/search/ItemDetailsView.vue'), meta: { noAds: true } },
     { path: '/scan', component: ScanIngredientsView, meta: { requiresAuth: true, noAds: true } },
@@ -45,6 +46,11 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/admin/points-logs',
         component: () => import('@/views/admin/PointsLogsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+        path: '/admin/scan-logs',
+        component: () => import('@/views/admin/ScanLogsView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true }
     }
 

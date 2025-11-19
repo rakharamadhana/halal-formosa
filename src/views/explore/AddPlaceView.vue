@@ -5,7 +5,9 @@
         <ion-buttons slot="start">
           <ion-back-button default-href="/explore" />
         </ion-buttons>
-        <ion-title>{{ $t('addPlace.title') }}</ion-title>
+        <ion-title>
+          {{ isEditing ? $t('addPlace.editTitle') : $t('addPlace.title') }}
+        </ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -21,22 +23,27 @@
         <ion-item>
           <ion-input
               v-model="form.name"
-              :label="$t('addPlace.nameLabel')"
               label-placement="stacked"
               required
               :placeholder="$t('addPlace.namePlaceholder')"
-          />
+          >
+            <div slot="label">
+              {{ $t('addPlace.nameLabel') }} <ion-text color="danger">*</ion-text>
+            </div>
+          </ion-input>
         </ion-item>
 
         <ion-item>
           <ion-select
               v-model.number="form.type_id"
-              :label="$t('addPlace.typeLabel')"
               label-placement="stacked"
               interface="popover"
               :placeholder="$t('addPlace.typePlaceholder')"
               required
           >
+            <div slot="label">
+              {{ $t('addPlace.typeLabel') }} <ion-text color="danger">*</ion-text>
+            </div>
             <ion-select-option
                 v-for="lt in locationTypes"
                 :key="lt.id"
@@ -50,7 +57,7 @@
         <!-- Image upload -->
         <ion-item>
           <ion-label>
-            {{ $t('addPlace.imageLabel') }}
+            {{ $t('addPlace.imageLabel') }} <ion-text color="danger">*</ion-text>
           </ion-label>
           <ion-buttons slot="end">
             <ion-button @click="takePicture" fill="clear" :disabled="uploading">
@@ -67,26 +74,45 @@
           <img :src="imagePreview" alt="Preview" class="img-preview" />
         </div>
 
+        <ion-item>
+          <ion-input
+              v-model="form.address"
+              label-placement="stacked"
+              :placeholder="$t('addPlace.addressPlaceholder')"
+              required
+          >
+            <div slot="label">
+              {{ $t('addPlace.addressLabel') }} <ion-text color="danger">*</ion-text>
+            </div>
+          </ion-input>
+        </ion-item>
+
         <div class="row-2">
           <ion-item>
             <ion-input
                 v-model.number="form.lat"
                 type="number"
                 step="any"
-                :label="$t('addPlace.latLabel')"
                 label-placement="stacked"
                 required
-            />
+            >
+              <div slot="label">
+                {{ $t('addPlace.latLabel') }} <ion-text color="danger">*</ion-text>
+              </div>
+            </ion-input>
           </ion-item>
           <ion-item>
             <ion-input
                 v-model.number="form.lng"
                 type="number"
                 step="any"
-                :label="$t('addPlace.lngLabel')"
                 label-placement="stacked"
                 required
-            />
+            >
+              <div slot="label">
+                {{ $t('addPlace.lngLabel') }} <ion-text color="danger">*</ion-text>
+              </div>
+            </ion-input>
           </ion-item>
         </div>
 
@@ -106,9 +132,109 @@
           </div>
         </div>
 
+        <ion-button
+            fill="outline"
+            size="small"
+            @click="showMoreOptions = !showMoreOptions"
+            style="margin-bottom: 12px;"
+        >
+          {{ showMoreOptions ? 'Hide Details' : 'More Details' }}
+        </ion-button>
+
+        <div v-if="showMoreOptions">
+          <p style="margin-top:20px; font-weight:600;">Contact Information</p>
+
+          <ion-item>
+            <ion-input
+                v-model="form.phone"
+                label="Phone / WhatsApp"
+                label-placement="stacked"
+                placeholder="+886 900 000 000"
+            />
+          </ion-item>
+
+          <ion-item>
+            <ion-input
+                v-model="form.instagram"
+                label="Instagram"
+                label-placement="stacked"
+                placeholder="@username"
+            />
+          </ion-item>
+
+          <ion-item>
+            <ion-input
+                v-model="form.line_id"
+                label="LINE ID"
+                label-placement="stacked"
+                placeholder="yourlineid"
+            />
+          </ion-item>
+
+          <p style="margin-top:20px; font-weight:600;">Price Range</p>
+
+          <ion-item>
+            <ion-input
+                v-model="form.price_range"
+                label="Price Range"
+                label-placement="stacked"
+                placeholder="NTD 100–300"
+            />
+          </ion-item>
+
+          <p style="margin-top:20px; font-weight:600;">Opening Hours</p>
+
+          <ion-list class="opening-hours-list">
+            <template v-for="(label, key) in dayLabels" :key="key">
+
+              <ion-item lines="full" class="opening-hours-item">
+
+                <ion-checkbox
+                    v-model="form.opening_hours[key].active"
+                    slot="start"
+                ></ion-checkbox>
+
+                <ion-label class="day-label">{{ label }}</ion-label>
+
+                <!-- CLOSED BADGE -->
+                <span
+                    v-if="!form.opening_hours[key].active"
+                    class="closed-label"
+                >
+        Closed
+      </span>
+
+                <!-- TIME INPUTS -->
+                <div
+                    v-else
+                    class="time-inputs"
+                >
+                  <ion-input
+                      v-model="form.opening_hours[key].open"
+                      type="time"
+                      class="time-field"
+                  ></ion-input>
+
+                  <span style="margin: 0 4px;">-</span>
+
+                  <ion-input
+                      v-model="form.opening_hours[key].close"
+                      type="time"
+                      class="time-field"
+                  ></ion-input>
+                </div>
+
+              </ion-item>
+
+            </template>
+          </ion-list>
+
+        </div>
+
+
         <ion-button type="submit" expand="block" :disabled="submitting || !isValid">
           <ion-spinner v-if="submitting" name="lines-small" class="mr-2" />
-          <span v-else>{{ $t('addPlace.saveBtn') }}</span>
+          <span v-else>{{ isEditing ? $t('addPlace.updateBtn') : $t('addPlace.saveBtn') }}</span>
         </ion-button>
       </form>
 
@@ -127,18 +253,23 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonItem, IonInput, IonSelect, IonSelectOption,
-  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonIcon, IonSkeletonText
+  IonButton, IonToast, IonSpinner, IonButtons, IonBackButton, IonCard, IonCardContent, IonLabel, IonIcon, IonSkeletonText,
+    IonCheckbox,IonList, IonText
 } from '@ionic/vue'
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
-import { Loader } from '@googlemaps/js-api-loader'
+import mapsLoader from '@/plugins/googleMapsLoader'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { cameraOutline, cloudUploadOutline } from 'ionicons/icons'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import {usePoints} from "@/composables/usePoints";
 import { useNotifier } from "@/composables/useNotifier"
+import { watch } from 'vue'
+import { useRoute } from 'vue-router'
+const route = useRoute()
+const isEditing = computed(() => !!route.params.id)
 
 /* -------------------- Constants -------------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
@@ -150,6 +281,16 @@ const mapLoading = ref(true)  // show skeleton
 const mapReady = ref(false)   // reveal map once real map is ready
 const { awardAndCelebrate } = usePoints();
 const { notifyEvent } = useNotifier();
+const dayLabels = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+};
+const showMoreOptions = ref(false)
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -189,13 +330,37 @@ const form = ref<{
   lat: number
   lng: number
   image: string | null
+  address: string | null,
+  phone: string | null,
+  instagram: string | null,
+  line_id: string | null,
+  price_range: string | null,
+  opening_hours: any,
 }>({
   name: '',
   type_id: null,
   lat: DEFAULT_CENTER.lat,
   lng: DEFAULT_CENTER.lng,
-  image: null
+  address: null,
+  image: null,
+
+  // ⭐ New fields
+  phone: '',
+  instagram: '',
+  line_id: '',
+  price_range: '',
+
+  opening_hours: {
+    mon: { active: false, open: "09:00", close: "18:00" },
+    tue: { active: false, open: "09:00", close: "18:00" },
+    wed: { active: false, open: "09:00", close: "18:00" },
+    thu: { active: false, open: "09:00", close: "18:00" },
+    fri: { active: false, open: "09:00", close: "18:00" },
+    sat: { active: false, open: "09:00", close: "18:00" },
+    sun: { active: false, open: "09:00", close: "18:00" },
+  },
 })
+
 
 const submitting = ref(false)
 const toast = ref<{ open: boolean; message: string; color: string }>({
@@ -210,6 +375,25 @@ const isValid = computed(() =>
     form.value.lat !== null &&
     form.value.lng !== null &&
     (!!form.value.image || !!pendingFile.value) // allow deferred file
+)
+
+
+watch(
+    () => [form.value.lat, form.value.lng],
+    async ([newLat, newLng], [oldLat, oldLng]) => {
+      if (!newLat || !newLng) return
+      if (newLat === oldLat && newLng === oldLng) return
+
+      // Pan map to new location
+      if (map) {
+        map.setCenter({ lat: newLat, lng: newLng })
+        if (clickMarker) clickMarker.position = { lat: newLat, lng: newLng }
+      }
+
+      // Fetch address
+      const addr = await reverseGeocode(newLat, newLng)
+      if (addr) form.value.address = addr
+    }
 )
 
 /* -------------------- Image Upload -------------------- */
@@ -340,14 +524,10 @@ let mapClickListener: google.maps.MapsEventListener | null = null
 
 const initMap = async () => {
   mapLoading.value = true
-  const loader = new Loader({
-    apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    version: 'weekly',
-    libraries: ['marker']
-  })
+
   const [{ Map }, markerLib] = await Promise.all([
-    loader.importLibrary('maps'),
-    loader.importLibrary('marker')
+    mapsLoader.importLibrary('maps'),
+    mapsLoader.importLibrary('marker')
   ])
 
   // after markerLib is set
@@ -403,7 +583,7 @@ const initMap = async () => {
 
   // On click: move pin + animate + update form
   let firstTapDone = false
-  mapClickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
+  mapClickListener = map.addListener('click', async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
     const lat = e.latLng.lat()
     const lng = e.latLng.lng()
@@ -412,19 +592,19 @@ const initMap = async () => {
     form.value.lng = lng
 
     if (clickMarker) {
-      clickMarker.position = { lat, lng }
+      clickMarker.position = {lat, lng}
     } else {
       // safety: if null for any reason
       clickMarker = new advancedMarkerLib.AdvancedMarkerElement({
         map,
-        position: { lat, lng },
+        position: {lat, lng},
         content: pinEl?.element ?? undefined,
         zIndex: 10,
       })
     }
 
     // optional: pan slightly so user sees the pin move
-    map!.panTo({ lat, lng })
+    map!.panTo({lat, lng})
 
     // add a quick "pop" animation for feedback
     if (pinEl?.element) {
@@ -432,7 +612,14 @@ const initMap = async () => {
       setTimeout(() => pinEl.element.classList.remove('marker-pop'), 220)
     }
 
-    if (!firstTapDone) { map!.setZoom(16); firstTapDone = true }
+    if (!firstTapDone) {
+      map!.setZoom(16);
+      firstTapDone = true
+    }
+
+    // 🧠 Auto-fetch address
+    const addr = await reverseGeocode(lat, lng)
+    if (addr) form.value.address = addr
   })
 }
 
@@ -448,6 +635,30 @@ const updatePinColor = () => {
     if (clickMarker) clickMarker.content = pinEl.element
   }
 }
+
+/* ---------------- Geocoding --------------------- */
+
+const geocoder = ref<google.maps.Geocoder | null>(null)
+
+async function reverseGeocode(lat: number, lng: number) {
+  if (!mapReady.value) return null // ✅ safety guard
+
+  // ✅ Initialize geocoder only after loader is ready
+  if (!geocoder.value) {
+    geocoder.value = new google.maps.Geocoder()
+  }
+
+  return new Promise<string | null>((resolve) => {
+    geocoder.value!.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results?.[0]) resolve(results[0].formatted_address)
+      else {
+        console.warn('Geocode failed:', status)
+        resolve(null)
+      }
+    })
+  })
+}
+
 
 /* -------------------- Submit -------------------- */
 const uploadToSupabase = async (file: File): Promise<string> => {
@@ -478,51 +689,80 @@ const submitPlace = async () => {
 
   submitting.value = true
   try {
-    if (!form.value.image && pendingFile.value) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('You must be logged in.')
+
+    // 🧹 1️⃣ If editing and uploading a new image → delete old one
+    if (isEditing.value && pendingFile.value && form.value.image) {
+      const oldPath = form.value.image.split('/storage/v1/object/public/location-image/')[1]
+      if (oldPath) {
+        await supabase.storage.from('location-image').remove([oldPath])
+        console.log('🧹 Old image deleted:', oldPath)
+      }
+    }
+
+    // 📸 2️⃣ Upload new image if selected
+    if (pendingFile.value) {
       form.value.image = await uploadToSupabase(pendingFile.value)
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // 🗺️ 3️⃣ Prepare payload
     const payload: Record<string, any> = {
       name: form.value.name.trim(),
       lat: form.value.lat,
       lng: form.value.lng,
-      type_id: form.value.type_id,  // 👈 use foreign key now
-      image: String(form.value.image || '').trim()
+      type_id: form.value.type_id,
+      image: String(form.value.image || '').trim(),
+      address: form.value.address?.trim() || null,
+      created_by: user.id,
+
+      phone: form.value.phone || null,
+      instagram: form.value.instagram || null,
+      line_id: form.value.line_id || null,
+      price_range: form.value.price_range || null,
+      opening_hours: form.value.opening_hours,
+
     }
-    if (user) payload.created_by = user.id
 
-    // 1️⃣ Insert and get new place ID
-    const { data: newPlace, error } = await supabase
-        .from("locations")
-        .insert([payload])
-        .select("id")
-        .single();
+    // 💾 4️⃣ Update or Insert
+    if (isEditing.value) {
+      const { error } = await supabase
+          .from('locations')
+          .update(payload)
+          .eq('id', route.params.id)
 
-    if (error) throw error;
+      if (error) throw error
 
-    await awardAndCelebrate("add_place", 10000);
-    toast.value = { open: true, message: 'Place saved!', color: 'success' }
+      toast.value = { open: true, message: 'Place updated!', color: 'success' }
+      setTimeout(() => router.replace(`/place/${route.params.id}`), 500)
+    } else {
+      const { data: newPlace, error } = await supabase
+          .from('locations')
+          .insert([payload])
+          .select('id')
+          .single()
 
-    await notifyEvent(
-        "new_place",
-        "🕌 New Halal Place Added!",
-        `${form.value.name} (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || "Unknown"})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
-        form.value.image ?? undefined,
-        {
-          id: newPlace.id,
-          lat: form.value.lat,
-          lng: form.value.lng,
-          isNative: true, // ✅ Auto-detect native app
-        }
-    );
+      if (error) throw error
 
-    // cleanup preview/file state
+      await awardAndCelebrate('add_place', 10000)
+      toast.value = { open: true, message: 'Place added!', color: 'success' }
+
+      await notifyEvent(
+          'new_place',
+          '🕌 New Halal Place Added!',
+          `${form.value.name} (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || 'Unknown'})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
+          form.value.image ?? undefined,
+          { id: newPlace.id, lat: form.value.lat, lng: form.value.lng, isNative: true }
+      )
+
+      setTimeout(() => router.push(`/place/${newPlace.id}`), 500)
+    }
+
+    // ✅ 5️⃣ Cleanup preview/file references
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
     imagePreview.value = null
     pendingFile.value = null
 
-    setTimeout(() => router.push('/explore'), 400)
   } catch (err: any) {
     toast.value = { open: true, message: err.message || 'Failed to save.', color: 'danger' }
   } finally {
@@ -549,6 +789,10 @@ const centerOnUserOnce = async () => {
       const { latitude, longitude } = pos.coords
       form.value.lat = latitude
       form.value.lng = longitude
+
+      const addr = await reverseGeocode(latitude, longitude)
+      if (addr) form.value.address = addr
+
       return
     } catch (err) {
       console.warn('Native geolocation failed, falling back to default', err)
@@ -578,17 +822,87 @@ onMounted(async () => {
   await loadRole()
   await fetchLocationTypes()
 
-  if (isAllowed.value) {
-    try { await centerOnUserOnce() } catch { /* empty */ }
-    await initMap()
-    updatePinColor()
-  } else {
-    mapLoading.value = false
+  // 1️⃣ If editing, load existing location data first
+  if (isEditing.value) {
+    const { data, error } = await supabase
+        .from('locations')
+        .select(`
+    id,
+    name,
+    lat,
+    lng,
+    address,
+    image,
+    type_id,
+    phone,
+    instagram,
+    line_id,
+    price_range,
+    opening_hours
+  `)
+        .eq('id', route.params.id)
+        .maybeSingle()
+
+    if (!error && data) {
+      form.value = {
+        name: data.name,
+        type_id: data.type_id,
+        lat: data.lat,
+        lng: data.lng,
+        address: data.address,
+        image: data.image,
+
+        phone: data.phone || '',
+        instagram: data.instagram || '',
+        line_id: data.line_id || '',
+        price_range: data.price_range || '',
+
+        opening_hours: data.opening_hours || form.value.opening_hours,
+      }
+
+      imagePreview.value = data.image || null
+    }
   }
 
+  // 2️⃣ Only center on user if adding a NEW place
+  if (!isEditing.value && isAllowed.value) {
+    try {
+      await centerOnUserOnce()
+    } catch {
+      console.warn('Geolocation failed, using default center.')
+    }
+  }
+
+  // 3️⃣ Initialize map in all cases
+  await initMap()
+  updatePinColor()
+
+  // 4️⃣ Wait until map is fully ready before fetching address
+  const waitForMapReady = () =>
+      new Promise<void>((resolve) => {
+        const stop = watch(mapReady, (ready) => {
+          if (ready) {
+            stop()
+            resolve()
+          }
+        })
+      })
+  await waitForMapReady()
+
+  // 5️⃣ Auto-fill address if missing
+  if (!form.value.address && form.value.lat && form.value.lng) {
+    const addr = await reverseGeocode(form.value.lat, form.value.lng)
+    if (addr) form.value.address = addr
+  }
+
+  // 6️⃣ Theme listener for dark/light map pin color
   themeObserver = new MutationObserver(updatePinColor)
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
 })
+
 
 onBeforeUnmount(() => {
   if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
@@ -665,5 +979,36 @@ onBeforeUnmount(() => {
 
 /* optional: show crosshair cursor on map to hint interactivity */
 #add-map { cursor: crosshair; }
+
+.opening-hours-list {
+  margin-top: 4px;
+}
+
+.opening-hours-item {
+  display: flex;
+  align-items: center;
+}
+
+.day-label {
+  min-width: 50px;
+  font-weight: 600;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.time-field {
+  max-width: 110px;
+}
+
+.closed-label {
+  margin-left: auto;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}
 
 </style>

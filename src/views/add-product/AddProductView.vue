@@ -48,10 +48,13 @@
                   pattern="[0-9]*"
                   :maxlength="14"
                   :minlength="8"
-                  :label="$t('addProduct.barcode')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.barcodePlaceholder')"
-              />
+              >
+                <div slot="label">
+                  {{ $t('addProduct.barcode') }} <ion-text color="danger">*</ion-text>
+                </div>
+              </ion-input>
 
               <ion-icon
                   v-if="barcodeValid !== null"
@@ -93,11 +96,14 @@
               <ion-input
                   v-model="form.name"
                   required
-                  :label="$t('addProduct.productName')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.productNamePlaceholder')"
                   @input="onProductNameInput"
-              ></ion-input>
+              >
+                <div slot="label">
+                  {{ $t('addProduct.productName') }} <ion-text color="danger">*</ion-text>
+                </div>
+              </ion-input>
             </ion-item>
 
             <ion-item>
@@ -111,16 +117,28 @@
             </ion-item>
 
             <ion-item>
+              <ion-select v-model.number="form.product_category_id" interface="popover" required>
+                <div slot="label">{{ $t('addProduct.category') }} <ion-text color="danger">*</ion-text></div>
+                <ion-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                  {{ cat.name }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+
+            <ion-item>
               <ion-textarea
                   v-model="form.ingredients"
-                  :label="$t('addProduct.ingredients')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.ingredientsPlaceholder')"
                   :auto-grow="true"
                   @input="handleIngredientsInput"
                   @blur="recheckHighlights"
                   required
-              />
+              >
+                <div slot="label">
+                  {{ $t('addProduct.ingredients') }} <ion-text color="danger">*</ion-text>
+                </div>
+              </ion-textarea>
               <ion-buttons slot="end">
                 <ion-button @click="scanIngredientsWithCamera" :disabled="ocrLoading">
                   <ion-icon :icon="cameraOutline" />
@@ -159,34 +177,54 @@
                 color="primary"
             />
 
-            <div v-if="ingredientHighlights.length" class="ion-padding-horizontal">
+            <!-- ⭐ Highlighted Ingredients (excluding Muslim-friendly by default) -->
+            <div v-if="ingredientHighlights.length" class="ion-padding-horizontal ion-margin-top">
+
+              <!-- 🔥 Show Halal-sensitive highlights (warning/danger) -->
               <ion-chip
-                  v-for="(highlight, idx) in ingredientHighlights"
+                  v-for="(h, idx) in ingredientHighlights.filter(h => extractIonColor(h.color) !== 'primary')"
                   :key="idx"
-                  class="ion-margin-top"
-                  :class="['chip-' + extractIonColor(highlight.color)]"
+                  class="ion-margin-end ion-margin-bottom"
+                  :class="['chip-' + extractIonColor(h.color)]"
               >
-                <template v-if="highlight.keyword">
-                  {{ highlight.keyword }}
-                </template>
-                <template v-if="highlight.matchedVariant">
-                  ({{ highlight.matchedVariant }})
-                </template>
-                — {{ colorMeaning(extractIonColor(highlight.color)) }}
+                {{ h.keyword }}
+                <template v-if="h.matchedVariant">({{ h.matchedVariant }})</template>
+                — {{ colorMeaning(extractIonColor(h.color)) }}
               </ion-chip>
+
+              <!-- 🌿 Toggle Muslim-friendly -->
+              <div v-if="ingredientHighlights.some(h => extractIonColor(h.color) === 'primary')" class="ion-margin-top">
+
+                <ion-button
+                    fill="outline"
+                    expand="block"
+                    size="small"
+                    color="primary"
+                    @click="showMuslimFriendly = !showMuslimFriendly"
+                >
+                  {{ showMuslimFriendly ? 'Hide Muslim-Friendly Ingredients' : 'Show Muslim-Friendly Ingredients' }}
+                </ion-button>
+
+                <!-- 🌿 Muslim-friendly ingredients appear only when toggled -->
+                <div v-if="showMuslimFriendly" class="ion-padding-top">
+                  <ion-chip
+                      v-for="(h, idx) in ingredientHighlights.filter(h => extractIonColor(h.color) === 'primary')"
+                      :key="idx"
+                      class="ion-margin-end ion-margin-bottom"
+                      :class="['chip-' + extractIonColor(h.color)]"
+                  >
+                    {{ h.keyword }}
+                    <template v-if="h.matchedVariant">({{ h.matchedVariant }})</template>
+                    — {{ colorMeaning(extractIonColor(h.color)) }}
+                  </ion-chip>
+                </div>
+
+              </div>
+
             </div>
 
-            <ion-item>
-              <ion-select v-model.number="form.product_category_id" interface="popover" required>
-                <div slot="label">{{ $t('addProduct.category') }}</div>
-                <ion-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </ion-select-option>
-              </ion-select>
-            </ion-item>
-
             <ion-item lines="none">
-              <ion-label position="stacked">{{ $t('addProduct.stores') }}</ion-label>
+              <ion-label position="stacked">{{ $t('addProduct.stores') }} <ion-text color="danger">*</ion-text></ion-label>
               <StoreLogoBar
                   :stores="stores"
                   mode="select"
@@ -194,19 +232,64 @@
               />
             </ion-item>
 
+            <!-- 📝 Description with Quick Insert -->
             <ion-item>
               <ion-textarea
                   v-model="form.description"
-                  :label="$t('addProduct.description')"
                   label-placement="floating"
                   :placeholder="$t('addProduct.descriptionPlaceholder')"
                   :auto-grow="true"
                   required
-              ></ion-textarea>
+              >
+                <div slot="label">
+                  {{ $t('addProduct.description') }} <ion-text color="danger">*</ion-text>
+                </div>
+              </ion-textarea>
             </ion-item>
 
+            <!-- ⚡ Quick Description Buttons (Horizontal Scroll) -->
+            <div class="quick-scroll-container ion-margin-horizontal">
+              <ion-button
+                  size="small"
+                  fill="outline"
+                  color="success"
+                  @click="applyQuickDescription(quickDescriptions.halal)"
+              >
+                Halal by
+              </ion-button>
+
+              <ion-button
+                  size="small"
+                  fill="outline"
+                  color="primary"
+                  @click="applyQuickDescription(quickDescriptions.muslimFriendly)"
+              >
+                Muslim-friendly OK
+              </ion-button>
+
+              <ion-button
+                  size="small"
+                  fill="outline"
+                  color="warning"
+                  @click="applyQuickDescription(quickDescriptions.syubhah)"
+              >
+                Syubhah found
+              </ion-button>
+
+              <ion-button
+                  size="small"
+                  fill="outline"
+                  color="danger"
+                  @click="applyQuickDescription(quickDescriptions.haram)"
+              >
+                Haram found
+              </ion-button>
+            </div>
+
+
+
             <ion-item>
-              <ion-label>{{ $t('addProduct.frontImage') }}</ion-label>
+              <ion-label>{{ $t('addProduct.frontImage') }} <ion-text color="danger">*</ion-text></ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeFrontPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -222,7 +305,7 @@
             </div>
 
             <ion-item style="--inner-border-width: 0">
-              <ion-label>{{ $t('addProduct.backImage') }}</ion-label>
+              <ion-label>{{ $t('addProduct.backImage') }} <ion-text color="danger">*</ion-text></ion-label>
               <ion-buttons slot="end">
                 <ion-button @click="takeBackPicture" fill="clear">
                   <ion-icon :icon="cameraOutline" />
@@ -356,6 +439,13 @@ const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
 const checkingIngredients = ref(false)
 const { resizeImage } = useImageResizer();
 const barcodeInput = ref<any>(null)
+const showMuslimFriendly = ref(false)
+const quickDescriptions = {
+  halal: "Halal certified by ",
+  muslimFriendly: "Muslim-friendly ingredients, OK.",
+  syubhah: "Syubhah ingredients found.",
+  haram: "Haram ingredients found."
+}
 
 const fetchStores = async () => {
   const { data, error } = await supabase
@@ -670,6 +760,10 @@ const fetchCategoryRules = async () => {
       return acc
     }, {} as Record<string, number>)
   }
+}
+
+function applyQuickDescription(text: string) {
+  form.value.description = text
 }
 
 async function scanIngredientsWithCamera() {
@@ -1275,5 +1369,22 @@ ion-content::part(scroll) {
   --highlight-color-focused: var(--ion-color-danger);
   --border-color: var(--ion-color-danger);
 }
+
+.quick-scroll-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;       /* Firefox */
+}
+
+.quick-scroll-container::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari */
+}
+
+.quick-scroll-container ion-button {
+  flex-shrink: 0;              /* prevent buttons from shrinking */
+}
+
 </style>
 

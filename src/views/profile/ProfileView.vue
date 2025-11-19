@@ -146,7 +146,7 @@
 
       <!-- Review Submissions -->
       <ion-list v-if="isAdmin" class="profile-menu" style="border-radius: 10px">
-        <ion-item button @click="goToReviewSubmissions" style="--inner-border-width: 0">
+        <ion-item button @click="goToReviewSubmissions">
           <ion-icon :icon="listOutline" />&nbsp;
           <ion-label>{{ $t('profile.review') }}</ion-label>
 
@@ -160,16 +160,16 @@
           </ion-badge>
         </ion-item>
 
-        <!-- ✅ Admin Test Button -->
-        <ion-item button color="danger" @click="testAwardPoints">
-          <ion-icon :icon="giftOutline" />&nbsp;
-          <ion-label>Test Add Points</ion-label>
-        </ion-item>
-
         <ion-item button @click="goToPointsLogs">
           <ion-icon :icon="listOutline" />&nbsp;
           <ion-label>View Points Logs</ion-label>
         </ion-item>
+
+        <ion-item button @click="goToScanLogs" lines="none">
+          <ion-icon :icon="listOutline" />&nbsp;
+          <ion-label>Ingredient Scan Logs</ion-label>
+        </ion-item>
+
 
       </ion-list>
 
@@ -293,10 +293,8 @@ import {
 
 // ✅ Icons
 import {
-  chatbubbleEllipses,
   createOutline,
   documentTextOutline,
-  giftOutline,
   listOutline, logoInstagram,
   peopleOutline,
   personCircleOutline,
@@ -355,13 +353,6 @@ const resolvedFlag = ref<string | null>(null);
 async function fetchCountries() {
   const response = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags");
   countriesList.value = await response.json();
-}
-
-// 🎁 Simplified test button handler
-async function testAwardPoints() {
-  console.log("🚀 testAwardPoints called with action = add_product");
-
-  await awardAndCelebrate("add_product", 10000); // now it updates global overlay
 }
 
 async function fetchPendingCount() {
@@ -489,7 +480,9 @@ const goToSettings = () => router.push("/settings");
 const goToLegal = () => router.push("/legal");
 const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
+const goToScanLogs = () => router.push("/admin/scan-logs");
 const goToEditProfile = () => router.push({ name: "EditProfile" });
+
 
 </script>
 

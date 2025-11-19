@@ -334,6 +334,15 @@ const showImageModal = ref(false)
 const activeImageIndex = ref(0)
 const relatedProducts = ref<RelatedProduct[]>([])
 
+const colorPriority: Record<string, number> = {
+  "--ion-color-danger": 1,   // haram
+  "--ion-color-warning": 2,  // syubhah
+  "--ion-color-primary": 3,  // Muslim-friendly
+  "--ion-color-success": 4,  // halal (usually not used in highlight)
+  "none": 5                  // neutral / unknown
+};
+
+
 // If this page should show ads (set meta accordingly), keep this true and include the slot.
 // If you used meta:{noAds:true} you can leave the slot out and keep showAds = false.
 const showAds = false // set true only if meta.adSpaceId is configured
@@ -346,6 +355,12 @@ function fromNowToTaipei(dateString?: string) {
   if (!dateString) return ''
   return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
 }
+
+function getColorFromHtml(html: string): string {
+  const match = html.match(/var\((--ion-color-[^)]+)\)/)
+  return match ? match[1] : "none"
+}
+
 
 async function fetchRelatedProducts() {
   if (!item.value?.product_category_id) return
@@ -477,9 +492,12 @@ const highlightedIngredients = computed(() => {
       item.value.ingredients,
       ingredientDictionary.value,
       item.value.status
-  ).sort((a: HighlightedIngredient, b: HighlightedIngredient) =>
-      Number(b.highlighted) - Number(a.highlighted)
-  )
+  ).sort((a: HighlightedIngredient, b: HighlightedIngredient) => {
+    const colorA = getColorFromHtml(a.html)
+    const colorB = getColorFromHtml(b.html)
+
+    return colorPriority[colorA] - colorPriority[colorB]
+  })
 })
 
 

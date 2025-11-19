@@ -192,7 +192,7 @@ import {
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader } from '@googlemaps/js-api-loader'
+import mapsLoader from '@/plugins/googleMapsLoader'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { supabase } from '@/plugins/supabaseClient'
@@ -283,11 +283,6 @@ const categoryIcons: Record<string, any> = {
 }
 
 /* ---------------- Utilities ---------------- */
-const loader = new Loader({
-  apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  version: 'weekly',
-  libraries: ['marker']
-})
 
 const getDomEl = (node: Element | ComponentPublicInstance | null | undefined) =>
     ((node as ComponentPublicInstance | null)?.$el ?? node) as HTMLElement | null
@@ -487,8 +482,8 @@ const toggleCategory = (cat: LocationType) => {
 const initMap = async () => {
   loading.value = true
   const [{ Map }, marker] = await Promise.all([
-    loader.importLibrary('maps'),
-    loader.importLibrary('marker')
+    mapsLoader.importLibrary('maps'),
+    mapsLoader.importLibrary('marker')
   ])
   advancedMarkerLib = marker
   mapInstance = new Map(document.getElementById('map') as HTMLElement, {

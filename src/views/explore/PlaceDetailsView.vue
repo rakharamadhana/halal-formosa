@@ -48,25 +48,127 @@
           </SwiperSlide>
         </Swiper>
 
-        <!-- 🏷️ Info -->
-        <div class="ion-padding-horizontal">
+        <!-- 📍 Location Info Section -->
+        <div class="ion-padding-horizontal ion-margin-top">
           <h2 class="font-bold text-xl">{{ place.name }}</h2>
-          <p class="text-medium">{{ place.type }}</p>
+          <ion-chip color="carrot" class="capitalize">{{ place.type }}</ion-chip>
 
-          <!-- 📍 Map Link -->
+          <!-- 📍 Address -->
           <ion-item lines="none">
             <ion-icon :icon="navigateOutline" slot="start" color="carrot" />
+
             <ion-label>
-              <a
-                  :href="`https://maps.google.com/?q=${place.lat},${place.lng}`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style="color: var(--ion-color-carrot); text-decoration: none;"
-              >
-                Open in Google Maps
-              </a>
+              <p class="text-sm text-gray-500">Address</p>
+              <p>{{ place.address || 'No address available' }}</p>
             </ion-label>
+
+            <ion-button
+                fill="clear"
+                size="small"
+                color="carrot"
+                :href="`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`"
+                target="_blank"
+            >
+              Open
+            </ion-button>
           </ion-item>
+
+
+          <!-- 🗺️ Mini Map -->
+          <div class="rounded-xl overflow-hidden ion-margin-vertical shadow-md">
+            <iframe
+                :src="`https://maps.google.com/maps?q=${place.lat},${place.lng}&z=16&output=embed`"
+                width="100%"
+                height="200"
+                style="border:0;"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
+          </div>
+
+          <!-- ⭐ Additional Details -->
+          <div class="ion-margin-vertical">
+            <!-- 🕒 Opening Hours -->
+            <template v-if="place.opening_hours">
+              <h3 class="font-bold text-lg ion-margin-top">Opening Hours</h3>
+
+              <ion-list>
+                <ion-item v-for="(value, day) in formattedOpeningHours" :key="day">
+                  <ion-label class="capitalize">{{ day }}</ion-label>
+                  <ion-label slot="end" class="ion-text-right">
+          <span v-if="value.active">
+            {{ value.open }} – {{ value.close }}
+          </span>
+                    <span v-else class="text-gray-400">Closed</span>
+                  </ion-label>
+                </ion-item>
+              </ion-list>
+            </template>
+
+            <!-- 📞 Contact Info -->
+            <template v-if="place.phone || place.instagram || place.line_id">
+              <h3 class="font-bold text-lg ion-margin-top">Additional Details</h3>
+
+              <ion-item lines="none" v-if="place.phone">
+                <ion-icon :icon="callOutline" slot="start" color="carrot" />
+                <ion-label>
+                  <p class="text-sm text-gray-500">Phone</p>
+                  <p>{{ place.phone }}</p>
+                </ion-label>
+
+                <ion-button
+                    fill="clear"
+                    color="carrot"
+                    :href="`tel:${place.phone}`"
+                >
+                  Call
+                </ion-button>
+              </ion-item>
+
+
+              <ion-item lines="none" v-if="place.instagram">
+                <ion-icon :icon="logoInstagram" slot="start" color="carrot" />
+                <ion-label>
+                  <p class="text-sm text-gray-500">Instagram</p>
+                  <p>@{{ place.instagram.replace('@', '') }}</p>
+                </ion-label>
+                <ion-button fill="clear" size="small"
+                            :href="`https://instagram.com/${place.instagram.replace('@','')}`"
+                            target="_blank">
+                  Open
+                </ion-button>
+              </ion-item>
+
+              <ion-item lines="none" v-if="place.line_id">
+                <ion-icon :icon="chatboxEllipsesOutline" slot="start" color="carrot" />
+                <ion-label>
+                  <p class="text-sm text-gray-500">LINE ID</p>
+                  <p>{{ place.line_id }}</p>
+                </ion-label>
+
+                <ion-button
+                    fill="clear"
+                    size="small"
+                    :href="`line://ti/p/~${place.line_id}`"
+                >
+                  Open
+                </ion-button>
+              </ion-item>
+
+            </template>
+
+            <!-- 💰 Price Range -->
+            <template v-if="place.price_range">
+              <ion-item lines="none">
+                <ion-icon :icon="cashOutline" slot="start" color="carrot" />
+                <ion-label>
+                  <p class="text-sm text-gray-500">Estimated Price</p>
+                  <p>{{ place.price_range }}</p>
+                </ion-label>
+              </ion-item>
+            </template>
+
+          </div>
         </div>
       </div>
 
@@ -119,9 +221,11 @@ import {
   IonItem,
   IonLabel,
   IonModal,
-  IonButton,
+  IonButton, IonHeader, IonChip,
+    IonList,
 } from '@ionic/vue'
-import { ref, onMounted } from 'vue'
+import {ref, onMounted, computed} from 'vue'
+import { onIonViewWillEnter } from '@ionic/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '@/plugins/supabaseClient'
 import { Share } from '@capacitor/share'
@@ -132,12 +236,23 @@ import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from '@/components/AppHeader.vue'
 import {
-  alertCircleOutline,
-  createOutline,
+  alertCircleOutline, callOutline, cashOutline, chatboxEllipsesOutline,
+  createOutline, logoInstagram,
   mapOutline,
   navigateOutline,
   shareSocialOutline,
 } from 'ionicons/icons'
+import { Clipboard } from '@capacitor/clipboard';
+
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
+
+type OpeningHours = {
+  [key: string]: {
+    active: boolean
+    open: string
+    close: string
+  }
+}
 
 type PlaceDetail = {
   id: number
@@ -145,9 +260,26 @@ type PlaceDetail = {
   lat: number
   lng: number
   image?: string | null
+  address?: string | null
   type: string
   location_types: { name: string } | null
+  phone?: string | null
+  instagram?: string | null
+  line_id?: string | null
+  price_range?: string | null
+  opening_hours?: OpeningHours | null
 }
+
+const labels: Record<DayKey, string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+}
+
 
 const route = useRoute()
 const router = useRouter()
@@ -165,13 +297,54 @@ function closeImageModal() {
 
 const loading = ref(true)
 
-onMounted(async () => {
+const formattedOpeningHours = computed(() => {
+  if (!place.value?.opening_hours) return {}
+
+  const order = ["mon","tue","wed","thu","fri","sat","sun"]
+  const labels = {
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+    sun: "Sun",
+  }
+
+  const result: any = {}
+  order.forEach(day => {
+    const key = day as DayKey
+    if (place.value?.opening_hours?.[key]) {
+      result[labels[key]] = place.value.opening_hours[key]
+    }
+  })
+
+  return result
+})
+
+
+const loadPlace = async () => {
   loading.value = true
+
   const { data, error } = await supabase
       .from('locations')
-      .select(`id, name, lat, lng, image, location_types(name)`)
+      .select(`
+    id,
+    name,
+    lat,
+    lng,
+    image,
+    address,
+    created_by,
+    phone,
+    instagram,
+    line_id,
+    price_range,
+    opening_hours,
+    location_types(name)
+  `)
       .eq('id', route.params.id)
-      .maybeSingle() // ✅ safer than .single()
+      .maybeSingle()
 
   if (error) {
     console.error(error)
@@ -190,11 +363,45 @@ onMounted(async () => {
       type: locationType?.name ?? 'Halal Location',
       lat: data.lat,
       lng: data.lng,
+      address: data.address,
+
+      // ⭐ New fields
+      phone: data.phone,
+      instagram: data.instagram,
+      line_id: data.line_id,
+      price_range: data.price_range,
+      opening_hours: data.opening_hours,
+
       location_types: locationType ?? null
     }
+
+
+    // 🔹 Check if the current user can edit
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      // Check if user is the creator or an admin/contributor
+      const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single()
+
+      if (
+          user.id === data.created_by ||
+          roleData?.role === 'admin' ||
+          roleData?.role === 'contributor'
+      ) {
+        canEdit.value = true
+      }
+    }
   }
+
   loading.value = false
-})
+}
+
+// Run once and every time view re-enters
+onMounted(loadPlace)
+onIonViewWillEnter(loadPlace)
 
 const share = async () => {
   if (!place.value) return
@@ -205,7 +412,11 @@ const share = async () => {
   })
 }
 
-const editItem = () => console.log('Edit clicked')
+const editItem = () => {
+  if (!place.value) return
+  router.push(`/place/${place.value.id}/edit`)
+}
+
 const reportItem = () => {
   if (!place.value) return
   router.push(`/place/${place.value.id}/report`)
@@ -247,5 +458,9 @@ const reportItem = () => {
   top: calc(env(safe-area-inset-top, 0px) + 60px);
   right: 16px;
   z-index: 9999;
+}
+
+iframe {
+  border-radius: 4px;
 }
 </style>
