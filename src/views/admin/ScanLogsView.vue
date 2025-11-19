@@ -132,7 +132,7 @@
               <h1 style="margin-top: 16px;">OCR Chinese</h1>
               <ion-textarea
                   readonly
-                  auto-grow="true"
+                  :auto-grow="true"
                   class="copy-area"
                   :value="selectedLog.ingredients_text_zh || '—'"
               ></ion-textarea>
@@ -141,7 +141,7 @@
               <h1>OCR English</h1>
               <ion-textarea
                   readonly
-                  auto-grow="true"
+                  :auto-grow="true"
                   class="copy-area"
                   :value="selectedLog.ingredients_text_en || '—'"
               ></ion-textarea>
@@ -151,7 +151,7 @@
               <h1>Detected Highlights</h1>
               <ion-textarea
                   readonly
-                  auto-grow="true"
+                  :auto-grow="true"
                   class="copy-area mono"
                   :value="JSON.stringify(selectedLog.highlight_summary, null, 2)"
               ></ion-textarea>
@@ -160,7 +160,7 @@
               <h1>Raw OCR Text</h1>
               <ion-textarea
                   readonly
-                  auto-grow="true"
+                  :auto-grow="true"
                   class="copy-area mono"
                   :value="selectedLog.ocr_raw || '—'"
               ></ion-textarea>
