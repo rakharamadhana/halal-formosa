@@ -62,5 +62,8 @@ project(':capawesome-capacitor-app-update').projectDir = new File('../node_modul
 include ':capgo-capacitor-navigation-bar'
 project(':capgo-capacitor-navigation-bar').projectDir = new File('../node_modules/@capgo/capacitor-navigation-bar/android')
 
+include ':capgo-native-purchases'
+project(':capgo-native-purchases').projectDir = new File('../node_modules/@capgo/native-purchases/android')
+
 include ':capacitor-plugin-safe-area'
 project(':capacitor-plugin-safe-area').projectDir = new File('../node_modules/capacitor-plugin-safe-area/android')

@@ -29,6 +29,7 @@ dependencies {
     implementation project(':capawesome-capacitor-app-review')
     implementation project(':capawesome-capacitor-app-update')
     implementation project(':capgo-capacitor-navigation-bar')
+    implementation project(':capgo-native-purchases')
     implementation project(':capacitor-plugin-safe-area')
     implementation "com.onesignal:OneSignal:5.1.35"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.7.10"

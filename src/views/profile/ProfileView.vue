@@ -190,7 +190,33 @@
       </ion-list>
 
       <!-- Support -->
-      <ion-card class="profile-card ion-text-center">
+      <ion-card v-if="isNative" class="profile-card ion-text-center">
+        <ion-card-header>
+          <ion-card-title>Support Halal Formosa ❤️</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <ion-list>
+            <ion-item
+                v-for="p in donationProducts"
+                :key="p.identifier"
+                button
+                @click="donateNow(p.identifier)"
+            >
+              <ion-label>
+                <strong>{{ p.title }}</strong><br />
+                {{ p.description }}
+              </ion-label>
+
+              <ion-note slot="end">
+                {{ p.priceString }}
+              </ion-note>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card v-else class="profile-card ion-text-center">
         <ion-card-header>
           <ion-card-title>{{ $t('profile.support') }}</ion-card-title>
         </ion-card-header>
@@ -306,24 +332,40 @@ import {donorBadge, isAdmin} from "@/composables/userProfile";
 import {Subscription} from "@supabase/supabase-js";
 import {usePoints} from "@/composables/usePoints";
 import {xpForLevel} from "@/utils/xp"
+import { Capacitor } from "@capacitor/core";
+
+// Services
+import { DonationManager } from "@/services/DonationManager";
+
+interface DonationProduct {
+  identifier: string;
+  title: string;
+  description: string;
+  priceString: string;
+}
+
 
 // @ts-expect-error – injected global
 const appVersion = __APP_VERSION__;
-
+const isNative = Capacitor.isNativePlatform();
 const userEmail = ref("");
 const userDisplayName = ref("");
 const userAvatar = ref("");
 const router = useRouter();
 const pendingCount = ref(0);
 const loading = ref(true);
+const user = ref<any | null>(null);
 
 const userDOB = ref<string | null>(null);
 const userNationality = ref<string | null>(null);
 const userGender = ref<string | null>(null);
 const userBio = ref<string | null>(null);
 
+const dm = new DonationManager();
+const donationProducts = ref<DonationProduct[]>([]);
+
 // ✅ Points composable
-const { awardAndCelebrate, currentPoints, fetchCurrentPoints } = usePoints();
+const { currentPoints, fetchCurrentPoints } = usePoints();
 
 let authSubscription: Subscription | null = null;
 
@@ -414,15 +456,15 @@ onIonViewWillEnter(async () => {
 onMounted(async () => {
   await fetchCountries();
   const { data } = await supabase.auth.getUser();
-  if (data?.user) {
-    const u = data.user;
-    userEmail.value = u.email || "";
-    userDisplayName.value =
-        u.user_metadata?.full_name || u.user_metadata?.display_name || "";
-    userAvatar.value = u.user_metadata?.avatar_url || "";
 
-    // ✅ fetch initial points
-    await fetchCurrentPoints(u.id);
+  if (data?.user) {
+    user.value = data.user;
+
+    userEmail.value = user.value.email || "";
+    userDisplayName.value = user.value.user_metadata?.full_name || user.value.user_metadata?.display_name || "";
+    userAvatar.value = user.value.user_metadata?.avatar_url || "";
+
+    await fetchCurrentPoints(user.value.id);
   } else {
     userEmail.value = "";
     userDisplayName.value = "";
@@ -437,15 +479,18 @@ onMounted(async () => {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
+
+      user.value = session.user;   // ✅ REQUIRED
+
       const u = session.user;
       userEmail.value = u.email || "";
       userDisplayName.value =
           u.user_metadata?.full_name || u.user_metadata?.display_name || "";
       userAvatar.value = u.user_metadata?.avatar_url || "";
 
-      // ✅ refresh points on login change
       fetchCurrentPoints(u.id);
     } else {
+      user.value = null;
       userEmail.value = "";
       userDisplayName.value = "";
       userAvatar.value = "";
@@ -456,7 +501,41 @@ onMounted(async () => {
   });
 
   authSubscription = subscription;
+
+  if (isNative) {
+    await dm.initialize();
+    donationProducts.value = dm.products;
+  }
+
 });
+
+async function donateNow(id: string) {
+  if (!isNative) {
+    alert("In-app purchases are only available on Android/iOS.");
+    return;
+  }
+
+  const result = await dm.donate(id);
+
+  if (result.success) {
+    alert("Thank you for supporting Halal Formosa ❤️");
+
+    if (user.value) {
+      await supabase.from("donations").insert({
+        user_id: user.value.id,
+        transaction_id: result.transactionId,
+        product_id: result.productId
+      });
+    }
+
+  } else if (result.cancelled) {
+    console.log("User cancelled donation");
+  } else {
+    alert("Purchase failed");
+  }
+}
+
+
 
 onBeforeUnmount(() => {
   if (authSubscription) {
