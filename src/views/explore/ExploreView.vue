@@ -1,13 +1,12 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header :title="$t('explore.title')" :icon="compassOutline" :showProfile="true" />
+      <!-- Native AdMob banner -->
+      <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
     </ion-header>
-    <!-- Native AdMob banner -->
-    <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
 
     <!-- Map section -->
-    <div style="position: relative; height: 45vh; width: 100%;">
+    <div style="position: relative; height: 100%; width: 100%;">
       <!-- Map is always present, hidden when loading -->
       <div id="map" v-show="!loading" style="height: 100%; width: 100%;"></div>
 
@@ -23,154 +22,169 @@
           vertical="bottom"
           horizontal="end"
           slot="fixed"
-          style="position: absolute; bottom: 35px; right: 20px; z-index: 10;"
+          :class="panelVisible ? 'fab-with-panel' : 'fab-collapsed'"
       >
-        <ion-fab-button color="carrot" @click="centerOnUser">
+      <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
     </div>
 
-    <ion-toolbar class="explore-toolbar">
-      <div style="display: flex; ">
-        <ion-searchbar
-            class="search-explore"
-            :debounce="1000"
-            @ionInput="onSearchInput"
-            style="flex-grow: 1; margin-right: 8px;"
-            :placeholder="$t('explore.placeholder')"
-        ></ion-searchbar>
+    <!-- TOGGLE should be OUTSIDE the panel wrapper -->
+    <div
+        class="panel-toggle"
+        :class="panelVisible ? 'toggle-open' : 'toggle-collapsed'"
+        @click="panelVisible = !panelVisible"
+    >
+      <ion-icon :icon="panelVisible ? chevronDownOutline : chevronUpOutline"></ion-icon>
+    </div>
 
-        <!-- Add Place button, only for contributors/admins -->
-        <ion-button
-            v-if="isContributor"
-            @click="goToAddPlace"
-            color="carrot"
-            size="small"
-            style="margin-right: 12px; margin-top: 12px;"
-        >
-          <ion-icon :icon="addOutline" />
-        </ion-button>
-      </div>
+    <!-- FIXED WRAPPER -->
+    <div
+        class="bottom-panel-wrapper"
+        :class="{ collapsed: !panelVisible }"
+    >
+      <ion-toolbar class="explore-toolbar">
+        <div style="display: flex; ">
+          <ion-searchbar
+              class="search-explore"
+              :debounce="1000"
+              @ionInput="onSearchInput"
+              style="flex-grow: 1; margin-right: 8px;"
+              :placeholder="$t('explore.placeholder')"
+          ></ion-searchbar>
 
-      <!-- ✅ Category bar right under search input -->
-      <div class="category-bar-wrapper">
-        <!-- Real category bar -->
-        <div v-show="!loadingCategories" class="category-bar">
-          <ion-chip
-              v-for="cat in categories"
-              :key="cat.id"
-              :class="['category-chip', activeCategoryId === cat.id ? 'chip-carrot' : 'chip-medium']"
-              @click="toggleCategory(cat)"
+          <!-- Add Place button, only for contributors/admins -->
+          <ion-button
+              v-if="isContributor"
+              @click="goToAddPlace"
+              color="carrot"
+              size="small"
+              style="margin-right: 12px; margin-top: 12px;"
           >
-            <!-- If icon is emoji -->
-            <span
-                v-if="typeof categoryIcons[cat.name] === 'string' && categoryIcons[cat.name].length === 2"
-                style="margin-right:4px;"
+            <ion-icon :icon="addOutline" />
+          </ion-button>
+        </div>
+
+        <!-- ✅ Category bar right under search input -->
+        <div class="category-bar-wrapper">
+          <!-- Real category bar -->
+          <div v-show="!loadingCategories" class="category-bar">
+            <ion-chip
+                v-for="cat in categories"
+                :key="cat.id"
+                :class="['category-chip', activeCategoryId === cat.id ? 'chip-carrot' : 'chip-medium']"
+                @click="toggleCategory(cat)"
             >
+              <!-- If icon is emoji -->
+              <span
+                  v-if="typeof categoryIcons[cat.name] === 'string' && categoryIcons[cat.name].length === 2"
+                  style="margin-right:4px;"
+              >
         {{ categoryIcons[cat.name] }}
       </span>
-            <!-- If icon is Ionicon -->
-            <ion-icon
-                v-else
-                :icon="categoryIcons[cat.name]"
-                style="margin-right:4px;"
-            />
-            <ion-label>{{ cat.name }}</ion-label>
-          </ion-chip>
-        </div>
-
-        <!-- Skeleton placeholder -->
-        <div v-if="loadingCategories" class="category-skeletons">
-          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-          <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;" />
-        </div>
-      </div>
-
-
-    </ion-toolbar>
-
-    <!-- Place list scrolls -->
-    <ion-content class="ion-padding" style="margin-top:0; --padding-top:0;" ref="contentRef">
-      <div class="place-list">
-        <!-- ✅ Skeleton list while loading -->
-        <template v-if="loadingPlaces">
-          <ion-card v-for="n in 3" :key="'skeleton-' + n">
-            <div style="display: flex; align-items: center;">
-              <!-- Thumbnail skeleton -->
-              <ion-skeleton-text
-                  animated
-                  style="width:115px; height:115px; border-radius:10px;"
+              <!-- If icon is Ionicon -->
+              <ion-icon
+                  v-else
+                  :icon="categoryIcons[cat.name]"
+                  style="margin-right:4px;"
               />
-              <!-- Text skeletons -->
-              <div style="flex:1; margin-left:12px;">
-                <ion-skeleton-text
-                    animated
-                    style="width:70%; height:18px; margin-bottom:8px;"
-                />
-                <ion-skeleton-text
-                    animated
-                    style="width:50%; height:14px; margin-bottom:6px;"
-                />
-                <ion-skeleton-text
-                    animated
-                    style="width:40%; height:14px;"
-                />
-              </div>
-            </div>
-          </ion-card>
-        </template>
+              <ion-label>{{ cat.name }}</ion-label>
+            </ion-chip>
+          </div>
 
-        <!-- ✅ Real data after loaded -->
-        <template v-else>
-          <ion-card
-              v-for="place in displayedLocations"
-              :key="place.id"
-              :ref="setCardRef(place.id)"
-              :class="{ 'active-card': selectedPlace?.id === place.id }"
-              @click="selectPlace(place)"
-          >
-            <div style="display: flex; align-items: center;">
-              <ion-thumbnail
-                  slot="start"
-                  style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;"
-              >
-                <img
-                    loading="lazy"
-                    :src="place.image || 'https://placehold.co/200x100'"
-                    alt="thumbnail"
-                    style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
-                    @error="onImageError"
-                />
-              </ion-thumbnail>
+          <!-- Skeleton placeholder -->
+          <div v-if="loadingCategories" class="category-skeletons">
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;" />
+          </div>
+        </div>
 
-              <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                  <h5 class="title-text">{{ place.name }}</h5>
-                  <p class="type-text">{{ place.type }}</p>
+
+      </ion-toolbar>
+
+      <!-- Place list scrolls -->
+      <ion-content class="ion-padding" style="margin-top:0; --padding-top:0;" ref="contentRef">
+        <div class="place-list">
+          <!-- ✅ Skeleton list while loading -->
+          <template v-if="loadingPlaces">
+            <ion-card v-for="n in 3" :key="'skeleton-' + n">
+              <div style="display: flex; align-items: center;">
+                <!-- Thumbnail skeleton -->
+                <ion-skeleton-text
+                    animated
+                    style="width:115px; height:115px; border-radius:10px;"
+                />
+                <!-- Text skeletons -->
+                <div style="flex:1; margin-left:12px;">
+                  <ion-skeleton-text
+                      animated
+                      style="width:70%; height:18px; margin-bottom:8px;"
+                  />
+                  <ion-skeleton-text
+                      animated
+                      style="width:50%; height:14px; margin-bottom:6px;"
+                  />
+                  <ion-skeleton-text
+                      animated
+                      style="width:40%; height:14px;"
+                  />
                 </div>
-
-                <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
-
-                <!-- 🧭 Details Button -->
-                <ion-button
-                    fill="clear"
-                    size="small"
-                    color="carrot"
-                    @click.stop="goToDetail(place.id)"
-                    style="align-self: flex-start;"
-                >
-                  <ion-icon slot="start" :icon="informationCircleOutline" />
-                  Details
-                </ion-button>
               </div>
-            </div>
-          </ion-card>
-        </template>
-      </div>
-    </ion-content>
+            </ion-card>
+          </template>
+
+          <!-- ✅ Real data after loaded -->
+          <template v-else>
+            <ion-card
+                v-for="place in displayedLocations"
+                :key="place.id"
+                :ref="setCardRef(place.id)"
+                :class="{ 'active-card': selectedPlace?.id === place.id }"
+                @click="selectPlace(place)"
+            >
+              <div style="display: flex; align-items: center;">
+                <ion-thumbnail
+                    slot="start"
+                    style="width: 115px; height: 115px; border-radius: 10px; overflow: hidden;"
+                >
+                  <img
+                      loading="lazy"
+                      :src="place.image || 'https://placehold.co/200x100'"
+                      alt="thumbnail"
+                      style="object-fit: cover; width: 100%; height: 100%; border-radius: 8px;"
+                      @error="onImageError"
+                  />
+                </ion-thumbnail>
+
+                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                  <div>
+                    <h5 class="title-text">{{ place.name }}</h5>
+                    <p class="type-text">{{ place.type }}</p>
+                  </div>
+
+                  <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
+
+                  <!-- 🧭 Details Button -->
+                  <ion-button
+                      fill="clear"
+                      size="small"
+                      color="carrot"
+                      @click.stop="goToDetail(place.id)"
+                      style="align-self: flex-start;"
+                  >
+                    <ion-icon slot="start" :icon="informationCircleOutline" />
+                    Details
+                  </ion-button>
+                </div>
+              </div>
+            </ion-card>
+          </template>
+        </div>
+      </ion-content>
+    </div>
   </ion-page>
 </template>
 
@@ -180,14 +194,13 @@
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonHeader, IonLabel, IonChip,
+  IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonLabel, IonChip,
   IonSkeletonText, onIonViewWillEnter
 } from '@ionic/vue'
 import {
-  compassOutline,
   navigateCircleOutline,
   addOutline,
-  restaurant, restaurantOutline, informationCircleOutline
+  restaurant, restaurantOutline, informationCircleOutline, chevronUpOutline, chevronDownOutline
 } from 'ionicons/icons'
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
@@ -196,7 +209,6 @@ import mapsLoader from '@/plugins/googleMapsLoader'
 import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { supabase } from '@/plugins/supabaseClient'
-import AppHeader from "@/components/AppHeader.vue";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
 import { Cluster, Renderer } from "@googlemaps/markerclusterer"
 import { isDonor } from '@/composables/userProfile'
@@ -253,6 +265,7 @@ const isNative = ref(Capacitor.isNativePlatform())
 const loading = ref(true)
 const loadingCategories = ref(true)
 const loadingPlaces = ref(true)
+const panelVisible = ref(false)
 
 /* Google Maps runtime objects */
 let mapInstance: google.maps.Map | null = null
@@ -705,45 +718,30 @@ const goToDetail = (id: number) => {
 
 
 <style>
-
-.title-text {
-  font-size: 21px;
-  margin-top: 3px;
-  margin-bottom: 0;
-}
-
-.type-text {
-  margin-top: 3px;
-  color: var(--ion-color-medium);
-  font-size: 14px;
-  margin-bottom: 3px;
-}
-
-.active-card {
-  border: 2px solid var(--ion-color-carrot);
-}
-
+/*********************************************
+ * MAP SECTION
+ *********************************************/
 #map {
-  margin: 0;                /* remove extra margins */
-  width: 100%;              /* full width */
-  height: 45vh;             /* take ~60% of screen height */
-  border-radius: 0;         /* remove rounding if you want edge-to-edge */
+  margin: 0;
+  width: 100%;
+  height: 45vh;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
   z-index: 1;
 }
 
-
+/*********************************************
+ * GOOGLE MAPS UI OVERRIDES
+ *********************************************/
 .gm-style {
   font: var(--ion-font-family);
 }
 
-/* Default style (light mode) */
 .gm-style .gm-style-iw-c {
   color: var(--ion-color-dark);
 }
 
-/* Dark mode override */
 .gm-style .gm-style-iw-c.dark-infowindow {
   color: var(--ion-color-light);
 }
@@ -763,6 +761,9 @@ button.gm-ui-hover-effect > span {
   margin: 0 !important;
 }
 
+/*********************************************
+ * MAP PINS
+ *********************************************/
 .custom-pin {
   width: 24px;
   height: 24px;
@@ -783,50 +784,42 @@ button.gm-ui-hover-effect > span {
   left: 7px;
 }
 
+/*********************************************
+ * USER LOCATION DOT
+ *********************************************/
 .user-location-dot {
   width: 16px;
   height: 16px;
-  background: var(--ion-color-carrot); /* Google Blue */
+  background: var(--ion-color-carrot);
   border-radius: 50%;
   border: 4px solid white;
-  box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.3);
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(216, 98, 13, 0.4); }
-  100% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
-}
-
-.user-location-dot {
+  box-shadow: 0 0 0 4px rgba(66,133,244,0.3);
   animation: pulse 1.5s infinite;
 }
 
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(216,98,13,0.4); }
+  100% { box-shadow: 0 0 0 10px rgba(66,133,244,0); }
+}
+
+/*********************************************
+ * SEARCH BAR + CATEGORY TOOLS
+ *********************************************/
 .search-explore {
   margin-top: 10px;
   margin-left: 5px;
   width: 96%;
   --border-radius: 10px;
-  --box-shadow: 0 4px 12px rgba(124, 124, 124, 0.05);
+  --box-shadow: 0 4px 12px rgba(124,124,124,0.05);
 }
 
 .explore-toolbar {
-  --background: var(--ion-background-color); /* or your toolbar bg color */
+  --background: var(--ion-background-color);
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
-  overflow: hidden; /* ensures child bg doesn’t spill over */
-  margin-top: -30px; /* pull it up to overlap the map cleanly */
+  overflow: hidden;
+  margin-top: -30px;
   z-index: 2;
-}
-
-.category-bar {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 4px 6px;
-
-  /* Hide scrollbar */
-  scrollbar-width: none;     /* Firefox */
-  -ms-overflow-style: none;  /* IE/Edge */
 }
 
 .category-bar-wrapper {
@@ -836,26 +829,133 @@ button.gm-ui-hover-effect > span {
   padding: 4px 6px;
 }
 
-.category-skeletons {
+.category-bar {
+  display: flex;
+  gap: 8px;
   overflow-x: auto;
+  padding: 4px 6px;
+}
+
+.category-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.category-skeletons {
   display: flex;
   gap: 8px;
   width: 100%;
 }
 
-.category-bar::-webkit-scrollbar {
-  display: none;  /* Chrome/Safari */
-}
-
 .category-chip {
   font-size: 13px;
-  flex-shrink: 0;         /* keep width based on content, don’t shrink */
-  width: auto;            /* ✅ ensures chip fits content */
+  flex-shrink: 0;
+  width: auto;
 }
 
-/* make toolbar auto height */
+/*********************************************
+ * LIST CARD TYPOGRAPHY
+ *********************************************/
+.title-text {
+  font-size: 21px;
+  margin: 3px 0 0;
+}
+
+.type-text {
+  margin-top: 3px;
+  font-size: 14px;
+  color: var(--ion-color-medium);
+  margin-bottom: 3px;
+}
+
+.active-card {
+  border: 2px solid var(--ion-color-carrot);
+}
+
+/*********************************************
+ * GOOGLE-MAPS STYLE PANEL (SLIDING PANEL)
+ *********************************************/
+.bottom-panel-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  height: 55vh;
+  background: var(--ion-background-color);
+
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -5px 18px rgba(0,0,0,0.1);
+
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s ease;
+
+  z-index: 11;
+}
+
+/* Hidden (collapsed) */
+.bottom-panel-wrapper.collapsed {
+  transform: translateY(calc(40vh - 40px));
+}
+
+/*********************************************
+ * PANEL CONTENT AREA
+ *********************************************/
+.panel-content {
+  height: 100%;
+  --padding-top: 0;
+  --padding-bottom: 20px;
+  overflow-y: auto;
+}
+
+/*********************************************
+ * PANEL TOGGLE BUTTONS (shared + variants)
+ *********************************************/
+:root {
+  --map-height: 45vh;
+  --panel-height: 55vh;
+  --toggle-offset-open: -15vh;
+  --toggle-offset-collapsed: 35vh;
+}
+
+.panel-toggle {
+  padding: 6px 14px;
+  background: var(--ion-background-color);
+  border-radius: 30px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  color: var(--ion-color-carrot);
+
+  position: fixed;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 200;
+  cursor: pointer;
+
+  transition: transform 0.50s cubic-bezier(.25,.8,.25,1);  /* smoother easing */
+}
+
+/* Panel OPEN — on top edge of panel */
+.toggle-open {
+  transform: translate(
+      -50%,
+      calc(var(--map-height) + var(--toggle-offset-open))
+  );
+}
+
+
+/* Panel COLLAPSED — floating above nav */
+.toggle-collapsed {
+  transform: translate(
+      -50%,
+      calc(100vh - var(--toggle-offset-collapsed))
+  );
+}
+
+/*********************************************
+ * TOOLBAR INLINE UTILITY
+ *********************************************/
 .toolbar-inline {
-  --min-height: auto;  /* remove Ionic's fixed min height */
+  --min-height: auto;
   --padding-start: 0;
   --padding-end: 0;
   --padding-top: 0;
@@ -867,7 +967,26 @@ button.gm-ui-hover-effect > span {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 16px; /* smaller padding so height = content */
+  padding: 4px 16px;
 }
+
+/* FAB when panel is OPEN */
+.fab-with-panel {
+  position: absolute;
+  bottom: 60vh; /* Raises button above panel */
+  right: 20px;
+  z-index: 15;
+  transition: bottom 0.25s ease;
+}
+
+/* FAB when panel is CLOSED */
+.fab-collapsed {
+  position: absolute;
+  bottom: 25vh; /* Slightly above collapsed toggle */
+  right: 20px;
+  z-index: 15;
+  transition: bottom 0.50s ease;
+}
+
 </style>
 

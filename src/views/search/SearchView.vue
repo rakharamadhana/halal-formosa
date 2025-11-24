@@ -359,7 +359,7 @@ const categoryIcons: Record<string, string> = {
 const stores = ref<{id: string; name: string; logo_url?: string}[]>([])
 const activeStore = ref<{id: string; name: string} | null>(null)
 const loadingStores = ref(true)
-const showFilters = ref(true)
+const showFilters = ref(false)
 
 function toggleFilters() {
   showFilters.value = !showFilters.value

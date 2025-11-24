@@ -353,9 +353,27 @@
               :src="cropperSrc"
               :stencil-props="{ aspectRatio: null }"
           />
-          <div v-if="ocrLoading" class="ion-text-center ion-padding">
-            <ion-spinner name="crescent"></ion-spinner>
-            <p>{{ $t('scanIngredients.scan.ocrProcessing') }}</p>
+          <!-- Full-screen loading overlay inside the cropper modal -->
+          <div
+              v-if="ocrLoading"
+              style="
+                position: absolute;
+                top: 0; left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.55);
+              backdrop-filter: blur(4px);
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+              "
+          >
+            <ion-spinner name="crescent" style="transform: scale(1.5);"></ion-spinner>
+              <p style="margin-top: 12px; color: var(--ion-color-medium); font-size: 16px;">
+                {{ $t('scanIngredients.scan.ocrProcessing') }}
+              </p>
           </div>
         </ion-content>
       </ion-modal>
