@@ -3,11 +3,9 @@ import { Capacitor } from '@capacitor/core';
 
 export class DonationManager {
     donationIds = [
-        'donation_100',
-        'donation_500',
-        'donation_1000',
-        'donation_5000',
-        'donation_10000'
+        'small-support',
+        'medium-support',
+        'large-support',
     ];
 
     products: any[] = [];
@@ -41,7 +39,7 @@ export class DonationManager {
                 productType: PURCHASE_TYPE.INAPP
             });
 
-            this.products = products;
+            this.products = products.sort((a, b) => a.price - b.price);
             return products;
         } catch (err) {
             console.error("Failed loading donation products:", err);
