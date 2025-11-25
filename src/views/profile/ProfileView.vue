@@ -214,6 +214,9 @@
             </ion-item>
           </ion-list>
         </ion-card-content>
+        <ion-card >
+
+        </ion-card>
       </ion-card>
 
       <ion-card v-else class="profile-card ion-text-center">
@@ -479,18 +482,15 @@ onMounted(async () => {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
-
-      user.value = session.user;   // ✅ REQUIRED
-
       const u = session.user;
       userEmail.value = u.email || "";
       userDisplayName.value =
           u.user_metadata?.full_name || u.user_metadata?.display_name || "";
       userAvatar.value = u.user_metadata?.avatar_url || "";
 
+      // ✅ refresh points on login change
       fetchCurrentPoints(u.id);
     } else {
-      user.value = null;
       userEmail.value = "";
       userDisplayName.value = "";
       userAvatar.value = "";
