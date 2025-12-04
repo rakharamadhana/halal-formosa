@@ -253,7 +253,7 @@ async function bootstrap() {
 
     // 2️⃣ Initialize RevenueCat ONLY on native
     if (Capacitor.isNativePlatform()) {
-        await initRevenueCat(session?.user?.id);
+        // await initRevenueCat(session?.user?.id);
     } else {
         console.log("⏭️ Skipping RevenueCat init (web platform)");
     }

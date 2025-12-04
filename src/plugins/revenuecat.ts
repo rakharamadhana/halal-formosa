@@ -4,7 +4,7 @@ import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 export async function initRevenueCat(userId?: string) {
     await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
 
-    const apiKey = "test_KUwlrQGvkXaMWPphUitJfluUpNz"
+    const apiKey = ""
 
     await Purchases.configure({ apiKey });
 
