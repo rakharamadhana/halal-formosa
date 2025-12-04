@@ -388,8 +388,8 @@ const userNationality = ref<string | null>(null);
 const userGender = ref<string | null>(null);
 const userBio = ref<string | null>(null);
 
-const proMonthly = ref<RcProduct | null>(null);
-const proYearly = ref<RcProduct | null>(null);
+// const proMonthly = ref<RcProduct | null>(null);
+// const proYearly = ref<RcProduct | null>(null);
 const donationProduct = ref<RcProduct | null>(null);
 const isSubscribed = ref(false);
 
@@ -472,56 +472,56 @@ async function fetchUserProfile(userId: string) {
   }
 }
 
-async function subscribeProMonthly() {
-  const offerings = await Purchases.getOfferings();
-  if (!offerings.current) return;
-
-  const pkg = offerings.current.availablePackages.find(
-      (p) => p.identifier === "$rc_monthly"
-  );
-  if (!pkg) return;
-
-  try {
-    const result = await Purchases.purchasePackage({ aPackage: pkg });
-    const customerInfo = result.customerInfo;
-
-    const active =
-        customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-
-    if (active) {
-      isSubscribed.value = true;
-      alert("You are now a Pro subscriber! 🎉");
-    }
-  } catch (err) {
-    console.error("Purchase failed:", err);
-  }
-}
-
-
-async function subscribeProYearly() {
-  const offerings = await Purchases.getOfferings();
-  if (!offerings.current) return;
-
-  const pkg = offerings.current.availablePackages.find(
-      (p) => p.identifier === "$rc_annual"
-  );
-  if (!pkg) return;
-
-  try {
-    const result = await Purchases.purchasePackage({ aPackage: pkg });
-    const customerInfo = result.customerInfo;
-
-    const active =
-        customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-
-    if (active) {
-      isSubscribed.value = true;
-      alert("You subscribed yearly! 🎉");
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
+// async function subscribeProMonthly() {
+//   const offerings = await Purchases.getOfferings();
+//   if (!offerings.current) return;
+//
+//   const pkg = offerings.current.availablePackages.find(
+//       (p) => p.identifier === "$rc_monthly"
+//   );
+//   if (!pkg) return;
+//
+//   try {
+//     const result = await Purchases.purchasePackage({ aPackage: pkg });
+//     const customerInfo = result.customerInfo;
+//
+//     const active =
+//         customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+//
+//     if (active) {
+//       isSubscribed.value = true;
+//       alert("You are now a Pro subscriber! 🎉");
+//     }
+//   } catch (err) {
+//     console.error("Purchase failed:", err);
+//   }
+// }
+//
+//
+// async function subscribeProYearly() {
+//   const offerings = await Purchases.getOfferings();
+//   if (!offerings.current) return;
+//
+//   const pkg = offerings.current.availablePackages.find(
+//       (p) => p.identifier === "$rc_annual"
+//   );
+//   if (!pkg) return;
+//
+//   try {
+//     const result = await Purchases.purchasePackage({ aPackage: pkg });
+//     const customerInfo = result.customerInfo;
+//
+//     const active =
+//         customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+//
+//     if (active) {
+//       isSubscribed.value = true;
+//       alert("You subscribed yearly! 🎉");
+//     }
+//   } catch (err) {
+//     console.error(err);
+//   }
+// }
 
 
 
@@ -580,15 +580,15 @@ onMounted(async () => {
 
   authSubscription = authSub;
 
-  if (isNative) {
-    // 🔍 Load RevenueCat user status
-    const info = await Purchases.getCustomerInfo();
-
-    isSubscribed.value =
-        info.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-
-    console.log("RC Subscription Status:", isSubscribed.value);
-  }
+  // if (isNative) {
+  //   // 🔍 Load RevenueCat user status
+  //   const info = await Purchases.getCustomerInfo();
+  //
+  //   isSubscribed.value =
+  //       info.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+  //
+  //   console.log("RC Subscription Status:", isSubscribed.value);
+  // }
 
 
 });
