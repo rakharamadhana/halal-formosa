@@ -212,9 +212,9 @@
                   :key="p.barcode"
                   class="discover-item"
                   button
-                  @click="$router.replace(`/item/${p.barcode}`)"
+                  @click="openRelated(p)"
               >
-                <img
+              <img
                     :src="p.photo_front_url || 'https://placehold.co/200x200'"
                     alt="product"
                     class="discover-img"
@@ -296,6 +296,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import {alertCircleOutline, bagOutline, barcodeOutline, createOutline} from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
 import { userRole, setUserRole } from '@/composables/userProfile'
+import { ActivityLogService } from "@/services/ActivityLogService";
 
 const showEditModal = ref(false)
 const route = useRoute()
@@ -404,9 +405,18 @@ async function fetchRelatedProducts() {
 
 
 function openImageModal(index: number) {
-  activeImageIndex.value = index
-  showImageModal.value = true
+  if (item.value) {
+    ActivityLogService.log("product_image_open", {
+      barcode: item.value.barcode,
+      product_name: item.value.name,
+      image: index === 0 ? "front" : "back"
+    });
+  }
+
+  activeImageIndex.value = index;
+  showImageModal.value = true;
 }
+
 function closeImageModal() {
   showImageModal.value = false
 }
@@ -426,15 +436,27 @@ const userId = ref<string | null>(null)
 
 
 function editItem() {
-  // Open your edit modal
+  if (item.value) {
+    ActivityLogService.log("product_edit_click", {
+      barcode: item.value.barcode,
+      product_name: item.value.name
+    });
+  }
+
   showEditModal.value = true
 }
 
 function reportItem() {
-  if (!item.value) return
-  // Navigate to the report page
-  router.push({ name: 'report', params: { barcode: item.value.barcode } })
+  if (!item.value) return;
+
+  ActivityLogService.log("product_report_click", {
+    barcode: item.value.barcode,
+    product_name: item.value.name
+  });
+
+  router.push({ name: 'report', params: { barcode: item.value.barcode } });
 }
+
 
 function closeEditModal() {
   showEditModal.value = false
@@ -614,6 +636,16 @@ onMounted(async () => {
           logo_url: ps.stores.logo_url ?? undefined,
         })) || []
       }
+
+      if (item.value) {
+        await ActivityLogService.log("product_details_open", {
+          barcode: item.value.barcode,
+          product_name: item.value.name,
+          status: item.value.status,
+          category: item.value.product_categories?.name || null,
+        });
+      }
+
       await fetchRelatedProducts()
     }
 
@@ -632,6 +664,18 @@ onMounted(async () => {
   }
 })
 
+function openRelated(p: RelatedProduct) {
+  if (item.value) {
+    ActivityLogService.log("related_product_click", {
+      from_barcode: item.value.barcode,
+      from_name: item.value.name,
+      clicked_barcode: p.barcode,
+      clicked_name: p.name,
+    });
+  }
+
+  router.replace(`/item/${p.barcode}`);
+}
 
 
 </script>

@@ -66,6 +66,7 @@
                 fill="clear"
                 size="small"
                 color="carrot"
+                @click="logOpenMaps"
                 :href="`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`"
                 target="_blank"
             >
@@ -119,6 +120,7 @@
                 <ion-button
                     fill="clear"
                     color="carrot"
+                    @click="logCall"
                     :href="`tel:${place.phone}`"
                 >
                   Call
@@ -132,9 +134,12 @@
                   <p class="text-sm text-gray-500">Instagram</p>
                   <p>@{{ place.instagram.replace('@', '') }}</p>
                 </ion-label>
-                <ion-button fill="clear" size="small"
-                            :href="`https://instagram.com/${place.instagram.replace('@','')}`"
-                            target="_blank">
+                <ion-button
+                    fill="clear"
+                    size="small"
+                    @click="logInstagram"
+                    :href="`https://instagram.com/${place.instagram.replace('@','')}`"
+                    target="_blank">
                   Open
                 </ion-button>
               </ion-item>
@@ -149,10 +154,11 @@
                 <ion-button
                     fill="clear"
                     size="small"
-                    :href="`line://ti/p/~${place.line_id}`"
-                >
+                    @click="logLine"
+                    :href="`line://ti/p/~${place.line_id}`">
                   Open
                 </ion-button>
+
               </ion-item>
 
             </template>
@@ -243,6 +249,7 @@ import {
   shareSocialOutline,
 } from 'ionicons/icons'
 import { Clipboard } from '@capacitor/clipboard';
+import {ActivityLogService} from "@/services/ActivityLogService";
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
 
@@ -289,8 +296,16 @@ const modules = [Pagination, Zoom]
 
 const showImageModal = ref(false)
 function openImageModal() {
+  if (place.value) {
+    ActivityLogService.log("explore_detail_open_image", {
+      id: place.value.id,
+      name: place.value.name
+    });
+  }
   showImageModal.value = true
 }
+
+
 function closeImageModal() {
   showImageModal.value = false
 }
@@ -394,6 +409,12 @@ const loadPlace = async () => {
         canEdit.value = true
       }
     }
+
+    await ActivityLogService.log("explore_place_detail_view", {
+      id: data.id,
+      name: data.name,
+      type: locationType?.name ?? null
+    });
   }
 
   loading.value = false
@@ -403,8 +424,23 @@ const loadPlace = async () => {
 onMounted(loadPlace)
 onIonViewWillEnter(loadPlace)
 
+const logInstagram = () => {
+  if (!place.value) return;
+  ActivityLogService.log("explore_detail_instagram", {
+    id: place.value.id,
+    instagram: place.value.instagram
+  });
+};
+
+
 const share = async () => {
   if (!place.value) return
+
+  await ActivityLogService.log("explore_detail_share", {
+    id: place.value.id,
+    name: place.value.name
+  });
+
   await Share.share({
     title: place.value.name,
     text: `${place.value.name} (${place.value.type})\n📍 https://maps.google.com/?q=${place.value.lat},${place.value.lng}\n\nShared via Halal Formosa 🕌`,
@@ -412,15 +448,53 @@ const share = async () => {
   })
 }
 
+const logOpenMaps = () => {
+  if (!place.value) return;
+  ActivityLogService.log("explore_detail_open_maps", {
+    id: place.value.id,
+    name: place.value.name
+  });
+};
+
+const logCall = () => {
+  if (!place.value) return;
+  ActivityLogService.log("explore_detail_call", {
+    id: place.value.id,
+    phone: place.value.phone
+  });
+};
+
+
 const editItem = () => {
-  if (!place.value) return
-  router.push(`/place/${place.value.id}/edit`)
-}
+  if (!place.value) return;
+
+  ActivityLogService.log("explore_detail_edit", {
+    id: place.value.id,
+    name: place.value.name
+  });
+
+  router.push(`/place/${place.value.id}/edit`);
+};
 
 const reportItem = () => {
-  if (!place.value) return
-  router.push(`/place/${place.value.id}/report`)
-}
+  if (!place.value) return;
+
+  ActivityLogService.log("explore_detail_report", {
+    id: place.value.id,
+    name: place.value.name
+  });
+
+  router.push(`/place/${place.value.id}/report`);
+};
+
+const logLine = () => {
+  if (!place.value) return;
+  ActivityLogService.log("explore_detail_line", {
+    id: place.value.id,
+    line_id: place.value.line_id
+  });
+};
+
 </script>
 
 

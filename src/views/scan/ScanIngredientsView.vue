@@ -125,6 +125,26 @@
 
       <ion-card>
         <ion-card-content>
+          <!-- Daily Scan Counter -->
+          <div class="ion-margin-bottom" v-if="todayScanCount !== null">
+            <ion-chip color="primary" style="width: 100%; justify-content: center;">
+              <ion-icon :icon="scanOutline"></ion-icon>
+              <ion-label>
+                Today Scans: {{ todayScanCount }} / {{ isDonor ? "∞" : 10 + bonusScans }}
+              </ion-label>
+            </ion-chip>
+
+            <!-- Watch Ad Button -->
+            <ion-button
+                v-if="isNative && !isDonor"
+                color="warning"
+                style="width: 100%; justify-content: center;"
+                @click="watchAdForExtraScans"
+            >
+              🎁 Watch Ad +5 Scans
+            </ion-button>
+          </div>
+
           <!-- Tutorial Image Carousel (shows before scanning) -->
           <div v-if="showTutorial" style="text-align:center; margin-bottom:24px;">
             <h2 style="font-size:16px; font-weight:700; color:var(--ion-color-carrot); margin-bottom:12px;">
@@ -176,6 +196,7 @@
               <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">{{ $t('scanIngredients.scan.gallery') }}</span>
             </div>
           </div>
+
 
           <ion-progress-bar
               v-if="ocrLoading"
@@ -403,6 +424,15 @@
           position="bottom"
           @did-dismiss="showCopied=false"
       />
+      <ion-toast
+          :is-open="showLimitToast"
+          message="Daily scan limit reached (10/day)"
+          :duration="2000"
+          color="warning"
+          position="bottom"
+          @did-dismiss="showLimitToast=false"
+      />
+
     </ion-content>
   </ion-page>
 </template>
@@ -445,11 +475,19 @@ import { useCropperOcr } from "@/composables/useCropperOcr"
 import { Device } from '@capacitor/device'
 import { supabase } from '@/plugins/supabaseClient'
 
+import { showRewardedAd } from '@/lib/admobReward'
+import { Capacitor } from '@capacitor/core'
+import { ActivityLogService } from "@/services/ActivityLogService";
+
 /** ---------- State ---------- */
 const showCopied = ref(false)
 const { errorMsg, showErr, setError, clearError } = useError()
 const showTutorial = ref(true)
 const showMuslimFriendly = ref(false)
+const showLimitToast = ref(false);
+const bonusScans = ref(0)
+const isNative = ref(Capacitor.isNativePlatform())
+const dailyAdUses = ref(0);
 
 const originalFile = ref<File | null>(null)
 const croppedFile = ref<File | null>(null)
@@ -460,6 +498,8 @@ const currentSource = ref<'camera' | 'gallery' | null>(null)
 const ocrStartTime = ref<number | null>(null)
 // @ts-expect-error – injected global
 const appVersion = __APP_VERSION__;
+const todayScanCount = ref(0)
+
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
@@ -497,11 +537,7 @@ async function logIngredientScan({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return console.warn('⏩ No user logged in, skipping log');
 
-    const pipelineSucceeded = !!ingredientsTextZh.value?.trim() || !!ingredientsText.value?.trim();
-    if (!pipelineSucceeded && !errorMessage) {
-      console.warn('⚠️ Skipping empty scan log (pipeline did not produce results)');
-      return;
-    }
+    const success = !!ingredientsTextZh.value?.trim() || !!ingredientsText.value?.trim();
 
     const duration = startTime ? Date.now() - startTime : null;
     const info = await Device.getInfo();
@@ -518,6 +554,7 @@ async function logIngredientScan({
         highlight_summary: ingredientHighlights.value,
         source,
         error_message: errorMessage,
+        success,
         app_version: appVersion,
         processing_time_ms: duration,
         device_model: model,
@@ -539,29 +576,59 @@ async function handleConfirmCrop() {
     await confirmCrop()
     showOk.value = true
 
-    // ✅ Only log if ingredients were actually found
+    // Only log if ingredients were detected
     if (ingredientsTextZh.value?.trim()) {
       showTutorial.value = false
+
+      await ActivityLogService.log("scan_ingredients_success", {
+        product_name: productName.value || "Unknown",
+        auto_status: autoStatus.value,
+        ingredient_count: ingredientHighlights.value?.length ?? 0,
+      });
+
       await logIngredientScan({
         source: currentSource.value || 'camera',
         startTime: ocrStartTime.value
       })
+
+
+
+
+      await loadTodayScanCount()
+
     } else {
       console.warn('🚫 OCR text found but no ingredient section detected, skipping log')
     }
+
   } catch (err: any) {
     setError(err.message || 'OCR failed')
+
+    await ActivityLogService.log("scan_ingredients_error", {
+      error: err.message || "OCR failed",
+      source: currentSource.value
+    });
 
     await logIngredientScan({
       source: currentSource.value || 'camera',
       errorMessage: err.message || 'OCR failed',
       startTime: ocrStartTime.value
     })
+
+    await loadTodayScanCount()
   }
 }
 
+
 /** ---------- UI actions ---------- */
 async function scanFromCamera() {
+  await ActivityLogService.log("scan_ingredients_start", {source: "camera"});
+
+  const allowed = await checkDailyScanLimit();
+  if (!allowed) {
+    showLimitToast.value = true;
+    return;
+  }
+
   currentSource.value = 'camera'
   const image = await Camera.getPhoto({
     quality: 90,
@@ -577,7 +644,15 @@ async function scanFromCamera() {
 }
 
 // Gallery
-function scanFromGallery() {
+async function scanFromGallery() {
+  await ActivityLogService.log("scan_ingredients_start", {source: "gallery"});
+
+  const allowed = await checkDailyScanLimit();
+  if (!allowed) {
+    showLimitToast.value = true;
+    return;
+  }
+
   currentSource.value = 'gallery'
   const input = document.createElement('input')
   input.type = 'file'
@@ -636,6 +711,88 @@ const {
   setError,
 })
 
+/** ---------- Daily scan ------------*/
+async function loadTodayScanCount() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    todayScanCount.value = 0;
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+      .from('ingredient_scan_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('success', true)       // 👈 ONLY count successful scans
+      .gte('created_at', today.toISOString());
+
+  if (error) {
+    console.error("Failed to load daily scan count:", error);
+    todayScanCount.value = 0;
+    return;
+  }
+
+  todayScanCount.value = data.length;
+}
+
+async function checkDailyScanLimit() {
+  // Donors → unlimited scans
+  if (isDonor.value) return true;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return true;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+      .from('ingredient_scan_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('success', true)
+      .gte('created_at', today.toISOString());
+
+  if (error) {
+    console.error("Daily scan check error:", error);
+    return true;   // fail-open instead of blocking users
+  }
+
+  return data.length < (10 + bonusScans.value);
+}
+
+async function watchAdForExtraScans() {
+  if (dailyAdUses.value >= 2) {
+    showErr.value = true;
+    errorMsg.value = "You can only watch 2 ads per day.";
+    return;
+  }
+
+  await showRewardedAd("ca-app-pub-9588373061537955/8695189722", async () => {
+
+    // Update local reactive values
+    bonusScans.value += 5;
+    dailyAdUses.value += 1;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+          .from("user_scan_bonus")
+          .upsert({
+            user_id: user.id,
+            bonus_scans: bonusScans.value,
+            daily_ad_uses: dailyAdUses.value,
+            last_updated: new Date().toISOString().split("T")[0]
+          });
+    }
+
+    await loadTodayScanCount();
+  });
+}
+
+
 /** ---------- Share card ------------*/
 
 const { shareResult } = useShareCard(
@@ -650,8 +807,60 @@ function onShareClick() {
 }
 
 /** ---------- Lifecycle  ---------- */
+
+async function restoreBonusFromSupabase() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data, error } = await supabase
+      .from("user_scan_bonus")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+  if (error || !data) {
+    // First time user → create row
+    bonusScans.value = 0;
+    dailyAdUses.value = 0;
+
+    await supabase.from("user_scan_bonus").insert({
+      user_id: user.id,
+      bonus_scans: 0,
+      daily_ad_uses: 0,
+      last_updated: today
+    });
+
+    return;
+  }
+
+  // If the record is from today → use it
+  if (data.last_updated === today) {
+    bonusScans.value = data.bonus_scans;
+    dailyAdUses.value = data.daily_ad_uses;
+    return;
+  }
+
+  // If it's from yesterday → reset
+  bonusScans.value = 0;
+  dailyAdUses.value = 0;
+
+  await supabase
+      .from("user_scan_bonus")
+      .update({
+        bonus_scans: 0,
+        daily_ad_uses: 0,
+        last_updated: today
+      })
+      .eq("user_id", user.id);
+}
+
 onIonViewWillEnter(async () => {
   if (maybeShowDisclaimer()) return
+
+  await loadTodayScanCount();
+  await restoreBonusFromSupabase();
 
   const data = await fetchHighlightsWithCache()
   if (!data) {

@@ -29,8 +29,8 @@
 
           <!-- Stats -->
           <div class="stats-row">
-            <div class="stat-box" @click="$router.push('/search')">
-              <h2 v-if="!loadingStats">{{ totalProducts }}</h2>
+            <div class="stat-box" @click="openProducts">
+            <h2 v-if="!loadingStats">{{ totalProducts }}</h2>
               <ion-skeleton-text
                   v-else
                   animated
@@ -39,8 +39,8 @@
               <p>{{ $t('home.productsCount') }}</p>
             </div>
 
-            <div class="stat-box" @click="$router.push('/explore')">
-              <h2 v-if="!loadingStats">{{ totalLocations }}</h2>
+            <div class="stat-box" @click="openLocations">
+            <h2 v-if="!loadingStats">{{ totalLocations }}</h2>
               <ion-skeleton-text
                   v-else
                   animated
@@ -62,7 +62,7 @@
                 fill="clear"
                 size="small"
                 color="carrot"
-                @click="$router.push('/search')"
+                @click="viewMoreProducts"
             >
               {{ $t('home.viewMore') }}
             </ion-button>
@@ -86,7 +86,7 @@
                 :key="p.barcode"
                 class="discover-item"
                 button
-                @click="$router.push(`/item/${p.barcode}`)"
+                @click="openProduct(p)"
             >
               <img :src="p.image || 'https://placehold.co/200x200'" alt="product" class="discover-img" />
               <ion-label class="discover-label">
@@ -117,7 +117,7 @@
                 fill="clear"
                 size="small"
                 color="carrot"
-                @click="$router.push('/explore')"
+                @click="viewMoreLocations"
             >
               {{ $t('home.viewMore') }}
             </ion-button>
@@ -139,7 +139,7 @@
                 :key="loc.id"
                 class="discover-item"
                 button
-                @click="$router.push(`/place/${loc.id}`)"
+                @click="openLocation(loc)"
             >
               <img
                   :src="loc.image || 'https://placehold.co/200x200'"
@@ -305,6 +305,7 @@ import timezone from 'dayjs/plugin/timezone'
 import { barcodeOutline, scanOutline } from "ionicons/icons"
 import { useLeaderboard } from "@/composables/useLeaderboard";
 import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
+import {ActivityLogService} from "@/services/ActivityLogService";
 
 const selectedUser = ref<any | null>(null)
 const popoverEvent = ref<Event | null>(null)
@@ -390,6 +391,11 @@ function updateChartSmoothly(chartRef: any, newData: number[]) {
 }
 
 function openUserProfile(user: any, ev: Event) {
+  ActivityLogService.log("home_leaderboard_profile", {
+    user_id: user.id,
+    display_name: user.display_name
+  });
+
   selectedUser.value = user
   popoverEvent.value = ev   // 👈 attach the click event for positioning
 }
@@ -500,6 +506,8 @@ async function fetchLocationCategoryStats() {
 /* ---------------- Lifecycle ---------------- */
 
 onIonViewWillEnter(async () => {
+  ActivityLogService.log("home_page_open");
+
   fetchStats()
   fetchLocationCategoryStats()   // ✅ new
   fetchRecentProducts()
@@ -508,12 +516,69 @@ onIonViewWillEnter(async () => {
 })
 
 /* ---------------- Navigation ---------------- */
+function openProducts() {
+  ActivityLogService.log("home_open_products");
+  router.push('/search');
+}
+
 function goScan() {
-  router.push('/scan')
+  ActivityLogService.log("home_scan_ingredient");
+  router.push('/scan');
 }
+
 function goToSearchAndScan() {
-  router.push({ path: '/search', query: { scan: 'true' } })
+  ActivityLogService.log("home_scan_barcode");
+  router.push({ path: '/search', query: { scan: 'true' } });
 }
+
+function openLocations() {
+  ActivityLogService.log("home_open_locations");
+  router.push('/explore');
+}
+
+function viewMoreProducts() {
+  ActivityLogService.log("home_viewmore_products");
+  router.push('/search');
+}
+
+function viewMoreLocations() {
+  ActivityLogService.log("home_viewmore_locations");
+  router.push('/explore');
+}
+
+async function openProduct(p: any) {
+  // increment product views
+  await supabase.rpc("increment_product_view", {
+    product_barcode: p.barcode
+  });
+
+  ActivityLogService.log("home_product_click", {
+    barcode: p.barcode,
+    name: p.name,
+    status: p.status
+  });
+
+  router.push(`/item/${p.barcode}`);
+}
+
+
+async function openLocation(loc: any) {
+
+  // increment location views
+  await supabase.rpc("increment_location_view", {
+    location_id: loc.id
+  });
+
+  ActivityLogService.log("home_location_click", {
+    id: loc.id,
+    name: loc.name,
+    type: loc.type
+  });
+
+  router.push(`/place/${loc.id}`);
+}
+
+
 </script>
 
 <style scoped>

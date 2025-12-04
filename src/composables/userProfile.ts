@@ -91,6 +91,7 @@ export const donorBadge = computed(() => {
     const map: Record<string, { label: string; color: string; emoji: string }> = {
         Free: { label: "Free", color: "medium", emoji: "🙌" },
         "Founding Supporter": { label: "Founding Supporter", color: "tertiary", emoji: "💖" },
+        Pro: { label: "Pro", color: "tertiary", emoji: "💖" },
         Supporter: { label: "Supporter", color: "primary", emoji: "💖" },
         Developer: { label: "Developer", color: "tertiary", emoji: "🛠️" },
         Contributor: { label: "Contributor", color: "primary", emoji: "⭐️" }

@@ -30,7 +30,8 @@ import './theme/variables.css'
 import { defineCustomElements } from '@ionic/pwa-elements/loader'
 import { scheduleBannerUpdate } from '@/plugins/admob'
 import { initSafeArea } from "@/plugins/safeArea";
-import { useNotifier } from "@/composables/useNotifier"
+import { initRevenueCat } from '@/plugins/revenuecat';
+import { Purchases } from '@revenuecat/purchases-capacitor';
 
 // ✅ unified user profile composable
 import {
@@ -120,10 +121,12 @@ supabase.auth.getSession().then(async ({ data }) => {
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
+
         // Only load profile if not already loaded
         if (!currentUser.value) {
             currentUser.value = session.user
             loadUserProfile(session.user.id).catch(console.error)
+            await Purchases.logIn({ appUserID: session.user.id });
         }
 
         // Handle redirect after login/signup
@@ -135,9 +138,12 @@ supabase.auth.onAuthStateChange(async (event, session) => {
                     : '/profile'
             )
         }
+
+
     }
 
     if (event === 'SIGNED_OUT') {
+        await Purchases.logOut();
         console.log('👋 Signed out, resetting profile state')
         currentUser.value = null
         setDonorStatus(false)
@@ -240,8 +246,23 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
     }
 });
 
-/* Mount */
-router.isReady().then(() => {
-    app.mount('#app')
-    scheduleBannerUpdate()
-})
+
+async function bootstrap() {
+    // 1️⃣ Get current user (optional)
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // 2️⃣ Initialize RevenueCat ONLY on native
+    if (Capacitor.isNativePlatform()) {
+        await initRevenueCat(session?.user?.id);
+    } else {
+        console.log("⏭️ Skipping RevenueCat init (web platform)");
+    }
+
+    // 3️⃣ Mount Vue app only once
+    router.isReady().then(() => {
+        app.mount('#app');
+        scheduleBannerUpdate();
+    });
+}
+
+bootstrap();

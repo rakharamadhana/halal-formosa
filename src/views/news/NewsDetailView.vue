@@ -1,11 +1,12 @@
 <template>
   <ion-page>
     <ion-header>
+      <!-- ✅ This must be inside <template>, not in <script> -->
+      <div v-if="isNative && !isDonor" id="ad-space-news-detail" style="height: 65px;"></div>
       <app-header title="" show-back back-route="/news" icon="none" />
     </ion-header>
 
-    <!-- ✅ This must be inside <template>, not in <script> -->
-    <div v-if="isNative && !isDonor" id="ad-space-news-detail" style="height: 60px;"></div>
+
 
     <ion-content>
       <div v-if="loading" class="ion-text-center">

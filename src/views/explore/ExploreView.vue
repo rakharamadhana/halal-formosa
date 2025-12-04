@@ -2,7 +2,7 @@
   <ion-page>
     <ion-header>
       <!-- Native AdMob banner -->
-      <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:60px;"></div>
+      <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:65px;"></div>
     </ion-header>
 
     <!-- Map section -->
@@ -163,6 +163,7 @@
                   <div>
                     <h5 class="title-text">{{ place.name }}</h5>
                     <p class="type-text">{{ place.type }}</p>
+                    <p class="type-text">👁️ {{ place.view_count || 0 }} views</p>
                   </div>
 
                   <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
@@ -194,7 +195,7 @@
 /* ---------------- Imports ---------------- */
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
-  IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonLabel, IonChip,
+  IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonLabel, IonChip, IonHeader,
   IonSkeletonText, onIonViewWillEnter
 } from '@ionic/vue'
 import {
@@ -213,6 +214,7 @@ import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markercluste
 import { Cluster, Renderer } from "@googlemaps/markerclusterer"
 import { isDonor } from '@/composables/userProfile'
 import useSharePlace from '@/composables/useSharePlace'
+import { ActivityLogService } from "@/services/ActivityLogService";
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
@@ -225,7 +227,9 @@ type Place = {
   image?: string | null
   typeId: number | null
   type: string
+  view_count?: number
 }
+
 
 type LocationRow = {
   id: number
@@ -234,7 +238,8 @@ type LocationRow = {
   lng: number
   image?: string | null
   type_id: number | null
-  location_types: { name: string } | null   // 👈 not array
+  location_types: { name: string } | null
+  view_count?: number
 }
 
 // Local type for ion-content (no external import needed)
@@ -473,7 +478,8 @@ const fetchLocations = async () => {
       position: { lat: loc.lat, lng: loc.lng },
       image: loc.image,
       typeId: loc.type_id,
-      type: loc.location_types?.name ?? ''   // 👈 safe access
+      type: loc.location_types?.name ?? '',
+      view_count: loc.view_count ?? 0
     }))
   }
 
@@ -486,6 +492,11 @@ const categories = computed(() => locationTypes.value)
 const activeCategoryId = ref<number|null>(null)
 
 const toggleCategory = (cat: LocationType) => {
+  ActivityLogService.log("explore_filter_category", {
+    category_id: cat.id,
+    category_name: cat.name
+  });
+
   activeCategoryId.value = activeCategoryId.value === cat.id ? null : cat.id
   focusedPlaceId.value = null
   if (infoWindow) infoWindow.close()
@@ -537,6 +548,14 @@ const initMarkers = (places: Place[] = locations.value) => {
     })
 
     marker.addListener('click', () => {
+      ActivityLogService.log("explore_marker_click", {
+        id: loc.id,
+        name: loc.name,
+        type: loc.type,
+        lat: loc.position.lat,
+        lng: loc.position.lng
+      });
+
       if (searchQuery.value && !loc.name.toLowerCase().includes(searchQuery.value.toLowerCase())) {
         searchQuery.value = ''
       }
@@ -574,6 +593,14 @@ watch([activeCategoryId, locations], () => {
 
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {
+  ActivityLogService.log("explore_place_card_click", {
+    id: place.id,
+    name: place.name,
+    type: place.type,
+    lat: place.position.lat,
+    lng: place.position.lng
+  });
+
   selectedPlace.value = place
   scrollCardIntoView(place.id)
 
@@ -591,9 +618,15 @@ const selectPlace = (place: Place) => {
 
     setTimeout(() => {
       applyInfoWindowDarkClass()
+
       const shareBtn = document.querySelector('.share-btn')
       if (shareBtn) {
         shareBtn.addEventListener('click', () => {
+          ActivityLogService.log("explore_share_place", {
+            id: place.id,
+            name: place.name
+          });
+
           sharePlace({
             name: place.name,
             type: place.type,
@@ -603,11 +636,23 @@ const selectPlace = (place: Place) => {
           })
         })
       }
+
+      const navigateBtn = document.querySelector('.navigate-btn')
+      if (navigateBtn) {
+        navigateBtn.addEventListener('click', () => {
+          ActivityLogService.log("explore_navigate_click", {
+            id: place.id,
+            name: place.name
+          });
+        })
+      }
     }, 50)
   }
 }
 
 const centerOnUser = async () => {
+  await ActivityLogService.log("explore_center_user");
+
   try {
     let coords: { latitude: number; longitude: number }
 
@@ -657,6 +702,10 @@ const centerOnUser = async () => {
 
 const onSearchInput = (event: CustomEvent) => {
   searchQuery.value = (event.detail?.value ?? '') as string
+
+  ActivityLogService.log("explore_search_query", {
+    query: searchQuery.value
+  });
 }
 
 /* ---------------- Derived ---------------- */
@@ -684,23 +733,45 @@ const sortedLocations = computed(() => {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
-  console.log('isNative?', isNative.value)
-  if (!isNative.value) await nextTick()
+  await ActivityLogService.log("explore_page_open");
 
-  await initMap()
-  await loadRole()
-  fetchLocationTypes()
-  fetchLocations()
-  centerOnUser()
-})
+  await initMap();
+  await loadRole();
+  fetchLocationTypes();
+  await fetchLocations();
+
+  await refreshViewCounts();   // 👈 refresh initial view_count
+
+  centerOnUser();
+});
+
 
 onIonViewWillEnter(async () => {
   centerOnUser()
 })
 
-onIonViewDidEnter(() => {
-  (window as any).scheduleBannerUpdate?.()
-})
+onIonViewDidEnter(async () => {
+  await refreshViewCounts();  // 👈 refresh again when user returns
+});
+
+async function refreshViewCounts() {
+  if (locations.value.length === 0) return;
+
+  const ids = locations.value.map(l => l.id);
+
+  const { data: updated, error } = await supabase
+      .from("locations")
+      .select("id, view_count")
+      .in("id", ids);
+
+  if (!error && updated) {
+    for (const u of updated) {
+      const loc = locations.value.find(l => l.id === u.id);
+      if (loc) loc.view_count = u.view_count;
+    }
+  }
+}
+
 
 /* dark mode InfoWindow sync */
 const observer = new MutationObserver(applyInfoWindowDarkClass)
@@ -711,9 +782,20 @@ const goToAddPlace = async () => {
   router.push('/explore/add')
 }
 
-const goToDetail = (id: number) => {
-  router.push(`/place/${id}`)
-}
+const goToDetail = async (id: number) => {
+
+  const place = locations.value.find(p => p.id === id);
+  await supabase.rpc("increment_location_view", { loc_id: id });
+
+  ActivityLogService.log("explore_place_detail_open", {
+    id,
+    name: place?.name || null,
+    type: place?.type || null
+  });
+
+  router.push(`/place/${id}`);
+};
+
 </script>
 
 

@@ -52,7 +52,14 @@ const routes: Array<RouteRecordRaw> = [
         path: '/admin/scan-logs',
         component: () => import('@/views/admin/ScanLogsView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true }
-    }
+    },
+    {
+        path: '/admin/analytics',
+        name: 'AnalyticsDashboard',
+        component: () => import('@/views/admin/AnalyticsDashboardView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+
 
 ];
 

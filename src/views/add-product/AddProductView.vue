@@ -1277,18 +1277,35 @@ async function handleSubmit() {
           ? "✅ Product published successfully!"
           : "✅ Product submitted and awaiting approval."
 
-      // ✅ Notification
-      await notifyEvent(
-          "new_product",
-          "🆕 New Product Added!",
-          `${form.value.name} (${form.value.status})\nBarcode: ${form.value.barcode}`,
-          frontUrl || backUrl,
-          {
-            barcode: form.value.barcode,
-            status: form.value.status,
-            isNative: true, // ✅ Auto-detect platform
-          }
-      );
+      // 🔔 Notify differently depending on role
+      if (autoApprove) {
+        // 🟢 Admin/Contributor → public notification
+        await notifyEvent(
+            "new_product",
+            "🆕 New Product Published!",
+            `${form.value.name} (${form.value.status})\nBarcode: ${form.value.barcode}`,
+            frontUrl || backUrl,
+            {
+              barcode: form.value.barcode,
+              status: form.value.status,
+              isNative: true,
+            }
+        );
+      } else {
+        // 🔵 Normal user → INTERNAL review notification only
+        await notifyEvent(
+            "review_required",
+            "📥 Product Awaiting Review",
+            `${form.value.name}\nBarcode: ${form.value.barcode}\nSubmitted by: ${user.email}`,
+            frontUrl || backUrl,
+            {
+              barcode: form.value.barcode,
+              status: form.value.status,
+              pending_review: true,
+            }
+        );
+      }
+
 
       // reset form
       form.value = { barcode: '', name: '', status: 'Muslim-friendly',

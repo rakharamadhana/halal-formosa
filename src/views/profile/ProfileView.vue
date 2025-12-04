@@ -170,6 +170,11 @@
           <ion-label>Ingredient Scan Logs</ion-label>
         </ion-item>
 
+        <ion-item button @click="goToAnalyticsDashboard" lines="none">
+          <ion-icon :icon="listOutline" />&nbsp;
+          <ion-label>Analytics Dashboard</ion-label>
+        </ion-item>
+
 
       </ion-list>
 
@@ -189,35 +194,51 @@
         </ion-item>
       </ion-list>
 
+      <!-- Halal Formosa Pro -->
+<!--      <ion-card v-if="isNative" class="profile-card ion-text-center">-->
+<!--        <ion-card-header>-->
+<!--          <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>-->
+<!--        </ion-card-header>-->
+
+<!--        <ion-card-content>-->
+<!--          <template v-if="isSubscribed">-->
+<!--            <h3 style="color: var(&#45;&#45;ion-color-success); font-weight: 600;">-->
+<!--              You are a Pro Subscriber 🎉-->
+<!--            </h3>-->
+<!--          </template>-->
+
+<!--          <template v-else>-->
+<!--            <p>Unlock premium features & remove ads.</p>-->
+
+<!--            <ion-button expand="block" color="carrot" @click="subscribeProMonthly">-->
+<!--              {{ proMonthly?.priceString || "Monthly" }}-->
+<!--            </ion-button>-->
+
+<!--            <ion-button expand="block" color="secondary" @click="subscribeProYearly">-->
+<!--              {{ proYearly?.priceString || "Yearly" }}-->
+<!--            </ion-button>-->
+<!--          </template>-->
+<!--        </ion-card-content>-->
+<!--      </ion-card>-->
+
       <!-- Support -->
-      <ion-card v-if="isNative" class="profile-card ion-text-center">
+      <ion-card v-if="donationProduct" class="profile-card ion-text-center">
         <ion-card-header>
           <ion-card-title>Support Halal Formosa ❤️</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
-          <ion-list>
-            <ion-item
-                v-for="p in donationProducts"
-                :key="p.identifier"
-                button
-                @click="donateNow(p.identifier)"
-            >
-              <ion-label>
-                <strong>{{ p.title }}</strong><br />
-                {{ p.description }}
-              </ion-label>
-
-              <ion-note slot="end">
-                {{ p.priceString }}
-              </ion-note>
-            </ion-item>
-          </ion-list>
+          <ion-item button @click="donate">
+            <ion-label>
+              <strong>{{ donationProduct.title }}</strong>
+              <br />
+              {{ donationProduct.description }}
+            </ion-label>
+            <ion-note slot="end">{{ donationProduct.priceString }}</ion-note>
+          </ion-item>
         </ion-card-content>
-        <ion-card >
-
-        </ion-card>
       </ion-card>
+
 
       <ion-card v-else class="profile-card ion-text-center">
         <ion-card-header>
@@ -324,7 +345,8 @@ import {
 import {
   createOutline,
   documentTextOutline,
-  listOutline, logoInstagram,
+  listOutline,
+  logoInstagram,
   peopleOutline,
   personCircleOutline,
   settingsOutline,
@@ -335,16 +357,18 @@ import {donorBadge, isAdmin} from "@/composables/userProfile";
 import {Subscription} from "@supabase/supabase-js";
 import {usePoints} from "@/composables/usePoints";
 import {xpForLevel} from "@/utils/xp"
-import { Capacitor } from "@capacitor/core";
+import {Capacitor} from "@capacitor/core";
 
 // Services
-import { DonationManager } from "@/services/DonationManager";
+import { Purchases } from "@revenuecat/purchases-capacitor";
 
-interface DonationProduct {
+interface RcProduct {
   identifier: string;
+  price: number;
+  priceString: string;
   title: string;
   description: string;
-  priceString: string;
+  currencyCode?: string;
 }
 
 
@@ -364,8 +388,10 @@ const userNationality = ref<string | null>(null);
 const userGender = ref<string | null>(null);
 const userBio = ref<string | null>(null);
 
-const dm = new DonationManager();
-const donationProducts = ref<DonationProduct[]>([]);
+const proMonthly = ref<RcProduct | null>(null);
+const proYearly = ref<RcProduct | null>(null);
+const donationProduct = ref<RcProduct | null>(null);
+const isSubscribed = ref(false);
 
 // ✅ Points composable
 const { currentPoints, fetchCurrentPoints } = usePoints();
@@ -446,6 +472,58 @@ async function fetchUserProfile(userId: string) {
   }
 }
 
+async function subscribeProMonthly() {
+  const offerings = await Purchases.getOfferings();
+  if (!offerings.current) return;
+
+  const pkg = offerings.current.availablePackages.find(
+      (p) => p.identifier === "$rc_monthly"
+  );
+  if (!pkg) return;
+
+  try {
+    const result = await Purchases.purchasePackage({ aPackage: pkg });
+    const customerInfo = result.customerInfo;
+
+    const active =
+        customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+
+    if (active) {
+      isSubscribed.value = true;
+      alert("You are now a Pro subscriber! 🎉");
+    }
+  } catch (err) {
+    console.error("Purchase failed:", err);
+  }
+}
+
+
+async function subscribeProYearly() {
+  const offerings = await Purchases.getOfferings();
+  if (!offerings.current) return;
+
+  const pkg = offerings.current.availablePackages.find(
+      (p) => p.identifier === "$rc_annual"
+  );
+  if (!pkg) return;
+
+  try {
+    const result = await Purchases.purchasePackage({ aPackage: pkg });
+    const customerInfo = result.customerInfo;
+
+    const active =
+        customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+
+    if (active) {
+      isSubscribed.value = true;
+      alert("You subscribed yearly! 🎉");
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
 
 // ✅ Always refresh when ProfileView becomes active
 onIonViewWillEnter(async () => {
@@ -479,7 +557,7 @@ onMounted(async () => {
   loading.value = false;
 
   const {
-    data: { subscription },
+    data: { subscription: authSub },
   } = supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
       const u = session.user;
@@ -500,42 +578,39 @@ onMounted(async () => {
     if (isAdmin.value) fetchPendingCount();
   });
 
-  authSubscription = subscription;
+  authSubscription = authSub;
 
   if (isNative) {
-    await dm.initialize();
-    donationProducts.value = dm.products;
+    // 🔍 Load RevenueCat user status
+    const info = await Purchases.getCustomerInfo();
+
+    isSubscribed.value =
+        info.entitlements.active["Halal Formosa Pro"]?.isActive === true;
+
+    console.log("RC Subscription Status:", isSubscribed.value);
   }
+
 
 });
 
-async function donateNow(id: string) {
-  if (!isNative) {
-    alert("In-app purchases are only available on Android/iOS.");
-    return;
-  }
+async function donate() {
+  const offerings = await Purchases.getOfferings();
 
-  const result = await dm.donate(id);
+  if (!offerings.current) return;
 
-  if (result.success) {
+  const pkg = offerings.current.availablePackages.find(
+      (p) => p.identifier === "small_support"
+  );
+
+  if (!pkg) return;
+
+  try {
+    await Purchases.purchasePackage({ aPackage: pkg });
     alert("Thank you for supporting Halal Formosa ❤️");
-
-    if (user.value) {
-      await supabase.from("donations").insert({
-        user_id: user.value.id,
-        transaction_id: result.transactionId,
-        product_id: result.productId
-      });
-    }
-
-  } else if (result.cancelled) {
-    console.log("User cancelled donation");
-  } else {
-    alert("Purchase failed");
+  } catch (err) {
+    console.error("Donation failed:", err);
   }
 }
-
-
 
 onBeforeUnmount(() => {
   if (authSubscription) {
@@ -559,6 +634,7 @@ const goToSettings = () => router.push("/settings");
 const goToLegal = () => router.push("/legal");
 const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
+const goToAnalyticsDashboard = () => router.push("/admin/analytics");
 const goToScanLogs = () => router.push("/admin/scan-logs");
 const goToEditProfile = () => router.push({ name: "EditProfile" });
 

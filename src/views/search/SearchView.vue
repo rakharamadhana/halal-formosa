@@ -1,6 +1,9 @@
 <template>
   <ion-page>
     <ion-header>
+      <!-- Native (mobile) AdMob banner -->
+      <div v-if="isNative && !isDonor" id="ad-space-search" style="height:65px;"></div>
+
       <app-header
           :title="activeStore ? `${$t('search.title')} : ${activeStore.name}` : $t('search.title')"
           :icon="gridOutline"
@@ -38,9 +41,6 @@
           </ion-button>
         </div>
       </ion-toolbar>
-
-      <!-- Native (mobile) AdMob banner -->
-      <div v-if="isNative && !isDonor" id="ad-space-search" style="height:60px;"></div>
 
       <!-- Row: Filters -->
       <ion-toolbar class="search-toolbar">
@@ -104,9 +104,7 @@
         </transition>
       </ion-toolbar>
 
-
     </ion-header>
-
     <ion-content>
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
         <ion-refresher-content
@@ -200,9 +198,15 @@
                 <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <h5 style="margin: 0;">{{ product.name }}</h5>
-                    <p style="margin: 4px 0 8px 0; font-size: 13px;">
+
+                    <p style="margin: 4px 0; font-size: 12px; color: var(--ion-color-medium);">
+                      👁️ Viewed {{ product.view_count || 0 }} times
+                    </p>
+
+                    <p style="margin: 0 0 8px 0; font-size: 13px;">
                       Added {{ fromNowToTaipei(product.created_at) }}
                     </p>
+
                   </div>
 
                   <!-- Status -->
@@ -293,6 +297,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import AppHeader from '@/components/AppHeader.vue'
 import { isDonor } from '@/composables/userProfile'
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
+import {ActivityLogService} from "@/services/ActivityLogService";
 
 /* ---------------- Day.js ---------------- */
 dayjs.extend(utc)
@@ -305,13 +310,16 @@ interface Product {
   name: string
   status: string
   category_id?: number
-  product_categories?: { name: string } // fixed
+  product_categories?: { name: string }
   ingredients?: string
   description?: string
   photo_front_url?: string
   photo_back_url?: string
   created_at?: string
+  view_count?: number   // <-- ADD THIS LINE
 }
+
+
 
 
 /* ---------------- State ---------------- */
@@ -369,6 +377,21 @@ function toggleFilters() {
 /* ---------------- Filters ---------------- */
 
 watch([activeStore, activeCategory, searchQuery], () => {
+
+  if (activeStore.value) {
+    ActivityLogService.log("search_filter_store", {
+      store_id: activeStore.value.id,
+      store_name: activeStore.value.name
+    });
+  }
+
+  if (activeCategory.value) {
+    ActivityLogService.log("search_filter_category", {
+      category_id: activeCategory.value.id,
+      category_name: activeCategory.value.name
+    });
+  }
+
   allLoaded.value = false
   currentPage.value = 0
   infiniteDisabled.value = false   // 👈 reset infinite scroll
@@ -394,6 +417,8 @@ function dismissModal() {
 }
 
 async function startScan() {
+  await ActivityLogService.log("barcode_scan_start");
+
   if (scanning.value) return
   scanning.value = true
 
@@ -420,8 +445,17 @@ async function startScan() {
       results.value = error ? [] : (data || [])
       if (error) errorMsg.value = 'Failed to search products'
     }
+
+    await ActivityLogService.log("barcode_scan_success", {
+      barcode: result.ScanResult
+    });
   } catch (err) {
     console.error('❌ Barcode scan failed:', err)
+
+    await ActivityLogService.log("barcode_scan_error", {
+      error: err || "unknown",
+    });
+
   } finally {
     scanning.value = false
     if (route.query.scan === 'true') {
@@ -474,7 +508,7 @@ const fetchProducts = async (reset = false) => {
     const from = currentPage.value * pageSize
     const to = from + pageSize - 1
 
-    let baseSelect = "*, product_categories(name)"
+    let baseSelect = "barcode, name, status, view_count, created_at, photo_front_url, product_categories(name)";
     if (activeStore.value) {
       baseSelect += ", product_stores!inner(store_id)"
     }
@@ -502,9 +536,12 @@ const fetchProducts = async (reset = false) => {
         allLoaded.value = true
       }
 
-      allProducts.value = reset ? data : [...allProducts.value, ...data]
-      results.value = [...allProducts.value]
-      currentPage.value++
+      // Merge results
+      allProducts.value = reset ? data : [...allProducts.value, ...data];
+      results.value = [...allProducts.value];
+
+      currentPage.value++;
+
     }
   } finally {
     isFetching.value = false
@@ -527,9 +564,14 @@ const fetchTotalCount = async () => {
 
 /* ---------------- Search ---------------- */
 const handleSearchInput = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  searchQuery.value = target.value.trim()
-}
+  const target = event.target as HTMLInputElement;
+  const q = target.value.trim();
+  searchQuery.value = q;
+
+  if (q.length > 1) {   // only log if at least 2 chars
+    ActivityLogService.log("search_query", { query: q });
+  }
+};
 
 /* ---------------- UI helpers ---------------- */
 function fromNowToTaipei(dateString?: string) {
@@ -537,7 +579,21 @@ function fromNowToTaipei(dateString?: string) {
   return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
 }
 
-const openDetails = (product: Product) => {
+const openDetails = async (product: Product) => {
+  // Increment view count
+  await supabase.rpc("increment_product_view", {
+    product_barcode: product.barcode
+  });
+
+  ActivityLogService.log("search_product_click", {
+    barcode: product.barcode,
+    product_name: product.name,
+    status: product.status,
+    store: activeStore.value?.name || null,
+    category: activeCategory.value?.name || null,
+    query_used: searchQuery.value || null
+  });
+
   router.push({path: `/item/${product.barcode}`})
 }
 
@@ -580,6 +636,8 @@ async function refreshList(event: CustomEvent) {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
+  await ActivityLogService.log("search_page_open");
+
   // 🔹 Auth/session setup
   const { data: { session } } = await supabase.auth.getSession()
   isAuthenticated.value = !!session
@@ -610,14 +668,38 @@ onMounted(async () => {
 
 
 onIonViewDidEnter(async () => {
-  (window as any).scheduleBannerUpdate?.()
-  if (route.query.scan === 'true') {
-    setTimeout(async () => {
-      await startScan()
-      router.replace({ path: '/search' })
-    }, 300)
+  await ActivityLogService.log("search_page_open");
+
+  // --- 🔥 Refresh view_count in one batch ---
+  if (results.value.length > 0) {
+    const barcodes = results.value.map(p => p.barcode);
+
+    const { data: updatedCounts, error } = await supabase
+        .from("products")
+        .select("barcode, view_count")
+        .in("barcode", barcodes);
+
+    if (!error && updatedCounts) {
+      for (const updated of updatedCounts) {
+        const product = results.value.find(p => p.barcode === updated.barcode);
+        if (product) product.view_count = updated.view_count;
+      }
+    }
   }
-})
+
+  // Refresh AdMob if needed
+  (window as any).scheduleBannerUpdate?.();
+
+  // Auto trigger scanner if route has scan=true
+  if (route.query.scan === "true") {
+    setTimeout(async () => {
+      await startScan();
+      router.replace({ path: "/search" });
+    }, 300);
+  }
+});
+
+
 </script>
 
 

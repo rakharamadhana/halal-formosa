@@ -13,7 +13,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@capacitor-community/admob": "^7.0.3",
+    "@capacitor-community/admob": "^7.2.0",
     "@capacitor-mlkit/barcode-scanning": "^7.3.0",
     "@capacitor/android": "7.4.2",
     "@capacitor/app": "7.0.1",
@@ -43,8 +43,8 @@
     "@ionic/pwa-elements": "^3.3.0",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
-    "@revenuecat/purchases-capacitor": "^11.2.15",
-    "@revenuecat/purchases-capacitor-ui": "^11.2.15",
+    "@revenuecat/purchases-capacitor": "^11.2.16",
+    "@revenuecat/purchases-capacitor-ui": "^11.2.16",
     "@supabase/supabase-js": "^2.52.1",
     "@tiptap/extension-image": "^3.0.9",
     "@tiptap/extension-link": "^3.0.9",
