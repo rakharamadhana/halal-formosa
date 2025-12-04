@@ -374,7 +374,7 @@ interface RcProduct {
 
 // @ts-expect-error – injected global
 const appVersion = __APP_VERSION__;
-const isNative = Capacitor.isNativePlatform();
+// const isNative = Capacitor.isNativePlatform();
 const userEmail = ref("");
 const userDisplayName = ref("");
 const userAvatar = ref("");
@@ -391,7 +391,7 @@ const userBio = ref<string | null>(null);
 // const proMonthly = ref<RcProduct | null>(null);
 // const proYearly = ref<RcProduct | null>(null);
 const donationProduct = ref<RcProduct | null>(null);
-const isSubscribed = ref(false);
+// const isSubscribed = ref(false);
 
 // ✅ Points composable
 const { currentPoints, fetchCurrentPoints } = usePoints();
