@@ -330,12 +330,14 @@ import {
   Title,
   Tooltip,
   Legend,
-  BarElement,        // ⬅️ ADD THIS
+  BarElement,
   LineElement,
   PointElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  LineController
 } from "chart.js";
+
 
 ChartJS.register(
     Title,
@@ -345,7 +347,8 @@ ChartJS.register(
     LineElement,
     PointElement,
     CategoryScale,
-    LinearScale
+    LinearScale,
+    LineController   // ⭐ REQUIRED FOR PRODUCTION
 );
 
 
