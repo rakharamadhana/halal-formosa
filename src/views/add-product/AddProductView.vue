@@ -1291,21 +1291,7 @@ async function handleSubmit() {
               isNative: true,
             }
         );
-      } else {
-        // 🔵 Normal user → INTERNAL review notification only
-        await notifyEvent(
-            "review_required",
-            "📥 Product Awaiting Review",
-            `${form.value.name}\nBarcode: ${form.value.barcode}\nSubmitted by: ${user.email}`,
-            frontUrl || backUrl,
-            {
-              barcode: form.value.barcode,
-              status: form.value.status,
-              pending_review: true,
-            }
-        );
       }
-
 
       // reset form
       form.value = { barcode: '', name: '', status: 'Muslim-friendly',

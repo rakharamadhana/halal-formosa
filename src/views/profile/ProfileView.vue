@@ -266,7 +266,7 @@
         </ion-card-header>
         <ion-card-content>
           <div class="social-links">
-            <!-- Instagram -->
+
             <!-- Instagram -->
             <a
                 href="https://www.instagram.com/halalformosa/"
@@ -286,7 +286,20 @@
               <img src="/social-logo/line-logo.png" alt="LINE" class="social-icon" />
               <span>LINE</span>
             </a>
+
+            <!-- Official Website -->
+            <a
+                href="https://halalformosa.com"
+                target="_blank"
+                class="social-button website"
+            >
+              <ion-icon :icon="globeOutline" class="social-icon"></ion-icon>
+              <span>Website</span>
+            </a>
+
+
           </div>
+
         </ion-card-content>
       </ion-card>
 
@@ -344,7 +357,7 @@ import {
 // ✅ Icons
 import {
   createOutline,
-  documentTextOutline,
+  documentTextOutline, globeOutline,
   listOutline,
   logoInstagram,
   peopleOutline,
@@ -749,5 +762,17 @@ const goToEditProfile = () => router.push({ name: "EditProfile" });
 .social-button.line {
   background-color: #06c755;
 }
+
+.social-button.website {
+  background-color: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff33; /* subtle outline */
+  backdrop-filter: blur(3px);
+}
+.social-button.website:hover {
+  transform: translateY(-2px);
+  border-color: #ffffff66;
+}
+
 
 </style>

@@ -9,17 +9,44 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <!-- ============================
+     DATE RANGE SELECTOR
+=============================== -->
+      <ion-card>
+        <ion-card-content>
+          <!-- segmented control -->
+          <ion-list>
+            <ion-item>
+              <ion-label>Range</ion-label>
+              <ion-select
+                  v-model="selectedRange"
+                  interface="popover"
+                  placeholder="Select Range"
+                  @ionChange="onRangeChange($event)"
+
+              >
+
+              <ion-select-option value="daily">Daily</ion-select-option>
+                <ion-select-option value="weekly">Weekly</ion-select-option>
+                <ion-select-option value="monthly">Monthly</ion-select-option>
+              </ion-select>
+            </ion-item>
+          </ion-list>
+        </ion-card-content>
+      </ion-card>
+
 
       <!-- ============================
            TODAY STATS
       ============================ -->
       <ion-card>
         <ion-card-header>
-          <ion-card-title>Today’s Activity</ion-card-title>
+          <ion-card-title>{{ activityTitle }}</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <p>
-            <strong>DAU</strong>
+            <strong>{{ dauLabel }}</strong>
+
             <ion-icon
                 :icon="informationCircleOutline"
                 id="dau-info"
@@ -29,8 +56,7 @@
 
             <ion-popover trigger="dau-info" trigger-action="click">
               <ion-content class="ion-padding">
-                <b>DAU</b> = Daily Active Users<br>
-                Number of unique users who opened the app today.
+                <span v-html="dauTooltip"></span>
               </ion-content>
             </ion-popover>
             : {{ dau }}
@@ -64,16 +90,15 @@
           <!-- Feature list -->
           <ion-list class="ion-margin-top">
             <ion-item
-                v-for="f in (showAllFeatures ? topFeatures : topFeatures.slice(0, 5))"
-                :key="f.activity_type"
+                v-for="(f, i) in (showAllFeatures ? topFeatures : topFeatures.slice(0, 5))"
+                :key="f.activity_type + '-' + i"
             >
               <ion-label>{{ f.activity_type }}</ion-label>
               <ion-badge slot="end" color="primary">{{ f.count }}</ion-badge>
             </ion-item>
           </ion-list>
 
-          <!-- Toggle -->
-          <div style="text-align:center; margin-top: 10px;">
+          <div style="text-align:center; margin-top: 10px;" v-if="topFeatures.length > 5">
             <ion-button
                 fill="clear"
                 color="carrot"
@@ -83,6 +108,9 @@
               {{ showAllFeatures ? "Show Less" : "View More" }}
             </ion-button>
           </div>
+
+
+
 
         </ion-card-content>
       </ion-card>
@@ -106,11 +134,27 @@
           </div>
 
           <ion-list class="ion-margin-top">
-            <ion-item v-for="p in topProducts" :key="p.barcode">
+            <ion-item
+                v-for="(p, i) in (showAllProducts ? topProducts : topProducts.slice(0, 5))"
+                :key="p.barcode + '-' + i"
+            >
               <ion-label>{{ p.product_name }}</ion-label>
               <ion-badge slot="end" color="success">{{ p.count }}</ion-badge>
             </ion-item>
           </ion-list>
+
+          <div style="text-align:center; margin-top: 10px;" v-if="topProducts.length > 5">
+            <ion-button
+                fill="clear"
+                color="carrot"
+                size="small"
+                @click="showAllProducts = !showAllProducts"
+            >
+              {{ showAllProducts ? "Show Less" : "View More" }}
+            </ion-button>
+          </div>
+
+
 
         </ion-card-content>
       </ion-card>
@@ -128,7 +172,7 @@
 
           <div class="chart-container">
             <Bar
-                v-if="locationChartData && locationChartData.labels && locationChartData.labels.length"
+                v-if="locationChartData && locationChartData.labels.length > 0"
                 :data="locationChartData"
                 :options="chartOptions"
             />
@@ -136,11 +180,27 @@
 
 
           <ion-list class="ion-margin-top">
-            <ion-item v-for="l in topLocations" :key="l.place_id">
+            <ion-item
+                v-for="(l, i) in (showAllLocations ? topLocations : topLocations.slice(0, 5))"
+                :key="l.place_id + '-' + i"
+            >
               <ion-label>{{ l.place_name }}</ion-label>
               <ion-badge slot="end" color="tertiary">{{ l.count }}</ion-badge>
             </ion-item>
           </ion-list>
+
+          <div style="text-align:center; margin-top: 10px;" v-if="topLocations.length > 5">
+            <ion-button
+                fill="clear"
+                color="carrot"
+                size="small"
+                @click="showAllLocations = !showAllLocations"
+            >
+              {{ showAllLocations ? "Show Less" : "View More" }}
+            </ion-button>
+          </div>
+
+
 
         </ion-card-content>
       </ion-card>
@@ -151,19 +211,60 @@
       ============================ -->
       <ion-card>
         <ion-card-header>
-          <ion-card-title>⏳ Activity by Hour (Today)</ion-card-title>
+          <ion-card-title>⏳ Activity by Hour ({{ activityRangeLabel }})</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           <div class="chart-container">
-            <Line
-                v-if="hourlyChartData && hourlyChartData.labels && hourlyChartData.labels.length"
+            <Bar
+                v-if="hourlyChartData"
                 :data="hourlyChartData"
-                :options="lineChartOptions"
+                :options="hourlyChartOptions"
             />
+
           </div>
 
         </ion-card-content>
       </ion-card>
+
+      <!-- ============================
+     TOP USER PATHS
+=============================== -->
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>🧭 Top User Paths</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <ion-list>
+            <ion-item
+                v-for="(p, i) in (showAllPaths ? topUserPaths : topUserPaths.slice(0,5))"
+                :key="p.path + '-' + i"
+            >
+              <ion-label>
+                <strong>{{ p.path }}</strong>
+                <br />
+                <small>{{ p.steps }} steps</small>
+              </ion-label>
+
+              <ion-badge slot="end" color="warning">
+                {{ p.users }} users
+              </ion-badge>
+            </ion-item>
+          </ion-list>
+
+          <div style="text-align:center; margin-top:10px;" v-if="topUserPaths.length > 5">
+            <ion-button
+                fill="clear"
+                color="carrot"
+                size="small"
+                @click="showAllPaths = !showAllPaths"
+            >
+              {{ showAllPaths ? "Show Less" : "View More" }}
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
 
 
       <!-- ============================
@@ -175,10 +276,26 @@
         </ion-card-header>
         <ion-card-content>
           <ion-list>
-            <ion-item v-for="s in recentSearches" :key="s.id">
+            <ion-item
+                v-for="(s) in (showAllSearches ? recentSearches : recentSearches.slice(0, 5))"
+                :key="s.id"
+            >
               <ion-label>{{ s.activity_detail?.query || '-' }}</ion-label>
             </ion-item>
           </ion-list>
+
+          <div style="text-align:center; margin-top: 10px;" v-if="recentSearches.length > 5">
+            <ion-button
+                fill="clear"
+                color="carrot"
+                size="small"
+                @click="showAllSearches = !showAllSearches"
+            >
+              {{ showAllSearches ? "Show Less" : "View More" }}
+            </ion-button>
+          </div>
+
+
         </ion-card-content>
       </ion-card>
 
@@ -195,10 +312,10 @@
 import {
   IonPage, IonHeader, IonContent,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonList, IonItem, IonLabel, IonBadge, IonButton, IonIcon
+  IonList, IonItem, IonLabel, IonBadge, IonButton, IonIcon, IonPopover, IonSelect, IonSelectOption
 } from "@ionic/vue";
 
-import { ref, onMounted } from "vue";
+import {ref, onMounted, computed} from "vue";
 import { supabase } from "@/plugins/supabaseClient";
 import { isAdmin } from "@/composables/userProfile";
 import { useRouter } from "vue-router";
@@ -206,7 +323,7 @@ import {informationCircleOutline, listOutline} from "ionicons/icons";
 import AppHeader from "@/components/AppHeader.vue";
 
 /* Chart.js */
-import { Bar, Line } from "vue-chartjs";
+import { Bar } from "vue-chartjs";
 
 import {
   Chart as ChartJS,
@@ -224,7 +341,7 @@ ChartJS.register(
     Title,
     Tooltip,
     Legend,
-    BarElement,        // ⬅️ REQUIRED FOR BAR CHARTS
+    BarElement,
     LineElement,
     PointElement,
     CategoryScale,
@@ -258,15 +375,67 @@ const topLocations = ref<any[]>([]);
 const recentSearches = ref<any[]>([]);
 
 const showAllFeatures = ref(false);
+const showAllProducts = ref(false);
+const showAllLocations = ref(false);
+const showAllSearches = ref(false);
+const showAllPaths = ref(false);
+
+const topUserPaths = ref<any[]>([]);
 
 /* Chart Data */
-const featureChartData = ref<ChartData>({
-  labels: [],
-  datasets: []
-})
+const featureChartData = computed<ChartData>(() => {
+  const items = showAllFeatures.value
+      ? topFeatures.value
+      : topFeatures.value.slice(0, 5);
 
-const productChartData = ref<any>(null);
-const locationChartData = ref<any>(null);
+  return {
+    labels: items.map(f => f.activity_type),
+    datasets: [
+      {
+        label: "Usage",
+        data: items.map(f => f.count),
+        backgroundColor: "rgba(255,159,64,0.8)"
+      }
+    ]
+  };
+});
+
+const productChartData = computed(() => {
+  const items = showAllProducts.value
+      ? topProducts.value
+      : topProducts.value.slice(0, 5);
+
+  return {
+    labels: items.map(p => shortName(p.product_name)),
+    datasets: [
+      {
+        label: "Views",
+        data: items.map(p => p.count),
+        backgroundColor: "#2ecc71"
+      }
+    ]
+  };
+});
+
+
+const locationChartData = computed(() => {
+  const items = showAllLocations.value
+      ? topLocations.value
+      : topLocations.value.slice(0, 5);
+
+  return {
+    labels: items.map(l => l.name || l.place_name || "(Unknown)"),
+    datasets: [
+      {
+        label: "Views",
+        data: items.map(l => Number(l.count)),
+        backgroundColor: "#3498db"
+      }
+    ]
+  };
+});
+
+
 const hourlyChartData = ref<any>(null);
 
 /* Chart options */
@@ -286,132 +455,238 @@ const chartOptions = {
   }
 };
 
-const lineChartOptions = {
+const hourlyChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: "#ccc" } },
+    legend: { labels: { color: "#ccc" } }
   },
   scales: {
     x: { ticks: { color: "#ccc" } },
-    y: { ticks: { color: "#ccc" } },
+    y: { ticks: { color: "#ccc" } }
   }
 };
 
+const activityTitle = computed(() => {
+  if (selectedRange.value === "daily") return "Today's Activity";
+  if (selectedRange.value === "weekly") return "This Week's Activity";
+  if (selectedRange.value === "monthly") return "This Month's Activity";
+  return "Activity";
+});
+
+const activityRangeLabel = computed(() => {
+  if (selectedRange.value === "daily") return "Today";
+  if (selectedRange.value === "weekly") return "This Week";
+  if (selectedRange.value === "monthly") return "This Month";
+  return "";
+});
+
+const dauLabel = computed(() => {
+  if (selectedRange.value === "daily") return "DAU";
+  if (selectedRange.value === "weekly") return "WAU";
+  if (selectedRange.value === "monthly") return "MAU";
+  return "DAU";
+});
+
+const dauTooltip = computed(() => {
+  if (selectedRange.value === "daily")
+    return "<b>DAU</b> = Daily Active Users<br>Unique users who opened the app today.";
+
+  if (selectedRange.value === "weekly")
+    return "<b>WAU</b> = Weekly Active Users<br>Unique users who opened the app this week.";
+
+  if (selectedRange.value === "monthly")
+    return "<b>MAU</b> = Monthly Active Users<br>Unique users who opened the app this month.";
+
+  return "";
+});
+
+
+
+const selectedRange = ref<"daily" | "weekly" | "monthly">("daily");
 
 /* -----------------------------------
    Fetch Analytics Data
 ----------------------------------- */
 async function fetchAnalytics() {
-  const today = new Date().toISOString().slice(0, 10);
+  const range = resolveDateRange();
+  if (!range) return;
 
-  /* 1. DAU + Total Events */
-  const { data: eventsToday } = await supabase
-      .from("activity_log")
-      .select("user_id, activity_detail")
-      .gte("created_at", `${today} 00:00:00`);
+  const { start, end } = range;
 
-  if (eventsToday) {
-    dau.value = new Set(eventsToday.map(e => e.user_id)).size;
-    totalEvents.value = eventsToday.length;
+  /* -----------------------------------
+     ONE RPC: Full Analytics Bundle
+  ----------------------------------- */
+  const { data: analytics, error } = await supabase.rpc(
+      "analytics_full_range",
+      { start_ts: start, end_ts: end }
+  );
+
+  if (error) {
+    console.error("Analytics RPC Error:", error);
+    return;
   }
 
-  /* 2. Top Features (RPC) */
-  const { data: features } = await supabase.rpc("analytics_top_features_today");
-  topFeatures.value = features || [];
+  /* SUMMARY */
+  dau.value = analytics.summary.unique_users;
+  totalEvents.value = analytics.summary.total_events;
 
-  /* Build feature chart */
-  featureChartData.value = {
-    labels: topFeatures.value.map(f => f.activity_type),
+  /* TOP FEATURES / PRODUCTS / LOCATIONS */
+  topFeatures.value = analytics.top_features || [];
+  topProducts.value = analytics.top_products || [];
+  topLocations.value = analytics.top_locations || [];
+
+  /* HOURLY ACTIVITY */
+  const hours = Array(24).fill(0);
+  const hourlyData = analytics.summary.hourly || {};
+
+  Object.entries(hourlyData).forEach(([h, count]) => {
+    hours[Number(h)] = Number(count);
+  });
+
+  const trendData = loess(hours, 0.22);
+
+  /* BUILD HOURLY CHART */
+  hourlyChartData.value = {
+    labels: [...Array(24).keys()].map(h => `${h}:00`),
     datasets: [
       {
-        label: "Feature Usage",
-        data: topFeatures.value.map(f => f.count),
-        backgroundColor: "rgba(255, 159, 64, 0.8)"
+        type: "bar",
+        label: "Events (Bar)",
+        data: hours,
+        backgroundColor: "rgba(255,159,64,0.6)",
+        borderRadius: 4,
+        order: 0
+      },
+      {
+        type: "line",
+        label: "Trend",
+        data: trendData,
+        borderColor: "#bb86fc",
+        backgroundColor: "rgba(187,134,252,0.15)",
+        fill: false,
+        tension: 0.6,
+        cubicInterpolationMode: "monotone",
+        pointRadius: 0,
+        borderWidth: 3,
+        order: 1
       }
     ]
   };
 
-
-  /* 3. Top Products */
-  const { data: products } = await supabase.rpc("analytics_top_products_today");
-  topProducts.value = products || [];
-
-  productChartData.value = {
-    labels: topProducts.value.map(p => shortName(p.product_name)),
-    datasets: [{
-      label: "Views",
-      data: topProducts.value.map(p => p.count),
-      backgroundColor: "#2ecc71"
-    }]
-  };
-
-
-
-  /* 4. Top Locations */
-  const { data: locations } = await supabase.rpc("analytics_top_locations_today");
-  topLocations.value = locations || [];
-
-  locationChartData.value = {
-    labels: topLocations.value.map(l => l.place_name),
-    datasets: [{
-      label: "Views",
-      data: topLocations.value.map(l => l.count),
-      backgroundColor: "#3498db"
-    }]
-  };
-
-
-  /* 5. Hourly Activity */
-  const { data: hourly } = await supabase
-      .from("activity_log")
-      .select("created_at")
-      .gte("created_at", `${today} 00:00:00`);
-
-  const hours = Array(24).fill(0);
-  hourly?.forEach(e => {
-    const h = new Date(e.created_at).getHours();
-    hours[h] += 1;
-  });
-
-  hourlyChartData.value = {
-    labels: [...Array(24).keys()].map(h => `${h}:00`),
-    datasets: [{
-      label: "Events",
-      data: hours,
-      borderColor: "#bb86fc",
-      backgroundColor: "rgba(187, 134, 252, 0.2)",
-      borderWidth: 2,
-      tension: 0.3,       // smooth curve
-      pointRadius: 4,
-      pointBackgroundColor: "#bb86fc"
-    }]
-  };
-
-
-
-  /* 6. Recent Searches (parse JSON) */
+  /* 6. Recent Searches */
   const { data: searchesRaw } = await supabase
       .from("activity_log")
       .select("id, activity_detail")
       .eq("activity_type", "search_query")
+      .gte("created_at", start)
+      .lte("created_at", end)
       .order("created_at", { ascending: false })
       .limit(10);
 
   recentSearches.value = (searchesRaw || []).map(s => ({
     ...s,
-    activity_detail:
-        typeof s.activity_detail === "string"
-            ? JSON.parse(s.activity_detail)
-            : s.activity_detail
+    activity_detail: typeof s.activity_detail === "string"
+        ? JSON.parse(s.activity_detail)
+        : s.activity_detail
   }));
+
+  /* 7. User Paths (Option A) */
+  const { data: pathsRaw } = await supabase.rpc(
+      "analytics_user_behavior_clusters",
+      { start_ts: start, end_ts: end }
+  );
+
+  topUserPaths.value = (pathsRaw || [])
+      .slice(0, 10);  // top 10 paths
+
+
+  showAllFeatures.value = false;
+  showAllProducts.value = false;
+  showAllLocations.value = false;
+  showAllSearches.value = false;
+
 }
 
 
-function shortName(name: string, max = 20) {
+function onRangeChange(ev: any) {
+  selectedRange.value = ev.detail.value;   // <-- CRITICAL
+  fetchAnalytics();                         // now fetches with correct dates
+}
+
+
+function shortName(name: string | null, max = 20) {
+  if (!name) return "(Unnamed)";
   return name.length > max ? name.slice(0, max) + "…" : name;
 }
 
+function groupEvent(event: string) {
+  if (event.startsWith("home_")) return "Home";
+  if (event.startsWith("product_")) return "Product";
+  if (event.startsWith("explore_")) return "Explore";
+  if (event.startsWith("search_")) return "Search";
+  return event;
+}
+
+
+function loess(data: number[], bandwidth = 0.25): number[] {
+  const res: number[] = [];
+  const n = data.length;
+
+  for (let i = 0; i < n; i++) {
+
+    // Distance-based weights
+    const weights: number[] = [];
+    for (let j = 0; j < n; j++) {
+      const dist = Math.abs(j - i);
+      const w = Math.exp(-(dist * dist) / (2 * bandwidth * bandwidth * n * n));
+      weights.push(w);
+    }
+
+    // Weighted average
+    let numerator = 0;
+    let denominator = 0;
+    for (let j = 0; j < n; j++) {
+      numerator += weights[j] * data[j];
+      denominator += weights[j];
+    }
+
+    res.push(denominator ? numerator / denominator : 0);
+  }
+
+  return res;
+}
+
+
+function resolveDateRange() {
+  const now = new Date();
+  const end = now.toISOString();
+
+  const start = new Date();
+
+  if (selectedRange.value === "daily") {
+    // Start of today, correct local time
+    start.setHours(0, 0, 0, 0);
+  }
+
+  else if (selectedRange.value === "weekly") {
+    const day = start.getDay();            // 0=Sun
+    const diff = day === 0 ? 6 : day - 1;  // Monday as start
+    start.setDate(start.getDate() - diff);
+    start.setHours(0, 0, 0, 0);
+  }
+
+  else if (selectedRange.value === "monthly") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  }
+
+  // ❌ DO NOT subtract timezone offset again
+  return {
+    start: start.toISOString(),
+    end
+  };
+}
 
 /* -----------------------------------
    Auth check
@@ -428,8 +703,9 @@ onMounted(() => {
 <style scoped>
 .chart-container {
   width: 100%;
-  height: 350px !important;
+  height: 500px !important;
   position: relative;
 }
+
 </style>
 
