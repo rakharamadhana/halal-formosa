@@ -275,7 +275,7 @@ import {
   IonPage, IonHeader, IonContent, IonSearchbar, IonText, IonModal, IonToolbar, IonButton, IonIcon, IonFooter, IonChip,
   IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher, IonRefresherContent,
   IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
-  onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton
+  onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton, onIonViewWillEnter
 } from '@ionic/vue'
 import {ref, onMounted, nextTick, watch} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -295,9 +295,11 @@ import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import AppHeader from '@/components/AppHeader.vue'
-import { isDonor } from '@/composables/userProfile'
+
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
 import {ActivityLogService} from "@/services/ActivityLogService";
+import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+
 
 /* ---------------- Day.js ---------------- */
 dayjs.extend(utc)
@@ -398,7 +400,9 @@ watch([activeStore, activeCategory, searchQuery], () => {
   fetchProducts(true)
 })
 
-
+watch(isDonor, (val) => {
+  console.log("👀 [Watcher] isDonor changed:", val);
+});
 
 const toggleCategory = (cat: { id: number; name: string }) => {
   activeCategory.value = activeCategory.value?.id === cat.id ? null : cat
@@ -662,14 +666,17 @@ onMounted(async () => {
     fetchProducts(true),
     fetchTotalCount(),
     fetchCategories(),
-    fetchStores()
+    fetchStores(),
   ])
+})
+
+onIonViewWillEnter(async () => {
+  refreshSubscriptionStatus();
 })
 
 
 onIonViewDidEnter(async () => {
   await ActivityLogService.log("search_page_open");
-
   // --- 🔥 Refresh view_count in one batch ---
   if (results.value.length > 0) {
     const barcodes = results.value.map(p => p.barcode);

@@ -306,6 +306,7 @@ import { barcodeOutline, scanOutline } from "ionicons/icons"
 import { useLeaderboard } from "@/composables/useLeaderboard";
 import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
 import {ActivityLogService} from "@/services/ActivityLogService";
+import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 
 const selectedUser = ref<any | null>(null)
 const popoverEvent = ref<Event | null>(null)
@@ -513,6 +514,7 @@ onIonViewWillEnter(async () => {
   fetchRecentProducts()
   fetchRecentLocations()
   fetchLeaderboard()   // ✅ new
+  refreshSubscriptionStatus();
 })
 
 /* ---------------- Navigation ---------------- */

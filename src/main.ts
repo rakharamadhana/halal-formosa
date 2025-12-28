@@ -30,22 +30,21 @@ import './theme/variables.css'
 import { defineCustomElements } from '@ionic/pwa-elements/loader'
 import { scheduleBannerUpdate } from '@/plugins/admob'
 import { initSafeArea } from "@/plugins/safeArea";
-import { initRevenueCat } from '@/plugins/revenuecat';
+import { initRevenueCat } from '@/plugins/RevenueCat';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 
 // ✅ unified user profile composable
 import {
-    setDonorStatus,
-    setDonorType,
     loadDonorFromCache,
     loadUserRoleFromCache,
     loadPublicLeaderboardFromCache,
     loadUserProfile,
-    currentUser
+    currentUser, resetUserProfileState
 } from "@/composables/userProfile"
 
 import { loadCountriesFromCache } from "@/composables/useCountries"
 import OneSignal from 'onesignal-cordova-plugin';
+import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 
 defineCustomElements(window)
 
@@ -75,10 +74,8 @@ const app = createApp(App).use(IonicVue).use(router).use(i18n)
 router.afterEach(() => scheduleBannerUpdate())
 
 // 1. Load from cache first → no flicker
-loadDonorFromCache()
-loadUserRoleFromCache()
-loadPublicLeaderboardFromCache()
 loadCountriesFromCache()
+
 
 /* Native: refresh on resume */
 if (Capacitor.isNativePlatform()) {
@@ -100,57 +97,62 @@ if (Capacitor.isNativePlatform()) {
 // ✅ Restore session once on boot
 supabase.auth.getSession().then(async ({ data }) => {
     const session = data.session;
+
     if (session?.user) {
         currentUser.value = session.user;
+
+        loadDonorFromCache(session.user.id);
+        loadUserRoleFromCache(session.user.id);
+        loadPublicLeaderboardFromCache(session.user.id);
+
         await loadUserProfile(session.user.id);
 
-        // Redirect logic...
-        if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
-            const rawRedirect = router.currentRoute.value.query.redirect;
-            router.push(typeof rawRedirect === 'string' && rawRedirect.trim() ? rawRedirect : '/profile');
-        }
+        await refreshSubscriptionStatus({ syncToServer: true });
     } else {
-        console.log('⚠️ No session, resetting defaults');
         currentUser.value = null;
-        setDonorStatus(false);
-        setDonorType('Free');
     }
 });
 
 
+
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+        try { await Purchases.logOut() } catch { /* empty */ }
+        resetUserProfileState()
+        currentUser.value = null
+        router.replace('/login')
+        return
+    }
+
     if (event === 'SIGNED_IN' && session?.user) {
+        // ✅ always set immediately
+        currentUser.value = session.user
 
-        // Only load profile if not already loaded
-        if (!currentUser.value) {
-            currentUser.value = session.user
-            loadUserProfile(session.user.id).catch(console.error)
-            await Purchases.logIn({ appUserID: session.user.id });
-        }
-
-        // Handle redirect after login/signup
+        // ✅ redirect IMMEDIATELY (don’t wait for RevenueCat/network)
         if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
             const rawRedirect = router.currentRoute.value.query.redirect
-            router.push(
+            router.replace(
                 typeof rawRedirect === 'string' && rawRedirect.trim()
                     ? rawRedirect
                     : '/profile'
             )
         }
 
+        // ✅ do the rest AFTER redirect (non-blocking)
+        loadDonorFromCache(session.user.id)
+        loadUserRoleFromCache(session.user.id)
+        loadPublicLeaderboardFromCache(session.user.id)
 
-    }
+        // RevenueCat: don’t block UI
+        Purchases.logIn({ appUserID: session.user.id }).catch(console.warn)
 
-    if (event === 'SIGNED_OUT') {
-        await Purchases.logOut();
-        console.log('👋 Signed out, resetting profile state')
-        currentUser.value = null
-        setDonorStatus(false)
-        setDonorType('Free')
-        router.push('/login')
+        // Profile + entitlement sync: don’t block UI
+        loadUserProfile(session.user.id).catch(console.error)
+        refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
     }
 })
+
 
 let lastHandledUrl: string | null = null;
 
@@ -248,17 +250,13 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
 
 
 async function bootstrap() {
-    // 1️⃣ Get current user (optional)
     const { data: { session } } = await supabase.auth.getSession();
 
-    // 2️⃣ Initialize RevenueCat ONLY on native
     if (Capacitor.isNativePlatform()) {
-        // await initRevenueCat(session?.user?.id);
-    } else {
-        console.log("⏭️ Skipping RevenueCat init (web platform)");
+        await initRevenueCat(session?.user?.id);
+        await refreshSubscriptionStatus({ syncToServer: true });
     }
 
-    // 3️⃣ Mount Vue app only once
     router.isReady().then(() => {
         app.mount('#app');
         scheduleBannerUpdate();

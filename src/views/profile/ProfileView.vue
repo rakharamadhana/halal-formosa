@@ -61,10 +61,26 @@
 
           <ion-text v-if="userDisplayName" class="profile-name">
             <h2>{{ userDisplayName }}</h2>
-            <ion-badge :color="donorBadge.color" style="margin-left: 6px;">
+
+            <!-- PRO MEMBER has priority -->
+            <ion-badge
+                v-if="isSubscribed"
+                color="warning"
+                style="margin-left: 6px;"
+            >
+              ⭐ Pro Member
+            </ion-badge>
+
+            <!-- Donor badge shown only if NOT subscribed -->
+            <ion-badge
+                v-else
+                :color="donorBadge.color"
+                style="margin-left: 6px;"
+            >
               {{ donorBadge.emoji }} {{ donorBadge.label }}
             </ion-badge>
           </ion-text>
+
 
 
           <ion-text v-if="userEmail" class="profile-email">
@@ -89,6 +105,54 @@
           </div>
         </ion-card>
       </div>
+
+
+      <!-- Halal Formosa Pro -->
+      <ion-card
+          v-if="userEmail && isNative"
+          class="profile-card ion-text-center"
+      >
+        <ion-card-header>
+          <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <!-- NOT SUBSCRIBED -->
+          <ion-button
+              v-if="!isSubscribed"
+              color="carrot"
+              expand="block"
+              @click="openProPaywall"
+          >
+            Upgrade to Pro ⭐
+          </ion-button>
+
+          <!-- SUBSCRIBED -->
+          <div v-else>
+            <p style="font-weight: 600; color: var(--ion-color-success);">
+              ✅ Pro is active
+            </p>
+
+            <p style="font-size: 14px;">
+              {{ renewalMessage }}
+            </p>
+
+            <p style="font-size: 14px; color: var(--ion-color-medium);">
+              ⏳ Access until <strong>{{ formattedExpirationDate }}</strong>
+            </p>
+
+            <ion-button
+                fill="outline"
+                size="small"
+                color="medium"
+                @click="openManageSubscription"
+            >
+              Manage Subscription
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
 
       <ion-card v-if="userEmail" class="profile-card">
         <ion-card-header>
@@ -142,8 +206,6 @@
         </ion-card-content>
       </ion-card>
 
-
-
       <!-- Review Submissions -->
       <ion-list v-if="isAdmin" class="profile-menu" style="border-radius: 10px">
         <ion-item button @click="goToReviewSubmissions">
@@ -193,33 +255,6 @@
           <ion-label>{{ $t('profile.credits') }}</ion-label>
         </ion-item>
       </ion-list>
-
-      <!-- Halal Formosa Pro -->
-<!--      <ion-card v-if="isNative" class="profile-card ion-text-center">-->
-<!--        <ion-card-header>-->
-<!--          <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>-->
-<!--        </ion-card-header>-->
-
-<!--        <ion-card-content>-->
-<!--          <template v-if="isSubscribed">-->
-<!--            <h3 style="color: var(&#45;&#45;ion-color-success); font-weight: 600;">-->
-<!--              You are a Pro Subscriber 🎉-->
-<!--            </h3>-->
-<!--          </template>-->
-
-<!--          <template v-else>-->
-<!--            <p>Unlock premium features & remove ads.</p>-->
-
-<!--            <ion-button expand="block" color="carrot" @click="subscribeProMonthly">-->
-<!--              {{ proMonthly?.priceString || "Monthly" }}-->
-<!--            </ion-button>-->
-
-<!--            <ion-button expand="block" color="secondary" @click="subscribeProYearly">-->
-<!--              {{ proYearly?.priceString || "Yearly" }}-->
-<!--            </ion-button>-->
-<!--          </template>-->
-<!--        </ion-card-content>-->
-<!--      </ion-card>-->
 
       <!-- Support -->
       <ion-card v-if="donationProduct" class="profile-card ion-text-center">
@@ -371,9 +406,17 @@ import {Subscription} from "@supabase/supabase-js";
 import {usePoints} from "@/composables/usePoints";
 import {xpForLevel} from "@/utils/xp"
 import {Capacitor} from "@capacitor/core";
+import {
+  loadUserProfile,
+  resetUserProfileState,
+  loadDonorFromCache
+} from "@/composables/userProfile";
 
 // Services
-import { Purchases } from "@revenuecat/purchases-capacitor";
+import {CustomerInfo, Purchases} from "@revenuecat/purchases-capacitor";
+import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
+import {refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import { toastController } from "@ionic/vue";
 
 interface RcProduct {
   identifier: string;
@@ -387,27 +430,42 @@ interface RcProduct {
 
 // @ts-expect-error – injected global
 const appVersion = __APP_VERSION__;
-// const isNative = Capacitor.isNativePlatform();
+const isNative = Capacitor.isNativePlatform();
 const userEmail = ref("");
 const userDisplayName = ref("");
 const userAvatar = ref("");
-const router = useRouter();
 const pendingCount = ref(0);
 const loading = ref(true);
 const user = ref<any | null>(null);
+const router = useRouter();
 
 const userDOB = ref<string | null>(null);
 const userNationality = ref<string | null>(null);
 const userGender = ref<string | null>(null);
 const userBio = ref<string | null>(null);
-
-// const proMonthly = ref<RcProduct | null>(null);
-// const proYearly = ref<RcProduct | null>(null);
 const donationProduct = ref<RcProduct | null>(null);
-// const isSubscribed = ref(false);
+const paywallOpening = ref(false);
 
 // ✅ Points composable
 const { currentPoints, fetchCurrentPoints } = usePoints();
+
+const customerInfo = ref<CustomerInfo | null>(null)
+
+const entitlement = computed(() =>
+    customerInfo.value?.entitlements?.active?.['Halal Formosa Pro'] ?? null
+)
+
+const isSubscribed = computed(() => Boolean(entitlement.value))
+
+const willRenew = computed(() => entitlement.value?.willRenew ?? false)
+
+const expirationDate = computed(() => {
+  return (
+      entitlement.value?.expirationDate ??
+      customerInfo.value?.latestExpirationDate ??
+      null
+  )
+})
 
 let authSubscription: Subscription | null = null;
 
@@ -434,10 +492,16 @@ const countriesList = ref<any[]>([]);
 const resolvedNationality = ref<string | null>(null);
 const resolvedFlag = ref<string | null>(null);
 
+const refreshCustomerInfo = async () => {
+  const result = await Purchases.getCustomerInfo()
+  customerInfo.value = result.customerInfo
+}
+
 async function fetchCountries() {
   const response = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags");
   countriesList.value = await response.json();
 }
+
 
 async function fetchPendingCount() {
   if (!isAdmin.value) {
@@ -454,6 +518,32 @@ async function fetchPendingCount() {
     pendingCount.value = count;
   }
 }
+
+const renewalMessage = computed(() => {
+  if (!entitlement.value) return ''
+
+  return willRenew.value
+      ? '🔁 Subscription will renew automatically'
+      : '⚠️ Subscription will NOT renew'
+})
+
+const formattedExpirationDate = computed(() => {
+  if (!expirationDate.value) return '—'
+
+  return new Date(expirationDate.value).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+})
+
+const openManageSubscription = () => {
+  const url = customerInfo.value?.managementURL
+  if (url) {
+    window.open(url, '_blank')
+  }
+}
+
 
 async function fetchUserProfile(userId: string) {
   const { data, error } = await supabase
@@ -485,67 +575,40 @@ async function fetchUserProfile(userId: string) {
   }
 }
 
-// async function subscribeProMonthly() {
-//   const offerings = await Purchases.getOfferings();
-//   if (!offerings.current) return;
-//
-//   const pkg = offerings.current.availablePackages.find(
-//       (p) => p.identifier === "$rc_monthly"
-//   );
-//   if (!pkg) return;
-//
-//   try {
-//     const result = await Purchases.purchasePackage({ aPackage: pkg });
-//     const customerInfo = result.customerInfo;
-//
-//     const active =
-//         customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-//
-//     if (active) {
-//       isSubscribed.value = true;
-//       alert("You are now a Pro subscriber! 🎉");
-//     }
-//   } catch (err) {
-//     console.error("Purchase failed:", err);
-//   }
-// }
-//
-//
-// async function subscribeProYearly() {
-//   const offerings = await Purchases.getOfferings();
-//   if (!offerings.current) return;
-//
-//   const pkg = offerings.current.availablePackages.find(
-//       (p) => p.identifier === "$rc_annual"
-//   );
-//   if (!pkg) return;
-//
-//   try {
-//     const result = await Purchases.purchasePackage({ aPackage: pkg });
-//     const customerInfo = result.customerInfo;
-//
-//     const active =
-//         customerInfo.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-//
-//     if (active) {
-//       isSubscribed.value = true;
-//       alert("You subscribed yearly! 🎉");
-//     }
-//   } catch (err) {
-//     console.error(err);
-//   }
-// }
-
-
-
 // ✅ Always refresh when ProfileView becomes active
 onIonViewWillEnter(async () => {
   const { data } = await supabase.auth.getUser();
   if (data?.user) {
     await fetchCurrentPoints(data.user.id);
     await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
+    await refreshCustomerInfo()
   }
 });
+
+async function logRevenueCatStatus() {
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    console.log("[RC] Fetching customer info...");
+    const { customerInfo } = await Purchases.getCustomerInfo();
+
+    console.log(
+        "🧾 [RC] customerInfo =",
+        JSON.stringify(customerInfo, null, 2)
+    );
+
+    const entitlement = customerInfo.entitlements.active["Halal Formosa Pro"];
+
+    if (entitlement) {
+      console.log("[RC] Entitlement ACTIVE:", entitlement);
+    } else {
+      console.log("[RC] Entitlement NOT active");
+    }
+  } catch (err) {
+    console.error("[RC] Error fetching customer info:", err);
+  }
+}
+
 
 onMounted(async () => {
   await fetchCountries();
@@ -571,39 +634,46 @@ onMounted(async () => {
 
   const {
     data: { subscription: authSub },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const u = session.user;
-      userEmail.value = u.email || "";
-      userDisplayName.value =
-          u.user_metadata?.full_name || u.user_metadata?.display_name || "";
-      userAvatar.value = u.user_metadata?.avatar_url || "";
+  } = supabase.auth.onAuthStateChange(async (_event, session) => {
 
-      // ✅ refresh points on login change
-      fetchCurrentPoints(u.id);
-    } else {
+    // 🔴 USER LOGGED OUT
+    if (!session?.user) {
+      resetUserProfileState();
+
       userEmail.value = "";
       userDisplayName.value = "";
       userAvatar.value = "";
       currentPoints.value = null;
+
+      return;
     }
 
-    if (isAdmin.value) fetchPendingCount();
+    // 🟢 USER LOGGED IN / CHANGED
+    const u = session.user;
+
+    userEmail.value = u.email || "";
+    userDisplayName.value =
+        u.user_metadata?.full_name ||
+        u.user_metadata?.display_name ||
+        "";
+    userAvatar.value = u.user_metadata?.avatar_url || "";
+
+    // 🔑 THIS IS WHAT YOU WERE MISSING
+    loadDonorFromCache(u.id);     // instant UI update
+    await loadUserProfile(u.id);  // authoritative DB state
+
+    await fetchCurrentPoints(u.id);
+
+    if (isAdmin.value) {
+      await fetchPendingCount();
+    }
   });
+
 
   authSubscription = authSub;
 
-  // if (isNative) {
-  //   // 🔍 Load RevenueCat user status
-  //   const info = await Purchases.getCustomerInfo();
-  //
-  //   isSubscribed.value =
-  //       info.entitlements.active["Halal Formosa Pro"]?.isActive === true;
-  //
-  //   console.log("RC Subscription Status:", isSubscribed.value);
-  // }
-
-
+  // 👉 RevenueCat Logging (native only)
+  await logRevenueCatStatus();
 });
 
 async function donate() {
@@ -622,6 +692,111 @@ async function donate() {
     alert("Thank you for supporting Halal Formosa ❤️");
   } catch (err) {
     console.error("Donation failed:", err);
+  }
+}
+
+async function presentPaywall(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[RC] Paywall can only run on native (Android/iOS).");
+    return false;
+  }
+
+  try {
+    console.log("[RC] Presenting Paywall...");
+
+    const { result } = await RevenueCatUI.presentPaywall();
+
+    console.log("[RC] Paywall Result:", result);
+
+    switch (result) {
+      case PAYWALL_RESULT.PURCHASED:
+        console.log("[RC] 🎉 User purchased subscription!");
+        return true;
+
+      case PAYWALL_RESULT.RESTORED:
+        console.log("[RC] 🔄 Subscription restored!");
+        return true;
+
+      case PAYWALL_RESULT.CANCELLED:
+        console.log("[RC] User cancelled paywall.");
+        return false;
+
+      case PAYWALL_RESULT.ERROR:
+        console.log("[RC] Paywall error.");
+        return false;
+
+      case PAYWALL_RESULT.NOT_PRESENTED:
+      default:
+        console.log("[RC] Paywall not presented.");
+        return false;
+    }
+
+  } catch (e) {
+    console.error("[RC] Paywall failed:", e);
+    return false;
+  }
+}
+
+async function ensureRevenueCatLoggedIn() {
+  if (!Capacitor.isNativePlatform()) return
+
+  const { data } = await supabase.auth.getUser()
+  if (!data?.user) return
+
+  await Purchases.logIn({
+    appUserID: data.user.id
+  })
+
+  console.log("🔐 RevenueCat logged in as:", data.user.id)
+}
+
+
+
+async function openProPaywall() {
+  // ⛔ Web / PWA guard
+  if (!Capacitor.isNativePlatform()) {
+    const toast = await toastController.create({
+      message: "Subscriptions are available on mobile apps only.",
+      duration: 2000,
+      color: "medium",
+      position: "bottom",
+    });
+    await toast.present();
+    return;
+  }
+
+  if (paywallOpening.value) return;
+  paywallOpening.value = true;
+
+  try {
+    // 🔐 Safe to continue (native only)
+    await ensureRevenueCatLoggedIn();
+
+    const purchased = await presentPaywall();
+    if (!purchased) return; // ✅ safe now
+
+    // 🔄 Refresh subscription state
+    await refreshCustomerInfo();
+    await refreshSubscriptionStatus({ syncToServer: true });
+
+    // 🔓 Yield back to Ionic
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // 🔁 Soft app "restart"
+    await router.replace('/profile'); // 👈 see note below
+
+    // ✅ Success feedback
+    const toast = await toastController.create({
+      message: "🎉 You are now a Halal Formosa Pro subscriber!",
+      duration: 2500,
+      color: "success",
+      position: "bottom",
+    });
+    await toast.present();
+
+  } finally {
+    // 🔓 ALWAYS release the lock
+    paywallOpening.value = false;
   }
 }
 
@@ -657,6 +832,10 @@ const goToEditProfile = () => router.push({ name: "EditProfile" });
 
 
 <style scoped>
+ion-toast {
+  transform: translateY(-55px);
+}
+
 .profile-card {
   margin: 1rem auto;
   padding: 1rem 1rem;

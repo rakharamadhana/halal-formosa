@@ -295,7 +295,7 @@ import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
 import {alertCircleOutline, bagOutline, barcodeOutline, createOutline} from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
-import { userRole, setUserRole } from '@/composables/userProfile'
+import { userRole } from '@/composables/userProfile'
 import { ActivityLogService } from "@/services/ActivityLogService";
 
 const showEditModal = ref(false)
@@ -589,67 +589,64 @@ function colorToChipClass(color: string): string {
 
 onMounted(async () => {
   loading.value = true
+
   try {
-    const [{ data: { user } }, prodRes, hlRes] = await Promise.all([
+    const [
+      { data: { user } },
+      prodRes,
+      hlRes
+    ] = await Promise.all([
       supabase.auth.getUser(),
-      supabase.from('products')
+      supabase
+          .from('products')
           .select(`
-        *,
-        product_categories ( id, name ),
-        product_stores (
-          store_id,
-          stores ( id, name, logo_url )
-        )
-      `)
+          *,
+          product_categories ( id, name ),
+          product_stores (
+            store_id,
+            stores ( id, name, logo_url )
+          )
+        `)
           .eq('barcode', barcode)
           .maybeSingle(),
-      supabase.from('ingredient_highlights')
+      supabase
+          .from('ingredient_highlights')
           .select('keyword, color')
     ])
 
-    // role check…
+    // ✅ current user (READ ONLY)
     if (user) {
       userId.value = user.id
-
-      const { data: roleRow } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-      setUserRole(roleRow?.role || 'user')
     }
 
-    // product
+    // ✅ product
     if (prodRes.error) {
       console.error('Product load error:', prodRes.error)
-    } else {
-      item.value = prodRes.data
-    }
-
-    if (prodRes.data) {
-      item.value = {
+    } else if (prodRes.data) {
+      const product: Product = {
         ...prodRes.data,
         stores: prodRes.data.product_stores?.map((ps: any) => ({
-          id: ps.stores.id as string,   // 👈 assert UUID string
+          id: ps.stores.id as string,
           name: ps.stores.name,
           logo_url: ps.stores.logo_url ?? undefined,
         })) || []
       }
 
-      if (item.value) {
-        await ActivityLogService.log("product_details_open", {
-          barcode: item.value.barcode,
-          product_name: item.value.name,
-          status: item.value.status,
-          category: item.value.product_categories?.name || null,
-        });
-      }
+      // ✅ assign once
+      item.value = product
+
+      // ✅ TS now knows this is non-null
+      await ActivityLogService.log("product_details_open", {
+        barcode: product.barcode,
+        product_name: product.name,
+        status: product.status,
+        category: product.product_categories?.name || null,
+      })
 
       await fetchRelatedProducts()
     }
 
-    // highlights…
+    // ✅ ingredient highlights
     if (hlRes.error) {
       console.error('Highlights load error:', hlRes.error)
     } else if (hlRes.data) {
@@ -657,12 +654,14 @@ onMounted(async () => {
           hlRes.data.map(h => [h.keyword, h.color])
       )
     }
+
   } finally {
     loading.value = false
     await nextTick()
     ;(window as any).scheduleBannerUpdate?.()
   }
 })
+
 
 function openRelated(p: RelatedProduct) {
   if (item.value) {

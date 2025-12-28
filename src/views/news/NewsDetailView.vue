@@ -66,8 +66,8 @@ import { useRoute } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
 import type { User } from '@supabase/supabase-js'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import {createOutline, newspaperOutline} from "ionicons/icons";
-import { isDonor } from '@/composables/userProfile'
+import {createOutline } from "ionicons/icons";
+import { isDonor } from "@/composables/useSubscriptionStatus";
 
 const user = ref<User | null>(null)
 

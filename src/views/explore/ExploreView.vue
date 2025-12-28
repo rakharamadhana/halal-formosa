@@ -212,9 +212,12 @@ import { Geolocation } from '@capacitor/geolocation'
 import { supabase } from '@/plugins/supabaseClient'
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
 import { Cluster, Renderer } from "@googlemaps/markerclusterer"
-import { isDonor } from '@/composables/userProfile'
+
 import useSharePlace from '@/composables/useSharePlace'
 import { ActivityLogService } from "@/services/ActivityLogService";
+
+import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
@@ -745,9 +748,10 @@ onMounted(async () => {
   centerOnUser();
 });
 
-
 onIonViewWillEnter(async () => {
   centerOnUser()
+  refreshSubscriptionStatus();
+
 })
 
 onIonViewDidEnter(async () => {

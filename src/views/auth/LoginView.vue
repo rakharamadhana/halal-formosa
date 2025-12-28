@@ -125,42 +125,21 @@ const route = useRoute();
 
 // email/password login
 async function login() {
-  loading.value = true;
-  errorMsg.value = '';
+  loading.value = true
+  errorMsg.value = ''
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email: email.value,
     password: password.value,
-  });
+  })
 
-  loading.value = false;
+  loading.value = false
 
   if (error) {
-    errorMsg.value = error.message;
-    return;
-  }
-
-  // ✅ If login success, check profile
-  if (data.user) {
-    const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('date_of_birth, nationality, gender, bio')
-        .eq('id', data.user.id)
-        .single();
-
-    if (!profileError) {
-      // check if profile is incomplete
-      if (!profile?.date_of_birth || !profile?.nationality || !profile?.gender) {
-        router.push({ name: 'EditProfile' }); // 👈 force edit profile
-      } else {
-        router.push('/profile'); // or your default route
-      }
-    } else {
-      // if no profile row exists, also force edit
-      router.push({ name: 'EditProfile' });
-    }
+    errorMsg.value = error.message
   }
 }
+
 
 
 async function loginWithGoogle() {

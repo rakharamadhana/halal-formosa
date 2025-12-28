@@ -470,7 +470,7 @@ import useHighlightCache from '@/composables/useHighlightCache'
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 import {BlacklistPattern} from "@/types/Ingredient";
 import useAISummary from '@/composables/useAISummary'
-import {isDonor} from "@/composables/userProfile";
+import { isDonor } from "@/composables/useSubscriptionStatus";
 import { useCropperOcr } from "@/composables/useCropperOcr"
 import { Device } from '@capacitor/device'
 import { supabase } from '@/plugins/supabaseClient'

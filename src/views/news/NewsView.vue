@@ -133,7 +133,7 @@ import timezone from 'dayjs/plugin/timezone'
 import AppHeader from "@/components/AppHeader.vue";
 
 // 🟢 import role state from userProfile composable
-import { isAdmin, isContributor, setUserRole, userRole } from '@/composables/userProfile'
+import { isAdmin, isContributor } from '@/composables/userProfile'
 
 // Extend dayjs
 dayjs.extend(utc)
@@ -147,25 +147,8 @@ function fromNowToTaipei(dateString?: string) {
 
 
 onMounted(async () => {
-  await ensureUserRole()   // check with DB if not cached
   await loadInitialNews()
 })
-
-async function ensureUserRole() {
-  if (userRole.value) return // already cached
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return
-
-  const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-
-  if (data?.role) {
-    setUserRole(data.role)
-  }
-}
 
 async function loadInitialNews() {
   loadingNews.value = true
