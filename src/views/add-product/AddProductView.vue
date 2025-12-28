@@ -1134,7 +1134,7 @@ async function handleSubmit() {
         .eq('user_id', user.id)
         .single()
 
-    setUserRole(profile?.role || 'user')
+    setUserRole(user.id, profile?.role || 'user')
 
     const {
       barcode
