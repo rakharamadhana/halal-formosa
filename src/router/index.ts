@@ -59,6 +59,17 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/admin/AnalyticsDashboardView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true }
     },
+    {
+        path: '/admin/master-data',
+        component: () => import('@/views/admin/AdminMasterData.vue'),
+        meta: { requiresAdmin: true }
+    },
+    {
+        path: '/admin/master-data/:table',
+        component: () => import('@/views/admin/AdminMasterDataEditor.vue'),
+        meta: { requiresAdmin: true }
+    }
+
 
 
 ];

@@ -5,9 +5,21 @@
       <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:65px;"></div>
     </ion-header>
 
-    <!-- Map section -->
-    <div style="position: relative; height: 100%; width: 100%;">
-      <!-- Map is always present, hidden when loading -->
+    <!-- FLOATING switch (Map / Both only) -->
+    <div v-if="viewMode !== 'list'" class="view-mode-switch floating">
+      <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'">🗺️ Map</button>
+      <button :class="{ active: viewMode === 'both' }" @click="viewMode = 'both'">🧱 Both</button>
+      <button @click="viewMode = 'list'">📋 List</button>
+    </div>
+
+
+
+    <div
+        v-show="viewMode !== 'list'"
+        style="position: relative; height: 100%; width: 100%;"
+    >
+
+    <!-- Map is always present, hidden when loading -->
       <div id="map" v-show="!loading" style="height: 100%; width: 100%;"></div>
 
       <!-- Skeleton overlay -->
@@ -22,16 +34,17 @@
           vertical="bottom"
           horizontal="end"
           slot="fixed"
-          :class="panelVisible ? 'fab-with-panel' : 'fab-collapsed'"
+          :class="fabClass"
       >
+
       <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
     </div>
 
-    <!-- TOGGLE should be OUTSIDE the panel wrapper -->
     <div
+        v-if="viewMode === 'both'"
         class="panel-toggle"
         :class="panelVisible ? 'toggle-open' : 'toggle-collapsed'"
         @click="panelVisible = !panelVisible"
@@ -39,54 +52,72 @@
       <ion-icon :icon="panelVisible ? chevronDownOutline : chevronUpOutline"></ion-icon>
     </div>
 
+
     <!-- FIXED WRAPPER -->
     <div
+        v-show="viewMode !== 'map'"
         class="bottom-panel-wrapper"
-        :class="{ collapsed: !panelVisible }"
+        :class="{
+    collapsed: viewMode === 'both' && !panelVisible,
+    'list-only': viewMode === 'list'
+  }"
     >
-      <ion-toolbar class="explore-toolbar">
-        <div style="display: flex; ">
-          <ion-searchbar
-              class="search-explore"
-              :debounce="1000"
-              @ionInput="onSearchInput"
-              style="flex-grow: 1; margin-right: 8px;"
-              :placeholder="$t('explore.placeholder')"
-          ></ion-searchbar>
 
-          <!-- Add Place button, only for contributors/admins -->
-          <ion-button
-              v-if="isContributor"
-              @click="goToAddPlace"
-              color="carrot"
-              size="small"
-              style="margin-right: 12px; margin-top: 12px;"
-          >
-            <ion-icon :icon="addOutline" />
-          </ion-button>
-        </div>
 
-        <!-- ✅ Category bar right under search input -->
+    <ion-toolbar class="explore-toolbar">
+      <!-- INLINE switch (List only) -->
+      <div v-if="viewMode === 'list'" class="view-mode-switch inline">
+        <button @click="viewMode = 'map'">🗺️ Map</button>
+        <button @click="viewMode = 'both'">🧱 Both</button>
+        <button class="active">📋 List</button>
+      </div>
+
+      <!-- Search row -->
+      <div style="display: flex; align-items: center;">
+        <ion-searchbar
+            class="search-explore"
+            :debounce="1000"
+            @ionInput="onSearchInput"
+            style="flex-grow: 1; margin-right: 8px;"
+            :placeholder="$t('explore.placeholder')"
+        ></ion-searchbar>
+
+        <ion-button
+            v-if="isContributor"
+            @click="goToAddPlace"
+            color="carrot"
+            size="small"
+            style="margin-right: 12px; margin-top: 12px;"
+        >
+          <ion-icon :icon="addOutline" />
+        </ion-button>
+      </div>
+
+
+      <!-- ✅ Category bar right under search input -->
         <div class="category-bar-wrapper">
           <!-- Real category bar -->
           <div v-show="!loadingCategories" class="category-bar">
             <ion-chip
                 v-for="cat in categories"
                 :key="cat.id"
-                :class="['category-chip', activeCategoryId === cat.id ? 'chip-carrot' : 'chip-medium']"
+                class="category-chip"
+                :style="{ '--cat-color': cat.color || 'var(--ion-color-medium)' } as Record<string,string>"
+                :class="{ active: activeCategoryId === cat.id }"
                 @click="toggleCategory(cat)"
             >
-              <!-- If icon is emoji -->
+
+            <!-- If icon is emoji -->
               <span
-                  v-if="typeof categoryIcons[cat.name] === 'string' && categoryIcons[cat.name].length === 2"
+                  v-if="typeof categoryIconMap[cat.name] === 'string' && categoryIconMap[cat.name].length === 2"
                   style="margin-right:4px;"
               >
-        {{ categoryIcons[cat.name] }}
+        {{ categoryIconMap[cat.name] }}
       </span>
               <!-- If icon is Ionicon -->
               <ion-icon
                   v-else
-                  :icon="categoryIcons[cat.name]"
+                  :icon="categoryIconMap[cat.name]"
                   style="margin-right:4px;"
               />
               <ion-label>{{ cat.name }}</ion-label>
@@ -201,7 +232,7 @@ import {
 import {
   navigateCircleOutline,
   addOutline,
-  restaurant, restaurantOutline, informationCircleOutline, chevronUpOutline, chevronDownOutline
+  restaurant, informationCircleOutline, chevronUpOutline, chevronDownOutline, restaurantOutline, leaf, home
 } from 'ionicons/icons'
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
@@ -218,10 +249,23 @@ import { ActivityLogService } from "@/services/ActivityLogService";
 
 import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 
+const ionIconMap: Record<string, any> = {
+  restaurant,
+  restaurantOutline,
+  leaf,
+  home
+}
 
 /* ---------------- Types ---------------- */
 type LatLng = { lat: number; lng: number }
-type LocationType = { id: number; name: string }
+type LocationType = {
+  id: number
+  name: string
+  color: string | null
+  emoji: string | null
+  icon: string | null
+}
+
 
 type Place = {
   id: number
@@ -250,6 +294,11 @@ type HTMLIonContentElement = HTMLElement & {
   getScrollElement: () => Promise<HTMLElement>
 }
 
+type ViewMode = 'map' | 'list' | 'both'
+
+const viewMode = ref<ViewMode>('both')
+
+
 /* ---------------- Constants ---------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
 const DEFAULT_CENTER: LatLng = { lat: 25.0343, lng: 121.5645 }
@@ -275,6 +324,13 @@ const loadingCategories = ref(true)
 const loadingPlaces = ref(true)
 const panelVisible = ref(false)
 
+const fabClass = computed(() => {
+  if (viewMode.value === 'map') return 'fab-map-only'
+  if (viewMode.value === 'list') return 'fab-list-only'
+  return panelVisible.value ? 'fab-with-panel' : 'fab-collapsed'
+})
+
+
 /* Google Maps runtime objects */
 let mapInstance: google.maps.Map | null = null
 let advancedMarkerLib: typeof google.maps.marker | null = null
@@ -288,20 +344,50 @@ let clusterer: MarkerClusterer | null = null
 
 const fetchLocationTypes = async () => {
   loadingCategories.value = true
-  const { data, error } = await supabase.from('location_types').select('id, name')
+
+  const { data, error } = await supabase
+      .from('location_types')
+      .select('id, name, color, emoji, icon')
+      .eq('is_active', true)
+
   if (!error && data) locationTypes.value = data
+
   loadingCategories.value = false
 }
 
-const categoryIcons: Record<string, any> = {
-  "Halal Restaurant": restaurant,
-  "Muslim-friendly Restaurant": "🥗",
-  "Halal Kitchen": restaurantOutline,
-  "Muslim-friendly Environment": "🌿",
-  "Mosque": "🕌",
-  "Prayer Room": "🙏",
-  "Butcher Shop": "🥩",
-}
+
+const categoryIconMap = computed<Record<string, any>>(() => {
+  const map: Record<string, any> = {}
+
+  for (const t of locationTypes.value) {
+    if (t.emoji) {
+      map[t.name] = t.emoji
+    } else if (t.icon) {
+      map[t.name] = ionIconMap[t.icon] ?? restaurant
+    }
+  }
+
+  return map
+})
+
+
+const markerStyles = computed<Record<string, {
+  color: string
+  emoji?: string
+}>>(() => {
+  const map: Record<string, any> = {}
+
+  for (const t of locationTypes.value) {
+    map[t.name] = {
+      color: t.color ?? 'var(--ion-color-carrot)',
+      emoji: t.emoji ?? undefined
+    }
+  }
+
+  return map
+})
+
+
 
 /* ---------------- Utilities ---------------- */
 
@@ -412,6 +498,31 @@ const buildInfoHtml = (p: Place) => `
     </div>
   </div>
 `
+
+const createPinElement = (place: Place) => {
+  const style =
+      markerStyles.value[place.type] ?? {
+        color: "var(--ion-color-carrot)"
+      }
+
+  const wrapper = document.createElement("div")
+  wrapper.className = "pin-wrapper"
+
+  wrapper.innerHTML = `
+    <div class="pin">
+      <div class="pin-head">
+        ${style.emoji ?? ""}
+      </div>
+      <div class="pin-body" style="background:${style.color}"></div>
+    </div>
+  `
+
+  return wrapper
+}
+
+
+
+
 
 const applyInfoWindowDarkClass = () => {
   const isDark = document.documentElement.classList.contains('ion-palette-dark')
@@ -541,8 +652,7 @@ const initMarkers = (places: Place[] = locations.value) => {
   const markerArray: google.maps.marker.AdvancedMarkerElement[] = []
 
   places.forEach((loc) => {
-    const iconHTML = document.createElement('div')
-    iconHTML.innerHTML = `<div class="custom-pin"></div><div class="custom-pin-dot"></div>`
+    const iconHTML = createPinElement(loc)
 
     const marker = new advancedMarkerLib!.AdvancedMarkerElement({
       position: loc.position,
@@ -851,14 +961,26 @@ button.gm-ui-hover-effect > span {
  * MAP PINS
  *********************************************/
 .custom-pin {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   background: var(--ion-color-carrot);
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   position: relative;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.pin-emoji {
+  transform: rotate(45deg); /* counter-rotate */
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+}
+
 
 .custom-pin-dot {
   width: 10px;
@@ -932,11 +1054,44 @@ button.gm-ui-hover-effect > span {
   width: 100%;
 }
 
+/* =========================
+   CATEGORY CHIP – DEFAULT
+========================= */
 .category-chip {
-  font-size: 13px;
-  flex-shrink: 0;
-  width: auto;
+
+  --cat-color:"";
+  --base: var(--cat-color);
+
+  --background: transparent;
+  --color: var(--base);
+
+  border: 1.5px solid var(--base);
+  border-radius: 999px;
+
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
+
+/* =========================
+   ACTIVE CHIP
+========================= */
+.category-chip.active {
+  --background: var(--base);
+  --color: #ffffff;
+
+  border-color: var(--base);
+}
+
+/* =========================
+   OPTIONAL: Hover (desktop)
+========================= */
+.category-chip:hover {
+  filter: brightness(1.1);
+}
+
+
+
+
 
 /*********************************************
  * LIST CARD TYPOGRAPHY
@@ -974,7 +1129,6 @@ button.gm-ui-hover-effect > span {
 
   display: flex;
   flex-direction: column;
-  transition: transform 0.35s ease;
 
   z-index: 11;
 }
@@ -1073,6 +1227,139 @@ button.gm-ui-hover-effect > span {
   z-index: 15;
   transition: bottom 0.50s ease;
 }
+
+/* Overall pin */
+.pin {
+  position: relative;
+  width: 34px;
+  height: 46px;
+}
+
+/* White circle head */
+.pin-head {
+  width: 25px;
+  height: 25px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 5px;
+  left: 4px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  z-index: 2;
+}
+
+/* Colored body */
+.pin-body {
+  width: 35px;
+  height: 35px;
+  position: absolute;
+  top: 1px;
+
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.bottom-panel-wrapper.list-only {
+  height: 100vh;
+  top: 0;
+  bottom: auto;
+  border-radius: 0;
+}
+
+
+.bottom-panel-wrapper.list-only .explore-toolbar {
+  margin-top: 0;
+  border-radius: 0;
+}
+
+
+/* =========================
+   VIEW MODE SWITCH (BASE)
+========================= */
+.view-mode-switch {
+  display: flex;
+  gap: 6px;
+}
+
+.view-mode-switch button {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 10px;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  background: transparent;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.view-mode-switch button.active {
+  background: var(--ion-color-carrot);
+  color: white;
+}
+
+.view-mode-switch button:hover {
+  filter: brightness(1.1);
+}
+
+/* =========================
+   VIEW MODE SWITCH (BASE)
+========================= */
+.view-mode-switch {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--ion-background-color);
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+
+  /* animation consistency */
+  transition:
+      transform 0.25s ease,
+      opacity 0.2s ease;
+}
+
+/* =========================
+   FLOATING (Map / Both)
+========================= */
+.view-mode-switch.floating {
+  position: absolute;
+  top: 1vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+/* =========================
+   INLINE (List)
+========================= */
+.view-mode-switch.inline {
+  position: relative;
+  margin: 6px 0 8px;
+  transform: translateX(45%);
+  background: transparent;
+  box-shadow: none;
+}
+
+.view-mode-switch {
+  will-change: transform, opacity;
+}
+
 
 </style>
 

@@ -237,6 +237,12 @@
           <ion-label>Analytics Dashboard</ion-label>
         </ion-item>
 
+        <ion-item button @click="goToMasterData">
+          <ion-icon :icon="constructOutline" />&nbsp;
+          <ion-label>Master Data</ion-label>
+        </ion-item>
+
+
 
       </ion-list>
 
@@ -391,6 +397,7 @@ import {
 
 // ✅ Icons
 import {
+  constructOutline,
   createOutline,
   documentTextOutline, globeOutline,
   listOutline,
@@ -825,7 +832,7 @@ const goToPointsLogs = () => router.push("/admin/points-logs");
 const goToAnalyticsDashboard = () => router.push("/admin/analytics");
 const goToScanLogs = () => router.push("/admin/scan-logs");
 const goToEditProfile = () => router.push({ name: "EditProfile" });
-
+const goToMasterData = () => router.push('/admin/master-data')
 
 </script>
 
