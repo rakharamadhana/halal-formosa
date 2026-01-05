@@ -5,15 +5,6 @@
       <div v-if="isNative && !isDonor" id="ad-space-explore" style="height:65px;"></div>
     </ion-header>
 
-    <!-- FLOATING switch (Map / Both only) -->
-    <div v-if="viewMode !== 'list'" class="view-mode-switch floating">
-      <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'">🗺️ Map</button>
-      <button :class="{ active: viewMode === 'both' }" @click="viewMode = 'both'">🧱 Both</button>
-      <button @click="viewMode = 'list'">📋 List</button>
-    </div>
-
-
-
     <div
         v-show="viewMode !== 'list'"
         style="position: relative; height: 100%; width: 100%;"
@@ -21,6 +12,8 @@
 
     <!-- Map is always present, hidden when loading -->
       <div id="map" v-show="!loading" style="height: 100%; width: 100%;"></div>
+
+
 
       <!-- Skeleton overlay -->
       <ion-skeleton-text
@@ -31,17 +24,64 @@
 
       <!-- FAB stays visible -->
       <ion-fab
+          v-show="viewMode !== 'list'"
           vertical="bottom"
           horizontal="end"
           slot="fixed"
-          :class="fabClass"
+          :class="['fab-right', fabPosition]"
       >
+
 
       <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
+
+
     </div>
+
+    <ion-fab
+        v-show="viewMode !== 'list'"
+        vertical="bottom"
+        horizontal="start"
+        slot="fixed"
+        class="view-mode-fab"
+        :class="fabPosition"
+    >
+
+    <!-- Main FAB -->
+      <ion-fab-button size="small" color="dark">
+        <ion-icon :icon="layersOutline" />
+      </ion-fab-button>
+
+      <!-- FAB List -->
+      <ion-fab-list side="top">
+        <ion-fab-button
+            size="small"
+            :color="viewMode === 'map' ? 'carrot' : 'medium'"
+            @click="viewMode = 'map'"
+        >
+          <ion-icon :icon="mapOutline" />
+        </ion-fab-button>
+
+        <ion-fab-button
+            size="small"
+            :color="viewMode === 'both' ? 'carrot' : 'medium'"
+            @click="viewMode = 'both'"
+        >
+          <ion-icon :icon="gridOutline" />
+        </ion-fab-button>
+
+        <ion-fab-button
+            size="small"
+            color="medium"
+            @click="viewMode = 'list'"
+        >
+          <ion-icon :icon="listOutline" />
+        </ion-fab-button>
+      </ion-fab-list>
+    </ion-fab>
+
 
     <div
         v-if="viewMode === 'both'"
@@ -65,8 +105,13 @@
 
 
     <ion-toolbar class="explore-toolbar">
+
       <!-- INLINE switch (List only) -->
-      <div v-if="viewMode === 'list'" class="view-mode-switch inline">
+      <div
+          v-if="viewMode === 'list'"
+          class="view-mode-switch inline"
+          :style="{ marginTop: topOffset }"
+      >
         <button @click="viewMode = 'map'">🗺️ Map</button>
         <button @click="viewMode = 'both'">🧱 Both</button>
         <button class="active">📋 List</button>
@@ -74,6 +119,8 @@
 
       <!-- Search row -->
       <div style="display: flex; align-items: center;">
+
+
         <ion-searchbar
             class="search-explore"
             :debounce="1000"
@@ -227,12 +274,13 @@
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
   IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonLabel, IonChip, IonHeader,
-  IonSkeletonText, onIonViewWillEnter
+  IonSkeletonText, onIonViewWillEnter, IonFabList
 } from '@ionic/vue'
 import {
   navigateCircleOutline,
   addOutline,
-  restaurant, informationCircleOutline, chevronUpOutline, chevronDownOutline, restaurantOutline, leaf, home
+  restaurant, informationCircleOutline, chevronUpOutline, chevronDownOutline, restaurantOutline, leaf, home,
+  layersOutline, listOutline, gridOutline, mapOutline
 } from 'ionicons/icons'
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
 import type { ComponentPublicInstance, VNodeRef } from 'vue'
@@ -294,6 +342,8 @@ type HTMLIonContentElement = HTMLElement & {
   getScrollElement: () => Promise<HTMLElement>
 }
 
+type FabPosition = 'map' | 'panel-open' | 'panel-collapsed'
+
 type ViewMode = 'map' | 'list' | 'both'
 
 const viewMode = ref<ViewMode>('both')
@@ -323,13 +373,6 @@ const loading = ref(true)
 const loadingCategories = ref(true)
 const loadingPlaces = ref(true)
 const panelVisible = ref(false)
-
-const fabClass = computed(() => {
-  if (viewMode.value === 'map') return 'fab-map-only'
-  if (viewMode.value === 'list') return 'fab-list-only'
-  return panelVisible.value ? 'fab-with-panel' : 'fab-collapsed'
-})
-
 
 /* Google Maps runtime objects */
 let mapInstance: google.maps.Map | null = null
@@ -370,6 +413,15 @@ const categoryIconMap = computed<Record<string, any>>(() => {
   return map
 })
 
+const topOffset = computed(() => {
+  let offset = 12; // base padding
+
+  if (isNative.value && !isDonor.value) {
+    offset += 120; // 👈 your AdMob height
+  }
+
+  return `${offset}px`;
+});
 
 const markerStyles = computed<Record<string, {
   color: string
@@ -387,7 +439,13 @@ const markerStyles = computed<Record<string, {
   return map
 })
 
-
+const fabPosition = computed<FabPosition>(() => {
+  if (viewMode.value === 'map') return 'map'
+  if (viewMode.value === 'both') {
+    return panelVisible.value ? 'panel-open' : 'panel-collapsed'
+  }
+  return 'map'
+})
 
 /* ---------------- Utilities ---------------- */
 
@@ -914,6 +972,10 @@ const goToDetail = async (id: number) => {
 
 
 <style>
+:root {
+  --explore-top-offset: 0px;
+}
+
 /*********************************************
  * MAP SECTION
  *********************************************/
@@ -1239,7 +1301,7 @@ button.gm-ui-hover-effect > span {
 .pin-head {
   width: 25px;
   height: 25px;
-  background: white;
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   position: absolute;
   top: 5px;
@@ -1350,8 +1412,10 @@ button.gm-ui-hover-effect > span {
 ========================= */
 .view-mode-switch.inline {
   position: relative;
-  margin: 6px 0 8px;
-  transform: translateX(45%);
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+
   background: transparent;
   box-shadow: none;
 }
@@ -1360,6 +1424,52 @@ button.gm-ui-hover-effect > span {
   will-change: transform, opacity;
 }
 
+.view-mode-fab {
+  bottom: 92px;                 /* above tab bar */
+  left: 12px;
+  z-index: 30;
+}
+
+/* shrink FAB list spacing */
+.view-mode-fab ion-fab-list {
+  margin-bottom: 6px;
+}
+
+/* shared base */
+.fab-right,
+.view-mode-fab {
+  position: fixed;
+  z-index: 30;
+  transition: bottom 0.35s cubic-bezier(.25,.8,.25,1);
+}
+
+/* left FAB horizontal offset */
+.view-mode-fab {
+  left: 12px;
+}
+
+/* right FAB offset */
+.fab-right {
+  right: 20px;
+}
+
+/* MAP ONLY */
+.fab-right.map,
+.view-mode-fab.map {
+  bottom: 5vh;   /* above tab bar */
+}
+
+/* BOTH — panel collapsed */
+.fab-right.panel-collapsed,
+.view-mode-fab.panel-collapsed {
+  bottom: 26vh;
+}
+
+/* BOTH — panel open */
+.fab-right.panel-open,
+.view-mode-fab.panel-open {
+  bottom: 62vh;
+}
 
 </style>
 
