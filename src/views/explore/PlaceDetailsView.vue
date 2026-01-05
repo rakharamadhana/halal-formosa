@@ -8,19 +8,19 @@
           :backRoute="'/explore'"
           :icon="mapOutline"
       >
-      <template #actions>
+        <template #actions>
           <ion-item v-if="canEdit" button @click="editItem" lines="none">
-            <ion-icon :icon="createOutline" slot="start" />
+            <ion-icon :icon="createOutline" slot="start"/>
             <ion-label>Edit</ion-label>
           </ion-item>
 
           <ion-item button @click="reportItem" lines="none">
-            <ion-icon :icon="alertCircleOutline" slot="start" />
+            <ion-icon :icon="alertCircleOutline" slot="start"/>
             <ion-label>Report</ion-label>
           </ion-item>
 
           <ion-item button @click="share" lines="none">
-            <ion-icon :icon="shareSocialOutline" slot="start" />
+            <ion-icon :icon="shareSocialOutline" slot="start"/>
             <ion-label>Share</ion-label>
           </ion-item>
         </template>
@@ -53,9 +53,24 @@
           <h2 class="font-bold text-xl">{{ place.name }}</h2>
           <ion-chip color="carrot" class="capitalize">{{ place.type }}</ion-chip>
 
+          <!-- 📝 Description -->
+          <template v-if="place.description">
+            <ion-item lines="none">
+              <ion-icon :icon="documentTextOutline" slot="start" color="carrot"/>
+
+              <ion-label>
+                <p class="text-sm text-gray-500">Description</p>
+                <p style="white-space: pre-line;">
+                  {{ place.description }}
+                </p>
+              </ion-label>
+            </ion-item>
+          </template>
+
+
           <!-- 📍 Address -->
           <ion-item lines="none">
-            <ion-icon :icon="navigateOutline" slot="start" color="carrot" />
+            <ion-icon :icon="navigateOutline" slot="start" color="carrot"/>
 
             <ion-label>
               <p class="text-sm text-gray-500">Address</p>
@@ -111,7 +126,7 @@
               <h3 class="font-bold text-lg ion-margin-top">Additional Details</h3>
 
               <ion-item lines="none" v-if="place.phone">
-                <ion-icon :icon="callOutline" slot="start" color="carrot" />
+                <ion-icon :icon="callOutline" slot="start" color="carrot"/>
                 <ion-label>
                   <p class="text-sm text-gray-500">Phone</p>
                   <p>{{ place.phone }}</p>
@@ -129,7 +144,7 @@
 
 
               <ion-item lines="none" v-if="place.instagram">
-                <ion-icon :icon="logoInstagram" slot="start" color="carrot" />
+                <ion-icon :icon="logoInstagram" slot="start" color="carrot"/>
                 <ion-label>
                   <p class="text-sm text-gray-500">Instagram</p>
                   <p>@{{ place.instagram.replace('@', '') }}</p>
@@ -145,7 +160,7 @@
               </ion-item>
 
               <ion-item lines="none" v-if="place.line_id">
-                <ion-icon :icon="chatboxEllipsesOutline" slot="start" color="carrot" />
+                <ion-icon :icon="chatboxEllipsesOutline" slot="start" color="carrot"/>
                 <ion-label>
                   <p class="text-sm text-gray-500">LINE ID</p>
                   <p>{{ place.line_id }}</p>
@@ -166,7 +181,7 @@
             <!-- 💰 Price Range -->
             <template v-if="place.price_range">
               <ion-item lines="none">
-                <ion-icon :icon="cashOutline" slot="start" color="carrot" />
+                <ion-icon :icon="cashOutline" slot="start" color="carrot"/>
                 <ion-label>
                   <p class="text-sm text-gray-500">Estimated Price</p>
                   <p>{{ place.price_range }}</p>
@@ -184,8 +199,8 @@
             animated
             style="width:100%;height:300px;margin-bottom:12px;"
         />
-        <ion-skeleton-text animated style="width:80%;height:20px;margin-bottom:8px;" />
-        <ion-skeleton-text animated style="width:60%;height:16px;margin-bottom:8px;" />
+        <ion-skeleton-text animated style="width:80%;height:20px;margin-bottom:8px;"/>
+        <ion-skeleton-text animated style="width:60%;height:16px;margin-bottom:8px;"/>
       </div>
     </ion-content>
 
@@ -209,7 +224,7 @@
         >
           <SwiperSlide>
             <div class="swiper-zoom-container">
-              <img :src="place?.image || 'https://placehold.co/200x100'" alt="Place Image" />
+              <img :src="place?.image || 'https://placehold.co/200x100'" alt="Place Image"/>
             </div>
           </SwiperSlide>
         </Swiper>
@@ -228,27 +243,27 @@ import {
   IonLabel,
   IonModal,
   IonButton, IonHeader, IonChip,
-    IonList,
+  IonList,
 } from '@ionic/vue'
 import {ref, onMounted, computed} from 'vue'
-import { onIonViewWillEnter } from '@ionic/vue'
-import { useRoute, useRouter } from 'vue-router'
-import { supabase } from '@/plugins/supabaseClient'
-import { Share } from '@capacitor/share'
-import { Swiper, SwiperSlide } from 'swiper/vue'
-import { Pagination, Zoom } from 'swiper/modules'
+import {onIonViewWillEnter} from '@ionic/vue'
+import {useRoute, useRouter} from 'vue-router'
+import {supabase} from '@/plugins/supabaseClient'
+import {Share} from '@capacitor/share'
+import {Swiper, SwiperSlide} from 'swiper/vue'
+import {Pagination, Zoom} from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from '@/components/AppHeader.vue'
 import {
   alertCircleOutline, callOutline, cashOutline, chatboxEllipsesOutline,
-  createOutline, logoInstagram,
+  createOutline, documentTextOutline, logoInstagram,
   mapOutline,
   navigateOutline,
-  shareSocialOutline,
+  shareSocialOutline, textOutline,
 } from 'ionicons/icons'
-import { Clipboard } from '@capacitor/clipboard';
+import {Clipboard} from '@capacitor/clipboard';
 import {ActivityLogService} from "@/services/ActivityLogService";
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
@@ -268,6 +283,7 @@ type PlaceDetail = {
   lng: number
   image?: string | null
   address?: string | null
+  description?: string | null
   type: string
   location_types: { name: string } | null
   phone?: string | null
@@ -295,6 +311,7 @@ const canEdit = ref(false)
 const modules = [Pagination, Zoom]
 
 const showImageModal = ref(false)
+
 function openImageModal() {
   if (place.value) {
     ActivityLogService.log("explore_detail_open_image", {
@@ -315,7 +332,7 @@ const loading = ref(true)
 const formattedOpeningHours = computed(() => {
   if (!place.value?.opening_hours) return {}
 
-  const order = ["mon","tue","wed","thu","fri","sat","sun"]
+  const order = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
   const labels = {
     mon: "Mon",
     tue: "Tue",
@@ -341,7 +358,7 @@ const formattedOpeningHours = computed(() => {
 const loadPlace = async () => {
   loading.value = true
 
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from('locations')
       .select(`
     id,
@@ -350,6 +367,7 @@ const loadPlace = async () => {
     lng,
     image,
     address,
+    description,
     created_by,
     phone,
     instagram,
@@ -379,8 +397,7 @@ const loadPlace = async () => {
       lat: data.lat,
       lng: data.lng,
       address: data.address,
-
-      // ⭐ New fields
+      description: data.description,
       phone: data.phone,
       instagram: data.instagram,
       line_id: data.line_id,
@@ -392,10 +409,10 @@ const loadPlace = async () => {
 
 
     // 🔹 Check if the current user can edit
-    const { data: { user } } = await supabase.auth.getUser()
+    const {data: {user}} = await supabase.auth.getUser()
     if (user) {
       // Check if user is the creator or an admin/contributor
-      const { data: roleData } = await supabase
+      const {data: roleData} = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
