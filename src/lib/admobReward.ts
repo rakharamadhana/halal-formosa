@@ -10,10 +10,12 @@ export async function showRewardedAd(adUnitId: string, onReward: () => void) {
     try {
         console.log("📌 Loading Rewarded Ad…");
 
+        const isTesting = import.meta.env.VITE_ADMOB_TESTING === 'true';
+
         // 1️⃣ Load the ad
         await AdMob.prepareRewardVideoAd({
             adId: adUnitId,
-            isTesting: true // ← IMPORTANT while debugging
+            isTesting
         });
 
         // 2️⃣ When successfully loaded
