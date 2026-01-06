@@ -59,7 +59,7 @@
             <!-- Stores -->
             <div style="margin: 8px 0;">
               <div class="filter-title">
-                <ion-icon :icon="storefrontOutline" />
+                <ion-icon :icon="storefrontOutline"/>
                 Stores
               </div>
               <div class="store-scroll">
@@ -84,7 +84,7 @@
             <!-- Categories -->
             <div style="margin: 8px 0;">
               <div class="filter-title">
-                <ion-icon :icon="pricetagsOutline" />
+                <ion-icon :icon="pricetagsOutline"/>
                 Categories
               </div>
               <div class="category-bar">
@@ -112,7 +112,7 @@
             <!-- Status Filter -->
             <div style="margin: 8px 0;">
               <div class="filter-title">
-                <ion-icon :icon="shieldCheckmarkOutline" />
+                <ion-icon :icon="shieldCheckmarkOutline"/>
                 Statuses
               </div>
               <div class="category-bar">
@@ -131,9 +131,6 @@
                     {{ status.emoji }} {{ status.label }}
                   </ion-label>
                 </ion-chip>
-
-
-
 
 
               </div>
@@ -428,13 +425,11 @@ const showFilters = ref(false)
 
 
 const statuses = [
-  { key: 'Halal', label: 'Halal', emoji: '✅' },
-  { key: 'Muslim-friendly', label: 'Muslim-friendly', emoji: '🤝' },
-  { key: 'Syubhah', label: 'Syubhah', emoji: '⚠️' },
-  { key: 'Haram', label: 'Haram', emoji: '⛔' }
+  {key: 'Halal', label: 'Halal', emoji: '✅'},
+  {key: 'Muslim-friendly', label: 'Muslim-friendly', emoji: '🤝'},
+  {key: 'Syubhah', label: 'Syubhah', emoji: '⚠️'},
+  {key: 'Haram', label: 'Haram', emoji: '⛔'}
 ]
-
-
 
 
 const activeStatus = ref<string | null>(null)
@@ -708,12 +703,6 @@ function getStatusClass(status: string) {
   }
 }
 
-function extractIonicColor(cssVar: string): string {
-  // '--ion-color-danger' → 'danger'
-  return cssVar.replace('--ion-color-', '')
-}
-
-
 
 /* ---------------- Infinite Scroll ---------------- */
 const loadMore = async (event: Event) => {
@@ -922,7 +911,7 @@ ion-card.status-haram {
 
 .collapse-enter-to,
 .collapse-leave-from {
-  max-height: 200px; /* adjust to fit content */
+  max-height: 300px; /* adjust to fit content */
   opacity: 1;
 }
 
