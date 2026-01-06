@@ -37,7 +37,7 @@
               align-items: center;
               "
           >
-            <ion-icon :icon="barcodeOutline" style="font-size: 22px;" />
+            <ion-icon :icon="barcodeOutline" style="font-size: 22px;"/>
           </ion-button>
         </div>
       </ion-toolbar>
@@ -46,11 +46,11 @@
       <ion-toolbar class="search-toolbar">
         <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
           <ion-text class="ion-padding-horizontal">
-            <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;" />
+            <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;"/>
             <strong>{{ $t('search.filters') }}</strong>
           </ion-text>
           <ion-button fill="clear" size="small" @click="toggleFilters">
-            <ion-icon :icon="showFilters ? chevronUpOutline : chevronDownOutline" />
+            <ion-icon :icon="showFilters ? chevronUpOutline : chevronDownOutline"/>
           </ion-button>
         </div>
 
@@ -58,6 +58,10 @@
           <div v-show="showFilters" class="filter-section">
             <!-- Stores -->
             <div style="margin: 8px 0;">
+              <div class="filter-title">
+                <ion-icon :icon="storefrontOutline" />
+                Stores
+              </div>
               <div class="store-scroll">
                 <template v-if="loadingStores">
                   <ion-skeleton-text
@@ -79,6 +83,10 @@
 
             <!-- Categories -->
             <div style="margin: 8px 0;">
+              <div class="filter-title">
+                <ion-icon :icon="pricetagsOutline" />
+                Categories
+              </div>
               <div class="category-bar">
                 <template v-if="loadingCategories">
                   <ion-skeleton-text
@@ -100,8 +108,41 @@
                 </template>
               </div>
             </div>
+
+            <!-- Status Filter -->
+            <div style="margin: 8px 0;">
+              <div class="filter-title">
+                <ion-icon :icon="shieldCheckmarkOutline" />
+                Statuses
+              </div>
+              <div class="category-bar">
+                <ion-chip
+                    v-for="status in statuses"
+                    :key="status.key"
+                    :class="[
+    'category-chip',
+    activeStatus === status.key
+      ? `chip-${STATUS_COLOR_MAP[status.key]}`
+      : 'chip-medium'
+  ]"
+                    @click="toggleStatus(status.key)"
+                >
+                  <ion-label>
+                    {{ status.emoji }} {{ status.label }}
+                  </ion-label>
+                </ion-chip>
+
+
+
+
+
+              </div>
+            </div>
+
           </div>
         </transition>
+
+
       </ion-toolbar>
 
     </ion-header>
@@ -143,7 +184,8 @@
                 ></ion-skeleton-text>
 
                 <!-- Skeleton Text & Chip -->
-                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div
+                    style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <ion-skeleton-text
                         animated
@@ -195,7 +237,8 @@
                 </ion-thumbnail>
 
                 <!-- Info block -->
-                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div
+                    style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <h5 style="margin: 0;">{{ product.name }}</h5>
 
@@ -252,7 +295,7 @@
       <!-- 🟠 FAB Add Product (only for admins) -->
       <ion-fab v-if="isAuthenticated" vertical="bottom" horizontal="end" slot="fixed">
         <ion-fab-button color="carrot" @click="goToAddProduct">
-          <ion-icon :icon="addOutline" />
+          <ion-icon :icon="addOutline"/>
         </ion-fab-button>
       </ion-fab>
     </ion-content>
@@ -260,7 +303,7 @@
     <ion-footer>
       <div class="footer-count">
         <small>
-          {{ $t('search.showingResults', { count: results.length, total: totalProductsCount }) }}
+          {{ $t('search.showingResults', {count: results.length, total: totalProductsCount}) }}
         </small>
       </div>
     </ion-footer>
@@ -278,18 +321,25 @@ import {
   onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton, onIonViewWillEnter
 } from '@ionic/vue'
 import {ref, onMounted, nextTick, watch} from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { supabase } from '@/plugins/supabaseClient'
+import {useRouter, useRoute} from 'vue-router'
+import {supabase} from '@/plugins/supabaseClient'
 import {
-  barcodeOutline, chevronDownCircleOutline, gridOutline, addOutline, chevronUpOutline, chevronDownOutline, funnelOutline
+  barcodeOutline,
+  chevronDownCircleOutline,
+  gridOutline,
+  addOutline,
+  chevronUpOutline,
+  chevronDownOutline,
+  funnelOutline,
+  pricetagsOutline, storefrontOutline, shieldCheckmarkOutline
 } from 'ionicons/icons'
-import { Capacitor } from '@capacitor/core'
+import {Capacitor} from '@capacitor/core'
 import {
   CapacitorBarcodeScanner, CapacitorBarcodeScannerAndroidScanningLibrary,
   CapacitorBarcodeScannerCameraDirection, CapacitorBarcodeScannerScanOrientation,
   CapacitorBarcodeScannerTypeHintALLOption
 } from '@capacitor/barcode-scanner'
-import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import {Haptics, ImpactStyle} from '@capacitor/haptics'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
@@ -321,7 +371,12 @@ interface Product {
   view_count?: number   // <-- ADD THIS LINE
 }
 
-
+const STATUS_COLOR_MAP: Record<string, string> = {
+  'Halal': 'success',
+  'Muslim-friendly': 'primary',
+  'Syubhah': 'warning',
+  'Haram': 'danger'
+}
 
 
 /* ---------------- State ---------------- */
@@ -337,7 +392,7 @@ const errorMsg = ref('')
 const scanning = ref(false)
 const searchQuery = ref('')
 const categories = ref<{ id: number; name: string }[]>([])
-const activeCategory = ref<{id:number, name:string} | null>(null)
+const activeCategory = ref<{ id: number, name: string } | null>(null)
 
 const loadingProducts = ref(true)
 const loadingCategories = ref(true)
@@ -366,10 +421,23 @@ const categoryIcons: Record<string, string> = {
   "Fresh Meat": "🥩",
 }
 
-const stores = ref<{id: string; name: string; logo_url?: string}[]>([])
-const activeStore = ref<{id: string; name: string} | null>(null)
+const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
+const activeStore = ref<{ id: string; name: string } | null>(null)
 const loadingStores = ref(true)
 const showFilters = ref(false)
+
+
+const statuses = [
+  { key: 'Halal', label: 'Halal', emoji: '✅' },
+  { key: 'Muslim-friendly', label: 'Muslim-friendly', emoji: '🤝' },
+  { key: 'Syubhah', label: 'Syubhah', emoji: '⚠️' },
+  { key: 'Haram', label: 'Haram', emoji: '⛔' }
+]
+
+
+
+
+const activeStatus = ref<string | null>(null)
 
 function toggleFilters() {
   showFilters.value = !showFilters.value
@@ -378,7 +446,7 @@ function toggleFilters() {
 
 /* ---------------- Filters ---------------- */
 
-watch([activeStore, activeCategory, searchQuery], () => {
+watch([activeStore, activeCategory, activeStatus, searchQuery], () => {
 
   if (activeStore.value) {
     ActivityLogService.log("search_filter_store", {
@@ -392,6 +460,12 @@ watch([activeStore, activeCategory, searchQuery], () => {
       category_id: activeCategory.value.id,
       category_name: activeCategory.value.name
     });
+  }
+
+  if (activeStatus.value) {
+    ActivityLogService.log("search_filter_status", {
+      status: activeStatus.value
+    })
   }
 
   allLoaded.value = false
@@ -413,9 +487,11 @@ function handleDismiss() {
   scanning.value = false
   stopScan()
 }
+
 function stopScan() {
   console.log('Scanner stopped / cleanup here')
 }
+
 function dismissModal() {
   modalController.dismiss()
 }
@@ -432,19 +508,19 @@ async function startScan() {
       scanInstructions: 'Align the barcode within the frame',
       cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
       scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
-      android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
-      web: { showCameraSelection: true, scannerFPS: 15 }
+      android: {scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT},
+      web: {showCameraSelection: true, scannerFPS: 15}
     })
 
     if (result?.ScanResult) {
-      await Haptics.impact({ style: ImpactStyle.Medium })
+      await Haptics.impact({style: ImpactStyle.Medium})
       searchQuery.value = result.ScanResult
 
-      const { data, error } = await supabase
+      const {data, error} = await supabase
           .from('products')
           .select('*')
           .or(`name.ilike.%${result.ScanResult}%,barcode.ilike.%${result.ScanResult}%`)
-          .order('created_at', { ascending: false })
+          .order('created_at', {ascending: false})
 
       results.value = error ? [] : (data || [])
       if (error) errorMsg.value = 'Failed to search products'
@@ -463,7 +539,7 @@ async function startScan() {
   } finally {
     scanning.value = false
     if (route.query.scan === 'true') {
-      router.replace({ path: '/search' })
+      router.replace({path: '/search'})
     }
   }
 }
@@ -471,20 +547,20 @@ async function startScan() {
 /* ---------------- Data Fetch ---------------- */
 const fetchStores = async () => {
   loadingStores.value = true
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from("stores")
       .select("id, name, logo_url")
-      .order("sort_order", { ascending: true })
+      .order("sort_order", {ascending: true})
   if (!error && data) stores.value = data
   loadingStores.value = false
 }
 
 const fetchCategories = async () => {
   loadingCategories.value = true
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from("product_categories")
       .select("id, name")
-      .order("name", { ascending: true })
+      .order("name", {ascending: true})
 
   if (!error && data) {
     categories.value = data
@@ -522,16 +598,24 @@ const fetchProducts = async (reset = false) => {
     if (activeStore.value) {
       query = query.eq("product_stores.store_id", activeStore.value.id)
     }
+
     if (activeCategory.value) {
       query = query.eq("product_category_id", activeCategory.value.id)
     }
-    if (searchQuery.value) {
-      query = query.or(`name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`)
+
+    if (activeStatus.value) {
+      query = query.eq("status", activeStatus.value)
     }
 
-    query = query.order("created_at", { ascending: false }).range(from, to)
+    if (searchQuery.value) {
+      query = query.or(
+          `name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`
+      )
+    }
 
-    const { data, error } = await query.returns<Product[]>()
+    query = query.order("created_at", {ascending: false}).range(from, to)
+
+    const {data, error} = await query.returns<Product[]>()
 
     if (error) {
       errorMsg.value = error.message
@@ -555,9 +639,9 @@ const fetchProducts = async (reset = false) => {
 
 const fetchTotalCount = async () => {
   loadingCount.value = true
-  const { count, error } = await supabase
+  const {count, error} = await supabase
       .from('products')
-      .select('barcode', { count: 'exact', head: true })
+      .select('barcode', {count: 'exact', head: true})
   if (error) {
     errorMsg.value = error.message
   } else {
@@ -573,7 +657,7 @@ const handleSearchInput = (event: Event) => {
   searchQuery.value = q;
 
   if (q.length > 1) {   // only log if at least 2 chars
-    ActivityLogService.log("search_query", { query: q });
+    ActivityLogService.log("search_query", {query: q});
   }
 };
 
@@ -601,6 +685,23 @@ const openDetails = async (product: Product) => {
   router.push({path: `/item/${product.barcode}`})
 }
 
+const toggleStatus = (status: string) => {
+  activeStatus.value = activeStatus.value === status ? null : status
+}
+
+const fetchStatuses = async () => {
+  const { data, error } = await supabase
+      .from('product_statuses')
+      .select('key, label, color')
+
+  if (!error && data) {
+    statuses.value = data.map(s => ({
+      ...s,
+      colorKey: extractIonicColor(s.color)
+    }))
+  }
+}
+
 
 function goToAddProduct() {
   router.push('/add')
@@ -608,13 +709,30 @@ function goToAddProduct() {
 
 function getStatusClass(status: string) {
   switch (status) {
-    case 'Halal': return 'status-halal'
-    case 'Muslim-friendly': return 'status-muslim'
-    case 'Syubhah': return 'status-syubhah'
-    case 'Haram': return 'status-haram'
-    default: return ''
+    case 'Halal':
+      return 'status-halal'
+    case 'Muslim-friendly':
+      return 'status-muslim'
+    case 'Syubhah':
+      return 'status-syubhah'
+    case 'Haram':
+      return 'status-haram'
+    default:
+      return ''
   }
 }
+
+const getStatusColor = (statusKey: string) => {
+  const s = statuses.find(s => s.key === statusKey)
+  return s?.color ?? 'medium'
+}
+
+function extractIonicColor(cssVar: string): string {
+  // '--ion-color-danger' → 'danger'
+  return cssVar.replace('--ion-color-', '')
+}
+
+
 
 /* ---------------- Infinite Scroll ---------------- */
 const loadMore = async (event: Event) => {
@@ -643,14 +761,14 @@ onMounted(async () => {
   await ActivityLogService.log("search_page_open");
 
   // 🔹 Auth/session setup
-  const { data: { session } } = await supabase.auth.getSession()
+  const {data: {session}} = await supabase.auth.getSession()
   isAuthenticated.value = !!session
   supabase.auth.onAuthStateChange((_event, session) => {
     isAuthenticated.value = !!session
   })
 
   // 🔹 Ingredient dictionary preload
-  const { data, error } = await supabase.from('ingredient_highlights').select('keyword, color')
+  const {data, error} = await supabase.from('ingredient_highlights').select('keyword, color')
   if (!isNative.value) {
     await nextTick()
   }
@@ -667,6 +785,7 @@ onMounted(async () => {
     fetchTotalCount(),
     fetchCategories(),
     fetchStores(),
+    fetchStatuses()
   ])
 })
 
@@ -681,7 +800,7 @@ onIonViewDidEnter(async () => {
   if (results.value.length > 0) {
     const barcodes = results.value.map(p => p.barcode);
 
-    const { data: updatedCounts, error } = await supabase
+    const {data: updatedCounts, error} = await supabase
         .from("products")
         .select("barcode, view_count")
         .in("barcode", barcodes);
@@ -701,7 +820,7 @@ onIonViewDidEnter(async () => {
   if (route.query.scan === "true") {
     setTimeout(async () => {
       await startScan();
-      router.replace({ path: "/search" });
+      router.replace({path: "/search"});
     }, 300);
   }
 });
@@ -731,8 +850,8 @@ onIonViewDidEnter(async () => {
 /* For larger screens */
 @media (min-width: 768px) {
   #reader {
-    width: 400px;       /* fixed width for better control */
-    height: 300px;      /* fixed height */
+    width: 400px; /* fixed width for better control */
+    height: 300px; /* fixed height */
     border-radius: 8px; /* maybe larger radius for desktop */
   }
 }
@@ -792,9 +911,11 @@ ion-card.status-haram {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 .category-bar::-webkit-scrollbar {
   display: none;
 }
+
 .category-chip {
   font-size: 13px;
   flex-shrink: 0;
@@ -812,15 +933,32 @@ ion-card.status-haram {
 .collapse-leave-active {
   transition: max-height 0.3s ease, opacity 0.3s ease;
 }
+
 .collapse-enter-from,
 .collapse-leave-to {
   max-height: 0;
   opacity: 0;
 }
+
 .collapse-enter-to,
 .collapse-leave-from {
   max-height: 200px; /* adjust to fit content */
   opacity: 1;
+}
+
+.filter-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+  margin-left: 12px;
+  margin-bottom: 6px;
+}
+
+.filter-title ion-icon {
+  font-size: 14px;
 }
 
 </style>

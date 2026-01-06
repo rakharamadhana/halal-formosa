@@ -83,6 +83,8 @@
               label-placement="stacked"
               :placeholder="$t('addPlace.addressPlaceholder')"
               required
+              @ionBlur="onAddressConfirm"
+              @keyup.enter="onAddressConfirm"
           >
             <div slot="label">
               {{ $t('addPlace.addressLabel') }}
@@ -336,6 +338,7 @@ const dayLabels = {
 };
 const showMoreOptions = ref(false)
 const openingHoursTouched = ref(false)
+let addressTimer: number | null = null
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -441,6 +444,40 @@ watch(
       // Fetch address
       const addr = await reverseGeocode(newLat, newLng)
       if (addr) form.value.address = addr
+    }
+)
+
+watch(
+    () => form.value.address,
+    (addr) => {
+      if (!addr || addr.length < 6) return   // avoid noisy queries
+
+      if (addressTimer) clearTimeout(addressTimer)
+
+      addressTimer = window.setTimeout(async () => {
+        const result = await geocodeAddress(addr)
+        if (!result) return
+
+        const { lat, lng } = result
+
+        form.value.lat = lat
+        form.value.lng = lng
+
+        if (map) {
+          map.panTo({ lat, lng })
+          map.setZoom(16)
+        }
+
+        if (clickMarker) {
+          clickMarker.position = { lat, lng }
+        }
+
+        // subtle pin feedback
+        if (pinEl?.element) {
+          pinEl.element.classList.add('marker-pop')
+          setTimeout(() => pinEl.element.classList.remove('marker-pop'), 220)
+        }
+      }, 700) // ⏱ debounce delay
     }
 )
 
@@ -692,6 +729,26 @@ const updatePinColor = () => {
 
 const geocoder = ref<google.maps.Geocoder | null>(null)
 
+const onAddressConfirm = async () => {
+  if (!form.value.address) return
+
+  const result = await geocodeAddress(form.value.address)
+  if (!result) return
+
+  const { lat, lng } = result
+
+  form.value.lat = lat
+  form.value.lng = lng
+
+  map?.panTo({ lat, lng })
+  map?.setZoom(16)
+
+  if (clickMarker) {
+    clickMarker.position = { lat, lng }
+  }
+}
+
+
 async function reverseGeocode(lat: number, lng: number) {
   if (!mapReady.value) return null // ✅ safety guard
 
@@ -711,6 +768,28 @@ async function reverseGeocode(lat: number, lng: number) {
   })
 }
 
+async function geocodeAddress(address: string) {
+  if (!mapReady.value || !address) return null
+
+  if (!geocoder.value) {
+    geocoder.value = new google.maps.Geocoder()
+  }
+
+  return new Promise<{ lat: number; lng: number } | null>((resolve) => {
+    geocoder.value!.geocode({ address }, (results, status) => {
+      if (status === 'OK' && results?.[0]) {
+        const loc = results[0].geometry.location
+        resolve({
+          lat: loc.lat(),
+          lng: loc.lng()
+        })
+      } else {
+        console.warn('Address geocode failed:', status)
+        resolve(null)
+      }
+    })
+  })
+}
 
 /* -------------------- Submit -------------------- */
 const uploadToSupabase = async (file: File): Promise<string> => {
@@ -826,7 +905,7 @@ const submitPlace = async () => {
           {id: newPlace.id, lat: form.value.lat, lng: form.value.lng, isNative: true}
       )
 
-      setTimeout(() => router.push(`/place/${newPlace.id}`), 500)
+      setTimeout(() => router.replace(`/explore?focus=${newPlace.id}`), 500)
     }
 
     // ✅ 5️⃣ Cleanup preview/file references

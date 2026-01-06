@@ -10,10 +10,14 @@
         style="position: relative; height: 100%; width: 100%;"
     >
 
-    <!-- Map is always present, hidden when loading -->
-      <div id="map" v-show="!loading" style="height: 100%; width: 100%;"></div>
+      <div id="map" style="height: 100%; width: 100%;"></div>
 
-
+      <!-- Map is always present, hidden when loading -->
+      <ion-skeleton-text
+          v-show="loading"
+          animated
+          class="map-overlay"
+      />
 
       <!-- Skeleton overlay -->
       <ion-skeleton-text
@@ -32,7 +36,7 @@
       >
 
 
-      <ion-fab-button color="carrot" @click="centerOnUser">
+        <ion-fab-button color="carrot" @click="centerOnUser">
           <ion-icon style="color: var(--ion-color-light)" :icon="navigateCircleOutline"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -49,9 +53,9 @@
         :class="fabPosition"
     >
 
-    <!-- Main FAB -->
+      <!-- Main FAB -->
       <ion-fab-button size="small" color="dark">
-        <ion-icon :icon="layersOutline" />
+        <ion-icon :icon="layersOutline"/>
       </ion-fab-button>
 
       <!-- FAB List -->
@@ -61,7 +65,7 @@
             :color="viewMode === 'map' ? 'carrot' : 'medium'"
             @click="viewMode = 'map'"
         >
-          <ion-icon :icon="mapOutline" />
+          <ion-icon :icon="mapOutline"/>
         </ion-fab-button>
 
         <ion-fab-button
@@ -69,7 +73,7 @@
             :color="viewMode === 'both' ? 'carrot' : 'medium'"
             @click="viewMode = 'both'"
         >
-          <ion-icon :icon="gridOutline" />
+          <ion-icon :icon="gridOutline"/>
         </ion-fab-button>
 
         <ion-fab-button
@@ -77,7 +81,7 @@
             color="medium"
             @click="viewMode = 'list'"
         >
-          <ion-icon :icon="listOutline" />
+          <ion-icon :icon="listOutline"/>
         </ion-fab-button>
       </ion-fab-list>
     </ion-fab>
@@ -104,44 +108,44 @@
     >
 
 
-    <ion-toolbar class="explore-toolbar">
+      <ion-toolbar class="explore-toolbar">
 
-      <!-- INLINE switch (List only) -->
-      <div
-          v-if="viewMode === 'list'"
-          class="view-mode-switch inline"
-          :style="{ marginTop: topOffset }"
-      >
-        <button @click="viewMode = 'map'">🗺️ Map</button>
-        <button @click="viewMode = 'both'">🧱 Both</button>
-        <button class="active">📋 List</button>
-      </div>
-
-      <!-- Search row -->
-      <div style="display: flex; align-items: center;">
-
-
-        <ion-searchbar
-            class="search-explore"
-            :debounce="1000"
-            @ionInput="onSearchInput"
-            style="flex-grow: 1; margin-right: 8px;"
-            :placeholder="$t('explore.placeholder')"
-        ></ion-searchbar>
-
-        <ion-button
-            v-if="isContributor"
-            @click="goToAddPlace"
-            color="carrot"
-            size="small"
-            style="margin-right: 12px; margin-top: 12px;"
+        <!-- INLINE switch (List only) -->
+        <div
+            v-if="viewMode === 'list'"
+            class="view-mode-switch inline"
+            :style="{ marginTop: topOffset }"
         >
-          <ion-icon :icon="addOutline" />
-        </ion-button>
-      </div>
+          <button @click="viewMode = 'map'">🗺️ Map</button>
+          <button @click="viewMode = 'both'">🧱 Both</button>
+          <button class="active">📋 List</button>
+        </div>
+
+        <!-- Search row -->
+        <div style="display: flex; align-items: center;">
 
 
-      <!-- ✅ Category bar right under search input -->
+          <ion-searchbar
+              class="search-explore"
+              :debounce="1000"
+              @ionInput="onSearchInput"
+              style="flex-grow: 1; margin-right: 8px;"
+              :placeholder="$t('explore.placeholder')"
+          ></ion-searchbar>
+
+          <ion-button
+              v-if="isContributor"
+              @click="goToAddPlace"
+              color="carrot"
+              size="small"
+              style="margin-right: 12px; margin-top: 12px;"
+          >
+            <ion-icon :icon="addOutline"/>
+          </ion-button>
+        </div>
+
+
+        <!-- ✅ Category bar right under search input -->
         <div class="category-bar-wrapper">
           <!-- Real category bar -->
           <div v-show="!loadingCategories" class="category-bar">
@@ -154,7 +158,7 @@
                 @click="toggleCategory(cat)"
             >
 
-            <!-- If icon is emoji -->
+              <!-- If icon is emoji -->
               <span
                   v-if="typeof categoryIconMap[cat.name] === 'string' && categoryIconMap[cat.name].length === 2"
                   style="margin-right:4px;"
@@ -173,10 +177,10 @@
 
           <!-- Skeleton placeholder -->
           <div v-if="loadingCategories" class="category-skeletons">
-            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;" />
-            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;" />
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;"/>
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;"/>
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px; margin-right:8px;"/>
+            <ion-skeleton-text animated style="width:150px; height:28px; border-radius:5px;"/>
           </div>
         </div>
 
@@ -237,14 +241,17 @@
                   />
                 </ion-thumbnail>
 
-                <div style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div
+                    style="flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: space-between;">
                   <div>
                     <h5 class="title-text">{{ place.name }}</h5>
                     <p class="type-text">{{ place.type }}</p>
                     <p class="type-text">👁️ {{ place.view_count || 0 }} views</p>
                   </div>
 
-                  <div v-if="userLocation">📍 {{ formatKm(getDistanceInKm(place.position)) }} km away</div>
+                  <div v-if="userLocation">
+                    📍 {{ formatKm(getDistanceInKm(place.position)) }} km away
+                  </div>
 
                   <!-- 🧭 Details Button -->
                   <ion-button
@@ -254,7 +261,7 @@
                       @click.stop="goToDetail(place.id)"
                       style="align-self: flex-start;"
                   >
-                    <ion-icon slot="start" :icon="informationCircleOutline" />
+                    <ion-icon slot="start" :icon="informationCircleOutline"/>
                     Details
                   </ion-button>
                 </div>
@@ -283,17 +290,17 @@ import {
   layersOutline, listOutline, gridOutline, mapOutline
 } from 'ionicons/icons'
 import {ref, computed, nextTick, onMounted, watch} from 'vue'
-import type { ComponentPublicInstance, VNodeRef } from 'vue'
-import { useRouter } from 'vue-router'
+import type {ComponentPublicInstance, VNodeRef} from 'vue'
+import {useRouter} from 'vue-router'
 import mapsLoader from '@/plugins/googleMapsLoader'
-import { Capacitor } from '@capacitor/core'
-import { Geolocation } from '@capacitor/geolocation'
-import { supabase } from '@/plugins/supabaseClient'
-import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer"
-import { Cluster, Renderer } from "@googlemaps/markerclusterer"
+import {Capacitor} from '@capacitor/core'
+import {Geolocation} from '@capacitor/geolocation'
+import {supabase} from '@/plugins/supabaseClient'
+import {MarkerClusterer, SuperClusterAlgorithm} from "@googlemaps/markerclusterer"
+import {Cluster, Renderer} from "@googlemaps/markerclusterer"
 
 import useSharePlace from '@/composables/useSharePlace'
-import { ActivityLogService } from "@/services/ActivityLogService";
+import {ActivityLogService} from "@/services/ActivityLogService";
 
 import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 
@@ -351,7 +358,7 @@ const viewMode = ref<ViewMode>('both')
 
 /* ---------------- Constants ---------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
-const DEFAULT_CENTER: LatLng = { lat: 25.0343, lng: 121.5645 }
+const DEFAULT_CENTER: LatLng = {lat: 25.0343, lng: 121.5645}
 const PLACEHOLDER = 'https://placehold.co/200x100'
 
 /* ---------------- State ---------------- */
@@ -380,7 +387,7 @@ let advancedMarkerLib: typeof google.maps.marker | null = null
 let infoWindow: google.maps.InfoWindow | null = null
 const markerMap = new Map<number, google.maps.marker.AdvancedMarkerElement>()
 const userMarker = ref<google.maps.marker.AdvancedMarkerElement | null>(null)
-const { sharePlace } = useSharePlace()
+const {sharePlace} = useSharePlace()
 const locationTypes = ref<LocationType[]>([])
 let clusterer: MarkerClusterer | null = null
 
@@ -388,7 +395,7 @@ let clusterer: MarkerClusterer | null = null
 const fetchLocationTypes = async () => {
   loadingCategories.value = true
 
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from('location_types')
       .select('id, name, color, emoji, icon')
       .eq('is_active', true)
@@ -488,7 +495,7 @@ const onImageError = (e: Event) => {
 }
 
 const carrotRippleClusterRenderer: Renderer = {
-  render: ({ count, position }: Cluster) => {
+  render: ({count, position}: Cluster) => {
     // Color based on count
     let bg = "rgba(255, 159, 64, 1)" // light orange
     if (count > 50) bg = "rgba(255, 87, 34, 1)" // carrot orange
@@ -512,8 +519,8 @@ const carrotRippleClusterRenderer: Renderer = {
     // Animate ripple
     div.animate(
         [
-          { boxShadow: "0 0 0 0 rgba(255, 87, 34, 0.4)" },
-          { boxShadow: "0 0 0 12px rgba(255, 87, 34, 0)" }
+          {boxShadow: "0 0 0 0 rgba(255, 87, 34, 0.4)"},
+          {boxShadow: "0 0 0 12px rgba(255, 87, 34, 0)"}
         ],
         {
           duration: 1500,
@@ -579,9 +586,6 @@ const createPinElement = (place: Place) => {
 }
 
 
-
-
-
 const applyInfoWindowDarkClass = () => {
   const isDark = document.documentElement.classList.contains('ion-palette-dark')
   const iw = document.querySelector('.gm-style-iw-c')
@@ -612,14 +616,14 @@ const scrollCardIntoView = async (id: number) => {
   const cardRect = cardEl.getBoundingClientRect()
   const containerRect = scrollEl.getBoundingClientRect()
   const y = scrollEl.scrollTop + (cardRect.top - containerRect.top) - 12
-  scrollEl.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+  scrollEl.scrollTo({top: Math.max(0, y), behavior: 'smooth'})
 }
 
 /* ---------------- Roles ---------------- */
 const loadRole = async () => {
-  const { data: { user } } = await supabase.auth.getUser()
+  const {data: {user}} = await supabase.auth.getUser()
   if (!user) return
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
@@ -633,7 +637,7 @@ const loadRole = async () => {
 const fetchLocations = async () => {
   loadingPlaces.value = true
 
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from('locations')
       .select(`
       id, name, lat, lng, image, type_id,
@@ -647,7 +651,7 @@ const fetchLocations = async () => {
     locations.value = typedData.map((loc) => ({
       id: loc.id,
       name: loc.name,
-      position: { lat: loc.lat, lng: loc.lng },
+      position: {lat: loc.lat, lng: loc.lng},
       image: loc.image,
       typeId: loc.type_id,
       type: loc.location_types?.name ?? '',
@@ -661,7 +665,7 @@ const fetchLocations = async () => {
 
 const categories = computed(() => locationTypes.value)
 
-const activeCategoryId = ref<number|null>(null)
+const activeCategoryId = ref<number | null>(null)
 
 const toggleCategory = (cat: LocationType) => {
   ActivityLogService.log("explore_filter_category", {
@@ -676,22 +680,38 @@ const toggleCategory = (cat: LocationType) => {
 
 /* ---------------- Map ---------------- */
 const initMap = async () => {
+  if (mapInstance) return   // guard
+
+  await nextTick()          // wait for Vue render
+
+  const el = document.getElementById('map')
+  if (!el) {
+    console.warn('[Map] #map not ready yet, retrying...')
+    requestAnimationFrame(initMap)
+    return
+  }
+
   loading.value = true
+
   const [{ Map }, marker] = await Promise.all([
     mapsLoader.importLibrary('maps'),
     mapsLoader.importLibrary('marker')
   ])
+
   advancedMarkerLib = marker
-  mapInstance = new Map(document.getElementById('map') as HTMLElement, {
+
+  mapInstance = new Map(el, {
     center: DEFAULT_CENTER,
     zoom: 14,
     disableDefaultUI: true,
     mapId: MAP_ID,
     clickableIcons: false
   })
+
   infoWindow = new google.maps.InfoWindow()
   loading.value = false
 }
+
 
 const initMarkers = (places: Place[] = locations.value) => {
   if (!mapInstance || !advancedMarkerLib) return
@@ -743,7 +763,7 @@ const initMarkers = (places: Place[] = locations.value) => {
       map: mapInstance!,
       markers: markerArray,
       renderer: carrotRippleClusterRenderer,
-      algorithm: new SuperClusterAlgorithm({ radius: 80 })
+      algorithm: new SuperClusterAlgorithm({radius: 80})
     })
   } else {
     // just put markers on map directly
@@ -760,6 +780,12 @@ watch([activeCategoryId, locations], () => {
   initMarkers(filtered)
 })
 
+watch([viewMode, panelVisible], async () => {
+  await nextTick()
+  if (mapInstance) {
+    google.maps.event.trigger(mapInstance, 'resize')
+  }
+})
 
 
 /* ---------------- Interactions ---------------- */
@@ -837,7 +863,7 @@ const centerOnUser = async () => {
           return
         }
       }
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true })
+      const pos = await Geolocation.getCurrentPosition({enableHighAccuracy: true})
       coords = pos.coords
     } else {
       // Web → use browser navigator.geolocation
@@ -845,12 +871,12 @@ const centerOnUser = async () => {
         navigator.geolocation.getCurrentPosition(
             pos => resolve(pos.coords),
             err => reject(err),
-            { enableHighAccuracy: true }
+            {enableHighAccuracy: true}
         )
       })
     }
 
-    const userLoc: LatLng = { lat: coords.latitude, lng: coords.longitude }
+    const userLoc: LatLng = {lat: coords.latitude, lng: coords.longitude}
     userLocation.value = userLoc
     mapInstance?.panTo(userLoc)
 
@@ -916,11 +942,30 @@ onMounted(async () => {
   centerOnUser();
 });
 
-onIonViewWillEnter(async () => {
-  centerOnUser()
-  refreshSubscriptionStatus();
+let firstEnter = true
 
+onIonViewWillEnter(async () => {
+  if (firstEnter) {
+    firstEnter = false
+    return
+  }
+
+  await fetchLocations()
+  await nextTick()
+
+  if (mapInstance) {
+    google.maps.event.trigger(mapInstance, 'resize')
+  }
+
+  const focusId = Number(router.currentRoute.value.query.focus)
+  if (focusId) {
+    const p = locations.value.find(l => l.id === focusId)
+    if (p) selectPlace(p)
+
+    router.replace({ query: {} }) // 👈 clear focus param
+  }
 })
+
 
 onIonViewDidEnter(async () => {
   await refreshViewCounts();  // 👈 refresh again when user returns
@@ -931,7 +976,7 @@ async function refreshViewCounts() {
 
   const ids = locations.value.map(l => l.id);
 
-  const { data: updated, error } = await supabase
+  const {data: updated, error} = await supabase
       .from("locations")
       .select("id, view_count")
       .in("id", ids);
@@ -947,7 +992,7 @@ async function refreshViewCounts() {
 
 /* dark mode InfoWindow sync */
 const observer = new MutationObserver(applyInfoWindowDarkClass)
-observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']})
 
 /* ---------------- Navigation ---------------- */
 const goToAddPlace = async () => {
@@ -957,7 +1002,7 @@ const goToAddPlace = async () => {
 const goToDetail = async (id: number) => {
 
   const place = locations.value.find(p => p.id === id);
-  await supabase.rpc("increment_location_view", { loc_id: id });
+  await supabase.rpc("increment_location_view", {loc_id: id});
 
   ActivityLogService.log("explore_place_detail_open", {
     id,
@@ -988,6 +1033,14 @@ const goToDetail = async (id: number) => {
   position: relative;
   z-index: 1;
 }
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
 
 /*********************************************
  * GOOGLE MAPS UI OVERRIDES
@@ -1029,7 +1082,7 @@ button.gm-ui-hover-effect > span {
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   position: relative;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 
   display: flex;
   align-items: center;
@@ -1063,13 +1116,17 @@ button.gm-ui-hover-effect > span {
   background: var(--ion-color-carrot);
   border-radius: 50%;
   border: 4px solid white;
-  box-shadow: 0 0 0 4px rgba(66,133,244,0.3);
+  box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.3);
   animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(216,98,13,0.4); }
-  100% { box-shadow: 0 0 0 10px rgba(66,133,244,0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(216, 98, 13, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+  }
 }
 
 /*********************************************
@@ -1080,7 +1137,7 @@ button.gm-ui-hover-effect > span {
   margin-left: 5px;
   width: 96%;
   --border-radius: 10px;
-  --box-shadow: 0 4px 12px rgba(124,124,124,0.05);
+  --box-shadow: 0 4px 12px rgba(124, 124, 124, 0.05);
 }
 
 .explore-toolbar {
@@ -1121,7 +1178,7 @@ button.gm-ui-hover-effect > span {
 ========================= */
 .category-chip {
 
-  --cat-color:"";
+  --cat-color: "";
   --base: var(--cat-color);
 
   --background: transparent;
@@ -1150,9 +1207,6 @@ button.gm-ui-hover-effect > span {
 .category-chip:hover {
   filter: brightness(1.1);
 }
-
-
-
 
 
 /*********************************************
@@ -1187,7 +1241,7 @@ button.gm-ui-hover-effect > span {
   background: var(--ion-background-color);
 
   border-radius: 22px 22px 0 0;
-  box-shadow: 0 -5px 18px rgba(0,0,0,0.1);
+  box-shadow: 0 -5px 18px rgba(0, 0, 0, 0.1);
 
   display: flex;
   flex-direction: column;
@@ -1224,7 +1278,7 @@ button.gm-ui-hover-effect > span {
   padding: 6px 14px;
   background: var(--ion-background-color);
   border-radius: 30px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
   color: var(--ion-color-carrot);
 
   position: fixed;
@@ -1233,7 +1287,7 @@ button.gm-ui-hover-effect > span {
   z-index: 200;
   cursor: pointer;
 
-  transition: transform 0.50s cubic-bezier(.25,.8,.25,1);  /* smoother easing */
+  transition: transform 0.50s cubic-bezier(.25, .8, .25, 1); /* smoother easing */
 }
 
 /* Panel OPEN — on top edge of panel */
@@ -1312,7 +1366,7 @@ button.gm-ui-hover-effect > span {
   justify-content: center;
 
   font-size: 14px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
   z-index: 2;
 }
 
@@ -1326,7 +1380,7 @@ button.gm-ui-hover-effect > span {
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
 
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .bottom-panel-wrapper.list-only {
@@ -1388,12 +1442,11 @@ button.gm-ui-hover-effect > span {
   border-radius: 14px;
   background: var(--ion-background-color);
 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
   /* animation consistency */
-  transition:
-      transform 0.25s ease,
-      opacity 0.2s ease;
+  transition: transform 0.25s ease,
+  opacity 0.2s ease;
 }
 
 /* =========================
@@ -1425,7 +1478,7 @@ button.gm-ui-hover-effect > span {
 }
 
 .view-mode-fab {
-  bottom: 92px;                 /* above tab bar */
+  bottom: 92px; /* above tab bar */
   left: 12px;
   z-index: 30;
 }
@@ -1440,7 +1493,7 @@ button.gm-ui-hover-effect > span {
 .view-mode-fab {
   position: fixed;
   z-index: 30;
-  transition: bottom 0.35s cubic-bezier(.25,.8,.25,1);
+  transition: bottom 0.35s cubic-bezier(.25, .8, .25, 1);
 }
 
 /* left FAB horizontal offset */
@@ -1456,7 +1509,7 @@ button.gm-ui-hover-effect > span {
 /* MAP ONLY */
 .fab-right.map,
 .view-mode-fab.map {
-  bottom: 5vh;   /* above tab bar */
+  bottom: 5vh; /* above tab bar */
 }
 
 /* BOTH — panel collapsed */

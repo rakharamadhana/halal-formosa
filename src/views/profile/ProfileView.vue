@@ -3,7 +3,7 @@
     <ion-header>
       <ion-toolbar>
         <ion-title class="title-large">
-          <ion-icon :icon="personCircleOutline" style="vertical-align: middle;" />
+          <ion-icon :icon="personCircleOutline" style="vertical-align: middle;"/>
           {{ $t('profile.title') }}
         </ion-title>
       </ion-toolbar>
@@ -16,84 +16,78 @@
         </ion-toolbar>
       </ion-header>
 
-      <!-- ✅ Skeleton while loading -->
-      <div v-if="loading" class="ion-text-center">
+      <!-- ================= PROFILE / PRO / ABOUT / XP ================= -->
+      <template v-if="loadingProfile">
+
+        <!-- Profile Skeleton -->
         <ion-card class="profile-card ion-text-center">
-          <!-- Avatar -->
-          <ion-skeleton-text
-              animated
-              style="width: 120px; height: 120px; border-radius: 50%; margin: 0 auto;"
-          />
-
-          <!-- Name -->
-          <ion-skeleton-text
-              animated
-              style="width: 60%; height: 20px; margin: 1rem auto;"
-          />
-
-          <!-- Badge -->
-          <ion-skeleton-text
-              animated
-              style="width: 80px; height: 20px; border-radius: 5px; margin: 0 auto;"
-          />
-
-          <!-- Email -->
-          <ion-skeleton-text
-              animated
-              style="width: 70%; height: 16px; margin: 0.5rem auto;"
-          />
-
-          <!-- Button -->
-          <ion-skeleton-text
-              animated
-              style="width: 100%; height: 36px; border-radius: 6px; margin: 1.5rem auto;"
-          />
+          <ion-skeleton-text animated style="width:120px;height:120px;border-radius:50%;margin:0 auto"/>
+          <ion-skeleton-text animated style="width:60%;height:20px;margin:1rem auto"/>
+          <ion-skeleton-text animated style="width:80px;height:20px;margin:0 auto"/>
+          <ion-skeleton-text animated style="width:70%;height:16px;margin:.5rem auto"/>
+          <ion-skeleton-text animated style="width:100%;height:36px;margin:1.5rem auto"/>
         </ion-card>
-      </div>
 
-      <!-- ✅ Real content -->
-      <div v-else>
-        <!-- Profile Card -->
+        <!-- Pro Skeleton -->
+        <ion-card v-if="userEmail && isNative" class="profile-card ion-text-center">
+          <ion-card-header>
+            <ion-skeleton-text animated style="width:60%;height:20px;margin:0 auto"/>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-skeleton-text animated style="width:100%;height:40px"/>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- About Skeleton -->
+        <ion-card class="profile-card">
+          <ion-card-header>
+            <ion-toolbar class="profile-toolbar">
+              <ion-skeleton-text animated style="width:40%;height:18px"/>
+              <ion-skeleton-text slot="end" animated style="width:60px;height:28px"/>
+            </ion-toolbar>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-skeleton-text animated style="width:80%;height:14px;margin-bottom:8px"/>
+            <ion-skeleton-text animated style="width:60%;height:14px"/>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- XP Skeleton -->
+        <ion-card class="profile-card ion-text-center">
+          <ion-card-header>
+            <ion-skeleton-text animated style="width:50%;height:20px;margin:0 auto"/>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-skeleton-text animated style="width:40%;height:32px;margin:0 auto 8px"/>
+            <ion-skeleton-text animated style="width:30%;height:14px;margin:0 auto 12px"/>
+            <ion-skeleton-text animated style="width:100%;height:10px"/>
+            <ion-skeleton-text animated style="width:50%;height:12px;margin:8px auto 0"/>
+          </ion-card-content>
+        </ion-card>
+
+      </template>
+
+      <template v-else>
+
+        <!-- Profile -->
         <ion-card class="profile-card ion-text-center">
           <div v-if="userAvatar" class="avatar-wrapper">
-            <img :src="userAvatar" alt="Profile Picture" class="avatar" />
+            <img :src="userAvatar" class="avatar"/>
           </div>
 
           <ion-text v-if="userDisplayName" class="profile-name">
             <h2>{{ userDisplayName }}</h2>
-
-            <!-- PRO MEMBER has priority -->
-            <ion-badge
-                v-if="isSubscribed"
-                color="warning"
-                style="margin-left: 6px;"
-            >
-              ⭐ Pro Member
-            </ion-badge>
-
-            <!-- Donor badge shown only if NOT subscribed -->
-            <ion-badge
-                v-else
-                :color="donorBadge.color"
-                style="margin-left: 6px;"
-            >
+            <ion-badge v-if="isSubscribed" color="warning">⭐ Pro Member</ion-badge>
+            <ion-badge v-else :color="donorBadge.color">
               {{ donorBadge.emoji }} {{ donorBadge.label }}
             </ion-badge>
           </ion-text>
-
-
 
           <ion-text v-if="userEmail" class="profile-email">
             <p>{{ userEmail }}</p>
           </ion-text>
 
-          <ion-button
-              v-if="userEmail"
-              color="danger"
-              expand="block"
-              class="logout-button"
-              @click="handleLogout"
-          >
+          <ion-button v-if="userEmail" color="danger" expand="block" @click="handleLogout">
             {{ $t('profile.logout') }}
           </ion-button>
 
@@ -104,160 +98,133 @@
             </ion-button>
           </div>
         </ion-card>
-      </div>
 
-
-      <!-- Halal Formosa Pro -->
-      <ion-card
-          v-if="userEmail && isNative"
-          class="profile-card ion-text-center"
-      >
-        <ion-card-header>
-          <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>
-        </ion-card-header>
-
-        <ion-card-content>
-          <!-- NOT SUBSCRIBED -->
-          <ion-button
-              v-if="!isSubscribed"
-              color="carrot"
-              expand="block"
-              @click="openProPaywall"
-          >
-            Upgrade to Pro ⭐
-          </ion-button>
-
-          <!-- SUBSCRIBED -->
-          <div v-else>
-            <p style="font-weight: 600; color: var(--ion-color-success);">
-              ✅ Pro is active
-            </p>
-
-            <p style="font-size: 14px;">
-              {{ renewalMessage }}
-            </p>
-
-            <p style="font-size: 14px; color: var(--ion-color-medium);">
-              ⏳ Access until <strong>{{ formattedExpirationDate }}</strong>
-            </p>
-
-            <ion-button
-                fill="outline"
-                size="small"
-                color="medium"
-                @click="openManageSubscription"
-            >
-              Manage Subscription
+        <!-- Pro -->
+        <ion-card v-if="userEmail && isNative" class="profile-card ion-text-center">
+          <ion-card-header>
+            <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-button v-if="!isSubscribed" color="carrot" expand="block" @click="openProPaywall">
+              Upgrade to Pro ⭐
             </ion-button>
-          </div>
-        </ion-card-content>
-      </ion-card>
 
-
-      <ion-card v-if="userEmail" class="profile-card">
-        <ion-card-header>
-          <ion-toolbar class="profile-toolbar">
-            <ion-title class="profile-title">
-              {{ $t('profile.aboutMe') }}
-            </ion-title>
-
-            <!-- Edit button -->
-            <ion-buttons slot="end">
-              <ion-button color="carrot" size="small" @click="goToEditProfile">
-                <ion-icon :icon="createOutline" slot="start" />
-                {{ $t('profile.edit') }}
+            <div v-else>
+              <p style="font-weight:600;color:var(--ion-color-success)">✅ Pro is active</p>
+              <p style="font-size:14px">{{ renewalMessage }}</p>
+              <p style="font-size:14px;color:var(--ion-color-medium)">
+                ⏳ Access until <strong>{{ formattedExpirationDate }}</strong>
+              </p>
+              <ion-button fill="outline" size="small" @click="openManageSubscription">
+                Manage Subscription
               </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-card-header>
+            </div>
+          </ion-card-content>
+        </ion-card>
 
-        <ion-card-content>
-          <ion-list lines="none">
-            <ion-item>
-              <ion-label>{{ $t('profile.bio') }}</ion-label>
-              <ion-note slot="end">
-                <template v-if="userBio">
-                  {{ userBio }}
-                </template>
-                <template v-else>
-                  No bio added yet
-                </template>
-              </ion-note>
-            </ion-item>
-          </ion-list>
-        </ion-card-content>
-      </ion-card>
+        <!-- About -->
+        <ion-card v-if="userEmail" class="profile-card">
+          <ion-card-header>
+            <ion-toolbar class="profile-toolbar">
+              <ion-title class="profile-title">{{ $t('profile.aboutMe') }}</ion-title>
+              <ion-buttons slot="end">
+                <ion-button color="carrot" size="small" @click="goToEditProfile">
+                  <ion-icon :icon="createOutline" slot="start"/>
+                  {{ $t('profile.edit') }}
+                </ion-button>
+              </ion-buttons>
+            </ion-toolbar>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list lines="none">
+              <ion-item>
+                <ion-label>{{ $t('profile.bio') }}</ion-label>
+                <ion-note slot="end">{{ userBio || 'No bio added yet' }}</ion-note>
+              </ion-item>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
 
-      <ion-card v-if="userEmail" class="profile-card ion-text-center">
-        <ion-card-header>
-          <ion-card-title>{{ $t('profile.experiencePoints') }}</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <h2 style="font-size: 2rem; margin: 0; color: var(--ion-color-primary);">
-            {{ currentPoints }}
-          </h2>
-          <p>Level {{ level }}</p>
-          <ion-progress-bar
-              :value="progressPercent / 100"
-              color="success"
-              style="margin-top: 10px; border-radius: 8px;"
-          ></ion-progress-bar>
-          <small>{{ currentPoints }} / {{ nextLevelXp }} XP</small>
-        </ion-card-content>
-      </ion-card>
+        <!-- XP -->
+        <ion-card v-if="userEmail" class="profile-card ion-text-center">
+          <ion-card-header>
+            <ion-card-title>{{ $t('profile.experiencePoints') }}</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <h2 style="font-size: 2rem; margin: 0; color: var(--ion-color-primary);">
+              {{ currentPoints }}
+            </h2>
+            <p>Level {{ level }}</p>
+            <ion-progress-bar
+                :value="progressPercent / 100"
+                color="success"
+                style="margin-top: 10px; border-radius: 8px;"
+            ></ion-progress-bar>
+            <small>{{ currentPoints }} / {{ nextLevelXp }} XP</small>
+          </ion-card-content>
+        </ion-card>
 
-      <!-- Review Submissions -->
-      <ion-list v-if="isAdmin" class="profile-menu" style="border-radius: 10px">
-        <ion-item button @click="goToReviewSubmissions">
-          <ion-icon :icon="listOutline" />&nbsp;
-          <ion-label>{{ $t('profile.review') }}</ion-label>
+      </template>
 
-          <!-- ✅ Put badge at end slot -->
-          <ion-badge
-              v-if="pendingCount > 0"
-              color="danger"
-              slot="end"
-          >
-            {{ pendingCount }}
-          </ion-badge>
-        </ion-item>
+      <!-- ================= ADMIN ================= -->
+      <template v-if="isAdmin">
+        <ion-list v-if="loadingAdmin" class="profile-menu">
+          <ion-item v-for="i in 5" :key="i">
+            <ion-skeleton-text animated style="width:70%;height:16px"/>
+          </ion-item>
+        </ion-list>
 
-        <ion-item button @click="goToPointsLogs">
-          <ion-icon :icon="listOutline" />&nbsp;
-          <ion-label>View Points Logs</ion-label>
-        </ion-item>
+        <ion-list v-else class="profile-menu" style="border-radius: 10px; margin-top: 20px">
+          <ion-item button @click="goToReviewSubmissions">
+            <ion-icon :icon="listOutline"/>&nbsp;
+            <ion-label>{{ $t('profile.review') }}</ion-label>
 
-        <ion-item button @click="goToScanLogs" lines="none">
-          <ion-icon :icon="listOutline" />&nbsp;
-          <ion-label>Ingredient Scan Logs</ion-label>
-        </ion-item>
+            <!-- ✅ Put badge at end slot -->
+            <ion-badge
+                v-if="pendingCount > 0"
+                color="danger"
+                slot="end"
+            >
+              {{ pendingCount }}
+            </ion-badge>
+          </ion-item>
 
-        <ion-item button @click="goToAnalyticsDashboard" lines="none">
-          <ion-icon :icon="listOutline" />&nbsp;
-          <ion-label>Analytics Dashboard</ion-label>
-        </ion-item>
+          <ion-item button @click="goToPointsLogs">
+            <ion-icon :icon="listOutline"/>&nbsp;
+            <ion-label>View Points Logs</ion-label>
+          </ion-item>
 
-        <ion-item button @click="goToMasterData">
-          <ion-icon :icon="constructOutline" />&nbsp;
-          <ion-label>Master Data</ion-label>
-        </ion-item>
+          <ion-item button @click="goToScanLogs">
+            <ion-icon :icon="listOutline"/>&nbsp;
+            <ion-label>Ingredient Scan Logs</ion-label>
+          </ion-item>
 
+          <ion-item button @click="goToAnalyticsDashboard">
+            <ion-icon :icon="listOutline"/>&nbsp;
+            <ion-label>Analytics Dashboard</ion-label>
+          </ion-item>
 
+          <ion-item button @click="goToMasterData" lines="none">
+            <ion-icon :icon="constructOutline"/>&nbsp;
+            <ion-label>Master Data</ion-label>
+          </ion-item>
 
-      </ion-list>
+        </ion-list>
+      </template>
+
 
       <!-- Menu -->
       <ion-list class="profile-menu" style="border-radius: 10px; margin-top: 20px">
         <ion-item button @click="goToSettings">
-          <ion-icon :icon="settingsOutline" />&nbsp;
+          <ion-icon :icon="settingsOutline"/>&nbsp;
           <ion-label>{{ $t('profile.settings') }}</ion-label>
         </ion-item>
-        <ion-item button @click="goToLegal" >
-          <ion-icon :icon="documentTextOutline" />&nbsp;
+        <ion-item button @click="goToLegal">
+          <ion-icon :icon="documentTextOutline"/>&nbsp;
           <ion-label>{{ $t('profile.legal') }}</ion-label>
         </ion-item>
         <ion-item button @click="goToCredits" style="--inner-border-width: 0">
-          <ion-icon :icon="peopleOutline" />&nbsp;
+          <ion-icon :icon="peopleOutline"/>&nbsp;
           <ion-label>{{ $t('profile.credits') }}</ion-label>
         </ion-item>
       </ion-list>
@@ -272,7 +239,7 @@
           <ion-item button @click="donate">
             <ion-label>
               <strong>{{ donationProduct.title }}</strong>
-              <br />
+              <br/>
               {{ donationProduct.description }}
             </ion-label>
             <ion-note slot="end">{{ donationProduct.priceString }}</ion-note>
@@ -324,7 +291,7 @@
                 target="_blank"
                 class="social-button line"
             >
-              <img src="/social-logo/line-logo.png" alt="LINE" class="social-icon" />
+              <img src="/social-logo/line-logo.png" alt="LINE" class="social-icon"/>
               <span>LINE</span>
             </a>
 
@@ -421,9 +388,9 @@ import {
 
 // Services
 import {CustomerInfo, Purchases} from "@revenuecat/purchases-capacitor";
-import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
+import {RevenueCatUI, PAYWALL_RESULT} from '@revenuecat/purchases-capacitor-ui';
 import {refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
-import { toastController } from "@ionic/vue";
+import {toastController} from "@ionic/vue";
 
 interface RcProduct {
   identifier: string;
@@ -442,7 +409,10 @@ const userEmail = ref("");
 const userDisplayName = ref("");
 const userAvatar = ref("");
 const pendingCount = ref(0);
-const loading = ref(true);
+
+const loadingProfile = ref(true)     // avatar, name, email
+const loadingAdmin = ref(false)      // admin-only data
+
 const user = ref<any | null>(null);
 const router = useRouter();
 
@@ -454,7 +424,7 @@ const donationProduct = ref<RcProduct | null>(null);
 const paywallOpening = ref(false);
 
 // ✅ Points composable
-const { currentPoints, fetchCurrentPoints } = usePoints();
+const {currentPoints, fetchCurrentPoints} = usePoints();
 
 const customerInfo = ref<CustomerInfo | null>(null)
 
@@ -516,9 +486,9 @@ async function fetchPendingCount() {
     return;
   }
 
-  const { count, error } = await supabase
+  const {count, error} = await supabase
       .from("products")
-      .select("*", { count: "exact", head: true })
+      .select("*", {count: "exact", head: true})
       .eq("approved", false);
 
   if (!error && count !== null) {
@@ -553,7 +523,7 @@ const openManageSubscription = () => {
 
 
 async function fetchUserProfile(userId: string) {
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from("user_profiles")
       .select("date_of_birth, nationality, gender, bio")
       .eq("id", userId)
@@ -567,7 +537,7 @@ async function fetchUserProfile(userId: string) {
 
     // 🚀 If missing required fields → redirect to EditProfile
     if (!data.date_of_birth || !data.nationality || !data.gender) {
-      router.replace({ name: "EditProfile" });
+      router.replace({name: "EditProfile"});
       return;
     }
 
@@ -584,7 +554,7 @@ async function fetchUserProfile(userId: string) {
 
 // ✅ Always refresh when ProfileView becomes active
 onIonViewWillEnter(async () => {
-  const { data } = await supabase.auth.getUser();
+  const {data} = await supabase.auth.getUser();
   if (data?.user) {
     await fetchCurrentPoints(data.user.id);
     await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
@@ -597,7 +567,7 @@ async function logRevenueCatStatus() {
 
   try {
     console.log("[RC] Fetching customer info...");
-    const { customerInfo } = await Purchases.getCustomerInfo();
+    const {customerInfo} = await Purchases.getCustomerInfo();
 
     console.log(
         "🧾 [RC] customerInfo =",
@@ -619,7 +589,7 @@ async function logRevenueCatStatus() {
 
 onMounted(async () => {
   await fetchCountries();
-  const { data } = await supabase.auth.getUser();
+  const {data} = await supabase.auth.getUser();
 
   if (data?.user) {
     user.value = data.user;
@@ -637,10 +607,8 @@ onMounted(async () => {
 
   if (isAdmin.value) await fetchPendingCount();
 
-  loading.value = false;
-
   const {
-    data: { subscription: authSub },
+    data: {subscription: authSub},
   } = supabase.auth.onAuthStateChange(async (_event, session) => {
 
     // 🔴 USER LOGGED OUT
@@ -679,6 +647,9 @@ onMounted(async () => {
 
   authSubscription = authSub;
 
+  loadingProfile.value = false
+  loadingAdmin.value = false
+
   // 👉 RevenueCat Logging (native only)
   await logRevenueCatStatus();
 });
@@ -695,7 +666,7 @@ async function donate() {
   if (!pkg) return;
 
   try {
-    await Purchases.purchasePackage({ aPackage: pkg });
+    await Purchases.purchasePackage({aPackage: pkg});
     alert("Thank you for supporting Halal Formosa ❤️");
   } catch (err) {
     console.error("Donation failed:", err);
@@ -711,7 +682,7 @@ async function presentPaywall(): Promise<boolean> {
   try {
     console.log("[RC] Presenting Paywall...");
 
-    const { result } = await RevenueCatUI.presentPaywall();
+    const {result} = await RevenueCatUI.presentPaywall();
 
     console.log("[RC] Paywall Result:", result);
 
@@ -747,7 +718,7 @@ async function presentPaywall(): Promise<boolean> {
 async function ensureRevenueCatLoggedIn() {
   if (!Capacitor.isNativePlatform()) return
 
-  const { data } = await supabase.auth.getUser()
+  const {data} = await supabase.auth.getUser()
   if (!data?.user) return
 
   await Purchases.logIn({
@@ -756,7 +727,6 @@ async function ensureRevenueCatLoggedIn() {
 
   console.log("🔐 RevenueCat logged in as:", data.user.id)
 }
-
 
 
 async function openProPaywall() {
@@ -784,7 +754,7 @@ async function openProPaywall() {
 
     // 🔄 Refresh subscription state
     await refreshCustomerInfo();
-    await refreshSubscriptionStatus({ syncToServer: true });
+    await refreshSubscriptionStatus({syncToServer: true});
 
     // 🔓 Yield back to Ionic
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -816,7 +786,7 @@ onBeforeUnmount(() => {
 
 // Actions
 const handleLogout = async () => {
-  const { error } = await supabase.auth.signOut();
+  const {error} = await supabase.auth.signOut();
   if (!error) {
     userEmail.value = "";
     currentPoints.value = null; // reset points
@@ -831,11 +801,10 @@ const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
 const goToAnalyticsDashboard = () => router.push("/admin/analytics");
 const goToScanLogs = () => router.push("/admin/scan-logs");
-const goToEditProfile = () => router.push({ name: "EditProfile" });
+const goToEditProfile = () => router.push({name: "EditProfile"});
 const goToMasterData = () => router.push('/admin/master-data')
 
 </script>
-
 
 
 <style scoped>
@@ -854,6 +823,7 @@ ion-toast {
   justify-content: center;
   margin-bottom: 1rem;
 }
+
 .avatar {
   width: 120px;
   height: 120px;
@@ -867,20 +837,24 @@ ion-toast {
   font-weight: 700;
   color: var(--ion-color-tertiary);
 }
+
 .profile-email p {
   margin: 0 0 1.5rem;
   font-size: 1rem;
   color: var(--ion-color-medium);
 }
+
 .logout-button,
 .login-prompt ion-button {
   margin-top: 1rem;
 }
+
 .login-prompt p {
   margin-bottom: 1rem;
   font-size: 1rem;
   color: var(--ion-color-medium);
 }
+
 .boba-button {
   display: flex;
   align-items: center;
@@ -895,10 +869,12 @@ ion-toast {
   text-decoration: none;
   font-weight: bold;
 }
+
 .support-thank {
   font-size: 0.9rem;
   color: var(--ion-color-medium);
 }
+
 .profile-toolbar {
   --padding-start: 0;
   --padding-end: 0;
@@ -955,6 +931,7 @@ ion-toast {
   border: 2px solid #ffffff33; /* subtle outline */
   backdrop-filter: blur(3px);
 }
+
 .social-button.website:hover {
   transform: translateY(-2px);
   border-color: #ffffff66;
