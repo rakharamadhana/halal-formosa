@@ -897,12 +897,25 @@ const submitPlace = async () => {
       await awardAndCelebrate('add_place', 10000)
       toast.value = {open: true, message: 'Place added!', color: 'success'}
 
+      const selectedType = locationTypes.value.find(
+          t => t.id === form.value.type_id
+      )
+
+      const placeTypeName = selectedType?.name || 'Halal Place'
+
+
       await notifyEvent(
           'new_place',
-          '🕌 New Halal Place Added!',
-          `${form.value.name} (${locationTypes.value.find(t => t.id === form.value.type_id)?.name || 'Unknown'})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
+          `🕌 New ${placeTypeName} Added!`,
+          `${form.value.name} (${placeTypeName})
+Lat: ${form.value.lat}, Lng: ${form.value.lng}`,
           form.value.image ?? undefined,
-          {id: newPlace.id, lat: form.value.lat, lng: form.value.lng, isNative: true}
+          {
+            id: newPlace.id,
+            lat: form.value.lat,
+            lng: form.value.lng,
+            isNative: true
+          }
       )
 
       setTimeout(() => router.replace(`/explore?focus=${newPlace.id}`), 500)

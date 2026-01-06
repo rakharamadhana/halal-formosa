@@ -302,7 +302,7 @@ import {Cluster, Renderer} from "@googlemaps/markerclusterer"
 import useSharePlace from '@/composables/useSharePlace'
 import {ActivityLogService} from "@/services/ActivityLogService";
 
-import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import {isDonor} from "@/composables/useSubscriptionStatus";
 
 const ionIconMap: Record<string, any> = {
   restaurant,
@@ -693,7 +693,7 @@ const initMap = async () => {
 
   loading.value = true
 
-  const [{ Map }, marker] = await Promise.all([
+  const [{Map}, marker] = await Promise.all([
     mapsLoader.importLibrary('maps'),
     mapsLoader.importLibrary('marker')
   ])
@@ -962,7 +962,7 @@ onIonViewWillEnter(async () => {
     const p = locations.value.find(l => l.id === focusId)
     if (p) selectPlace(p)
 
-    router.replace({ query: {} }) // 👈 clear focus param
+    router.replace({query: {}}) // 👈 clear focus param
   }
 })
 
