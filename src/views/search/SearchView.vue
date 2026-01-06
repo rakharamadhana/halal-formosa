@@ -689,20 +689,6 @@ const toggleStatus = (status: string) => {
   activeStatus.value = activeStatus.value === status ? null : status
 }
 
-const fetchStatuses = async () => {
-  const { data, error } = await supabase
-      .from('product_statuses')
-      .select('key, label, color')
-
-  if (!error && data) {
-    statuses.value = data.map(s => ({
-      ...s,
-      colorKey: extractIonicColor(s.color)
-    }))
-  }
-}
-
-
 function goToAddProduct() {
   router.push('/add')
 }
@@ -720,11 +706,6 @@ function getStatusClass(status: string) {
     default:
       return ''
   }
-}
-
-const getStatusColor = (statusKey: string) => {
-  const s = statuses.find(s => s.key === statusKey)
-  return s?.color ?? 'medium'
 }
 
 function extractIonicColor(cssVar: string): string {
@@ -785,7 +766,6 @@ onMounted(async () => {
     fetchTotalCount(),
     fetchCategories(),
     fetchStores(),
-    fetchStatuses()
   ])
 })
 
