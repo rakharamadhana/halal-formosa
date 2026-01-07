@@ -796,7 +796,7 @@ const buildInfoHtml = (p: Place) => {
             font-size: 13px;
           "
         >
-          📍 Navigate
+          ➡️ Navigate
         </a>
 
         <button

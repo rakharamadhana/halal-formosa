@@ -107,7 +107,8 @@ supabase.auth.getSession().then(async ({ data }) => {
 
         await loadUserProfile(session.user.id);
 
-        await refreshSubscriptionStatus({ syncToServer: true });
+        if (Capacitor.isNativePlatform()) await refreshSubscriptionStatus({ syncToServer: true });
+
     } else {
         currentUser.value = null;
     }
@@ -145,11 +146,11 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         loadPublicLeaderboardFromCache(session.user.id)
 
         // RevenueCat: don’t block UI
-        Purchases.logIn({ appUserID: session.user.id }).catch(console.warn)
+        if (Capacitor.isNativePlatform()) Purchases.logIn({ appUserID: session.user.id }).catch(console.warn)
 
         // Profile + entitlement sync: don’t block UI
-        loadUserProfile(session.user.id).catch(console.error)
-        refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
+        // loadUserProfile(session.user.id).catch(console.error)
+        if (Capacitor.isNativePlatform()) refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
     }
 })
 

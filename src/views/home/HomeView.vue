@@ -307,6 +307,7 @@ import { useLeaderboard } from "@/composables/useLeaderboard";
 import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
 import {ActivityLogService} from "@/services/ActivityLogService";
 import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import {Capacitor} from "@capacitor/core";
 
 const selectedUser = ref<any | null>(null)
 const popoverEvent = ref<Event | null>(null)
@@ -514,7 +515,7 @@ onIonViewWillEnter(async () => {
   fetchRecentProducts()
   fetchRecentLocations()
   fetchLeaderboard()   // ✅ new
-  refreshSubscriptionStatus();
+  if (Capacitor.isNativePlatform()) refreshSubscriptionStatus();
 })
 
 /* ---------------- Navigation ---------------- */

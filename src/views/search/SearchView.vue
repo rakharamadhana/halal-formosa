@@ -759,7 +759,7 @@ onMounted(async () => {
 })
 
 onIonViewWillEnter(async () => {
-  refreshSubscriptionStatus();
+  if (Capacitor.isNativePlatform()) refreshSubscriptionStatus();
 })
 
 
