@@ -128,10 +128,16 @@
           <ion-searchbar
               class="search-explore"
               :debounce="1000"
+              v-model="searchQuery"
+              show-search-button="always"
               @ionInput="onSearchInput"
+              @ionSearch="onSearchCommit"
+              @keyup.enter.capture="onSearchCommit"
               style="flex-grow: 1; margin-right: 8px;"
               :placeholder="$t('explore.placeholder')"
-          ></ion-searchbar>
+              :disabled="isGeocoding"
+          />
+
 
           <ion-button
               v-if="isContributor"
@@ -325,6 +331,7 @@ type LocationType = {
 type Place = {
   id: number
   name: string
+  address?: string | null
   position: { lat: number; lng: number }
   image?: string | null
   typeId: number | null
@@ -336,6 +343,7 @@ type Place = {
 type LocationRow = {
   id: number
   name: string
+  address: string
   lat: number
   lng: number
   image?: string | null
@@ -403,6 +411,152 @@ const fetchLocationTypes = async () => {
   if (!error && data) locationTypes.value = data
 
   loadingCategories.value = false
+}
+
+const addressMarker = ref<google.maps.marker.AdvancedMarkerElement | null>(null)
+
+const isGeocoding = ref(false)
+const lastGeocodeAt = ref(0)
+const lastGeocodeQuery = ref<string | null>(null)
+
+const GEOCODE_COOLDOWN_MS = 1500 // 1.5 seconds
+
+const onSearchCommit = async () => {
+  if (viewMode.value === 'list') return
+  if (!mapInstance) return
+
+  const q = searchQuery.value.trim()
+  if (!q) return
+
+  // 1️⃣ Local DB match FIRST
+  const hasLocalMatch = sortedLocations.value.length > 0
+  if (hasLocalMatch) {
+    console.log('[SEARCH] Local DB match', {
+      query: q,
+      count: sortedLocations.value.length,
+      firstId: sortedLocations.value[0]?.id
+    })
+
+    const first = sortedLocations.value[0]
+    if (first) {
+      selectPlace(first)
+    }
+    return
+  }
+
+  // 2️⃣ Same-query protection
+  if (lastGeocodeQuery.value === q) {
+    console.log('[SEARCH] Blocked — duplicate query', q)
+    return
+  }
+
+  // 3️⃣ Spam / cooldown protection
+  const now = Date.now()
+
+  if (isGeocoding.value) {
+    console.log('[SEARCH] Blocked — geocode in progress', q)
+    return
+  }
+
+  if (now - lastGeocodeAt.value < GEOCODE_COOLDOWN_MS) {
+    console.log('[SEARCH] Blocked — cooldown', {
+      query: q,
+      remainingMs: GEOCODE_COOLDOWN_MS - (now - lastGeocodeAt.value)
+    })
+    return
+  }
+
+  isGeocoding.value = true
+  lastGeocodeAt.value = now
+  lastGeocodeQuery.value = q
+
+  try {
+    // 4️⃣ Paid fallback
+    console.log('[SEARCH] Geocode fallback', q)
+    await geocodeAddress(q)
+  } finally {
+    isGeocoding.value = false
+  }
+}
+
+
+import { toastController } from '@ionic/vue'
+
+const showAddressToast = async () => {
+  const toast = await toastController.create({
+    message: isGeocoding.value
+        ? 'Please wait…'
+        : 'Searching address on map…',
+    duration: 1000,
+    position: 'top'
+  })
+  await toast.present()
+}
+
+
+
+const geocodeAddress = async (query: string) => {
+  await showAddressToast()
+  try {
+    const geocoder = new google.maps.Geocoder()
+
+    const res = await geocoder.geocode({
+      address: query,
+      region: 'TW',
+      bounds: mapInstance?.getBounds() ?? undefined
+    })
+
+    const place = res.results?.[0]
+    if (!place) return
+
+    const loc = place.geometry.location
+    const latLng = { lat: loc.lat(), lng: loc.lng() }
+
+    // Move map
+    mapInstance!.panTo(latLng)
+    mapInstance!.setZoom(17)
+
+    // Drop / move temp marker
+    if (advancedMarkerLib) {
+      if (addressMarker.value) {
+        addressMarker.value.position = latLng
+        addressMarker.value.map = mapInstance
+      } else {
+        const dot = document.createElement('div')
+        dot.className = 'user-location-dot' // reuse style
+
+        addressMarker.value =
+            new advancedMarkerLib.AdvancedMarkerElement({
+              position: latLng,
+              map: mapInstance!,
+              content: dot,
+              title: place.formatted_address
+            })
+      }
+    }
+
+    // Optional InfoWindow
+    if (infoWindow) {
+      infoWindow.setContent(`
+        <strong>📍 ${place.formatted_address}</strong>
+      `)
+      infoWindow.open(mapInstance, addressMarker.value!)
+    }
+
+    ActivityLogService.log("explore_address_search", {
+      query,
+      address: place.formatted_address,
+      lat: latLng.lat,
+      lng: latLng.lng
+    })
+  } catch (err) {
+    console.warn("Geocode failed", err)
+  }
+
+  // Reset DB filters after successful address search
+  searchQuery.value = ''
+  activeCategoryId.value = null
+  focusedPlaceId.value = null
 }
 
 
@@ -535,34 +689,134 @@ const carrotRippleClusterRenderer: Renderer = {
   },
 }
 
+const darkenColor = (color: string, amount = 0.35) => {
+  // HEX format
+  if (color.startsWith('#')) {
+    const hex = color.replace('#', '')
+    if (hex.length !== 6) return color
 
-const buildInfoHtml = (p: Place) => `
-  <div style="max-width: 230px;">
-    <img
-      src="${p.image || 'https://placehold.co/200x100'}"
-      alt="${p.name}"
-      style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;"
-      onerror="this.src='https://placehold.co/200x100';"
-    />
-    <strong style="display:block; font-size: 14px; margin-bottom: 2px;">${p.name}</strong>
-    <span style="color: gray; font-size: 13px;">${p.type}</span><br>
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-      <a
-        href="https://www.google.com/maps/dir/?api=1&destination=${p.position.lat},${p.position.lng}"
-        target="_blank" rel="noopener noreferrer"
-        style="color: var(--ion-color-carrot); font-weight: 500; text-decoration: none; font-size: 13px;"
-      >📍 Navigate</a>
+    const dark = (v: number) => Math.max(0, Math.floor(v * (1 - amount)))
 
-      <button
-        class="share-btn"
-        data-id="${p.id}"
-        style="background:none;border:none;color:var(--ion-color-carrot);font-size:13px;cursor:pointer;"
-      >🔗 Share</button>
+    return `rgb(${dark(r)}, ${dark(g)}, ${dark(b)})`
+  }
 
+  // rgb / rgba format
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (match) {
+    const r = Number(match[1])
+    const g = Number(match[2])
+    const b = Number(match[3])
+
+    const dark = (v: number) => Math.max(0, Math.floor(v * (1 - amount)))
+
+    return `rgb(${dark(r)}, ${dark(g)}, ${dark(b)})`
+  }
+
+  // fallback (CSS var etc.)
+  return color
+}
+
+
+const buildInfoHtml = (p: Place) => {
+  const baseColor =
+      markerStyles.value[p.type]?.color ?? 'var(--ion-color-carrot)'
+
+  const textColor = darkenColor(baseColor, 0.45)
+  const emoji = markerStyles.value[p.type]?.emoji ?? ''
+
+  return `
+    <div style="max-width: 230px;">
+      <img
+        src="${p.image || 'https://placehold.co/200x100'}"
+        alt="${p.name}"
+        style="
+          width: 100%;
+          height: 120px;
+          object-fit: cover;
+          border-radius: 8px;
+          margin-bottom: 6px;
+        "
+        onerror="this.src='https://placehold.co/200x100';"
+      />
+
+      <strong style="display:block; font-size:14px; margin-bottom:2px;">
+        ${p.name}
+      </strong>
+
+      <!-- Category badge -->
+      <span
+        style="
+          display: inline-block;
+          margin-top: 2px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 500;
+          color: ${textColor};
+          border: 1px solid ${textColor};
+          background: rgba(0,0,0,0.03);
+        "
+      >
+        ${emoji ? `${emoji}&nbsp;` : ''}${p.type}
+      </span>
+
+      ${p.address ? `
+        <div
+          style="
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+            line-height: 1.3;
+          "
+        >
+          📍 ${p.address}
+        </div>
+      ` : ''}
+
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 8px;
+        "
+      >
+        <a
+          href="https://www.google.com/maps/dir/?api=1&destination=${p.position.lat},${p.position.lng}"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            color: var(--ion-color-carrot);
+            font-weight: 500;
+            text-decoration: none;
+            font-size: 13px;
+          "
+        >
+          📍 Navigate
+        </a>
+
+        <button
+          class="share-btn"
+          data-id="${p.id}"
+          style="
+            background: none;
+            border: none;
+            color: var(--ion-color-carrot);
+            font-size: 13px;
+            cursor: pointer;
+          "
+        >
+          🔗 Share
+        </button>
+      </div>
     </div>
-  </div>
-`
+  `
+}
+
 
 const createPinElement = (place: Place) => {
   const style =
@@ -640,9 +894,9 @@ const fetchLocations = async () => {
   const {data, error} = await supabase
       .from('locations')
       .select(`
-      id, name, lat, lng, image, type_id,
-      location_types(name)
-    `)
+  id, name, lat, lng, image, type_id, address,
+  location_types(name)
+`)
 
   if (!error && data) {
     //@ts-expect-error LocationRow
@@ -651,6 +905,7 @@ const fetchLocations = async () => {
     locations.value = typedData.map((loc) => ({
       id: loc.id,
       name: loc.name,
+      address: loc.address ?? null,
       position: {lat: loc.lat, lng: loc.lng},
       image: loc.image,
       typeId: loc.type_id,
@@ -787,6 +1042,13 @@ watch([viewMode, panelVisible], async () => {
   }
 })
 
+watch(searchQuery, q => {
+  if (!q && addressMarker.value) {
+    addressMarker.value.map = null
+    addressMarker.value = null
+  }
+})
+
 
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {
@@ -915,10 +1177,15 @@ const sortedLocations = computed(() => {
   }
 
   // ✅ search (this already works for all matches)
-  const q = searchQuery.value?.toLowerCase().trim()
+  const q = searchQuery.value.toLowerCase().trim()
+
   if (q) {
-    base = base.filter(l => l.name.toLowerCase().includes(q))
+    base = base.filter(l =>
+        l.name.toLowerCase().includes(q) ||
+        (l.address && l.address.toLowerCase().includes(q))
+    )
   }
+
 
   // sort by distance if available
   if (userLocation.value) {
