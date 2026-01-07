@@ -84,6 +84,7 @@
               :placeholder="$t('addPlace.addressPlaceholder')"
               required
               @ionBlur="onAddressConfirm"
+              @ionChange="onAddressConfirm"
               @keyup.enter="onAddressConfirm"
           >
             <div slot="label">
@@ -101,6 +102,7 @@
                 step="any"
                 label-placement="stacked"
                 required
+                readonly
             >
               <div slot="label">
                 {{ $t('addPlace.latLabel') }}
@@ -115,6 +117,7 @@
                 step="any"
                 label-placement="stacked"
                 required
+                readonly
             >
               <div slot="label">
                 {{ $t('addPlace.lngLabel') }}
@@ -316,6 +319,7 @@ import {useRoute} from 'vue-router'
 
 const route = useRoute()
 const isEditing = computed(() => !!route.params.id)
+const coordUpdateSource = ref<'address' | 'map' | 'manual' | null>(null)
 
 /* -------------------- Constants -------------------- */
 const MAP_ID = 'a40f1ec0ad0afbbb12694f19'
@@ -338,7 +342,7 @@ const dayLabels = {
 };
 const showMoreOptions = ref(false)
 const openingHoursTouched = ref(false)
-let addressTimer: number | null = null
+
 
 /* -------------------- Router -------------------- */
 const router = useRouter()
@@ -426,59 +430,6 @@ const isValid = computed(() =>
     form.value.lat !== null &&
     form.value.lng !== null &&
     (!!form.value.image || !!pendingFile.value) // allow deferred file
-)
-
-
-watch(
-    () => [form.value.lat, form.value.lng],
-    async ([newLat, newLng], [oldLat, oldLng]) => {
-      if (!newLat || !newLng) return
-      if (newLat === oldLat && newLng === oldLng) return
-
-      // Pan map to new location
-      if (map) {
-        map.setCenter({lat: newLat, lng: newLng})
-        if (clickMarker) clickMarker.position = {lat: newLat, lng: newLng}
-      }
-
-      // Fetch address
-      const addr = await reverseGeocode(newLat, newLng)
-      if (addr) form.value.address = addr
-    }
-)
-
-watch(
-    () => form.value.address,
-    (addr) => {
-      if (!addr || addr.length < 6) return   // avoid noisy queries
-
-      if (addressTimer) clearTimeout(addressTimer)
-
-      addressTimer = window.setTimeout(async () => {
-        const result = await geocodeAddress(addr)
-        if (!result) return
-
-        const { lat, lng } = result
-
-        form.value.lat = lat
-        form.value.lng = lng
-
-        if (map) {
-          map.panTo({ lat, lng })
-          map.setZoom(16)
-        }
-
-        if (clickMarker) {
-          clickMarker.position = { lat, lng }
-        }
-
-        // subtle pin feedback
-        if (pinEl?.element) {
-          pinEl.element.classList.add('marker-pop')
-          setTimeout(() => pinEl.element.classList.remove('marker-pop'), 220)
-        }
-      }, 700) // ⏱ debounce delay
-    }
 )
 
 /* -------------------- Image Upload -------------------- */
@@ -674,6 +625,9 @@ const initMap = async () => {
   let firstTapDone = false
   mapClickListener = map.addListener('click', async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
+
+    coordUpdateSource.value = 'map'
+
     const lat = e.latLng.lat()
     const lng = e.latLng.lng()
 
@@ -709,6 +663,8 @@ const initMap = async () => {
     // 🧠 Auto-fetch address
     const addr = await reverseGeocode(lat, lng)
     if (addr) form.value.address = addr
+
+    coordUpdateSource.value = null
   })
 }
 
@@ -730,9 +686,12 @@ const updatePinColor = () => {
 const geocoder = ref<google.maps.Geocoder | null>(null)
 
 const onAddressConfirm = async () => {
-  if (!form.value.address) return
+  const addr = form.value.address?.trim()
+  if (!addr || addr.length < 8) return
 
-  const result = await geocodeAddress(form.value.address)
+  coordUpdateSource.value = 'address'
+
+  const result = await geocodeAddress(addr)
   if (!result) return
 
   const { lat, lng } = result
@@ -746,7 +705,11 @@ const onAddressConfirm = async () => {
   if (clickMarker) {
     clickMarker.position = { lat, lng }
   }
+
+  coordUpdateSource.value = null
 }
+
+
 
 
 async function reverseGeocode(lat: number, lng: number) {
@@ -776,7 +739,11 @@ async function geocodeAddress(address: string) {
   }
 
   return new Promise<{ lat: number; lng: number } | null>((resolve) => {
-    geocoder.value!.geocode({ address }, (results, status) => {
+    geocoder.value!.geocode({
+      address,
+      region: 'TW',
+      componentRestrictions: { country: 'TW' },
+    }, (results, status) => {
       if (status === 'OK' && results?.[0]) {
         const loc = results[0].geometry.location
         resolve({

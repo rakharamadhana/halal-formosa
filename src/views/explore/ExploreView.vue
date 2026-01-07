@@ -403,10 +403,12 @@ let clusterer: MarkerClusterer | null = null
 const fetchLocationTypes = async () => {
   loadingCategories.value = true
 
-  const {data, error} = await supabase
+  const { data, error } = await supabase
       .from('location_types')
       .select('id, name, color, emoji, icon')
       .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
 
   if (!error && data) locationTypes.value = data
 
