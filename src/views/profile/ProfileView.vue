@@ -277,9 +277,8 @@
 
             <!-- Instagram -->
             <a
-                href="https://www.instagram.com/halalformosa/"
-                target="_blank"
                 class="social-button instagram"
+                @click.prevent="logAndOpen('instagram', 'https://www.instagram.com/halalformosa/')"
             >
               <ion-icon :icon="logoInstagram" class="social-icon"></ion-icon>
               <span>Instagram</span>
@@ -287,9 +286,8 @@
 
             <!-- LINE -->
             <a
-                href="https://line.me/R/ti/p/@975schpu"
-                target="_blank"
                 class="social-button line"
+                @click.prevent="logAndOpen('line', 'https://line.me/R/ti/p/@975schpu')"
             >
               <img src="/social-logo/line-logo.png" alt="LINE" class="social-icon"/>
               <span>LINE</span>
@@ -297,9 +295,8 @@
 
             <!-- Official Website -->
             <a
-                href="https://halalformosa.com"
-                target="_blank"
                 class="social-button website"
+                @click.prevent="logAndOpen('web', 'https://halalformosa.com')"
             >
               <ion-icon :icon="globeOutline" class="social-icon"></ion-icon>
               <span>Website</span>
@@ -391,6 +388,7 @@ import {CustomerInfo, Purchases} from "@revenuecat/purchases-capacitor";
 import {RevenueCatUI, PAYWALL_RESULT} from '@revenuecat/purchases-capacitor-ui';
 import {refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 import {toastController} from "@ionic/vue";
+import { ActivityLogService } from '@/services/ActivityLogService'
 
 interface RcProduct {
   identifier: string;
@@ -559,7 +557,9 @@ onIonViewWillEnter(async () => {
     await fetchCurrentPoints(data.user.id);
     await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
     await refreshCustomerInfo()
+    ActivityLogService.log('profile_page_open')
   }
+
 });
 
 async function logRevenueCatStatus() {
@@ -655,6 +655,10 @@ onMounted(async () => {
 });
 
 async function donate() {
+  ActivityLogService.log('donation_click', {
+    product: donationProduct.value?.identifier ?? null
+  })
+
   const offerings = await Purchases.getOfferings();
 
   if (!offerings.current) return;
@@ -668,6 +672,11 @@ async function donate() {
   try {
     await Purchases.purchasePackage({aPackage: pkg});
     alert("Thank you for supporting Halal Formosa ❤️");
+
+    ActivityLogService.log('donation_success', {
+      product: donationProduct.value?.identifier ?? null
+    })
+
   } catch (err) {
     console.error("Donation failed:", err);
   }
@@ -728,8 +737,21 @@ async function ensureRevenueCatLoggedIn() {
   console.log("🔐 RevenueCat logged in as:", data.user.id)
 }
 
+function logAndOpen(platform: string, url: string) {
+  // 🔓 Open immediately (keeps browser happy)
+  window.open(url, '_blank')
+
+  // 🧾 Log asynchronously (no await)
+  ActivityLogService.log('social_link_click', {
+    platform
+  }).catch(() => {
+    /* silent */
+  })
+}
 
 async function openProPaywall() {
+  ActivityLogService.log('pro_paywall_open')
+
   // ⛔ Web / PWA guard
   if (!Capacitor.isNativePlatform()) {
     const toast = await toastController.create({
@@ -771,6 +793,10 @@ async function openProPaywall() {
     });
     await toast.present();
 
+    ActivityLogService.log('pro_purchase_success', {
+      entitlement: 'Halal Formosa Pro'
+    })
+
   } finally {
     // 🔓 ALWAYS release the lock
     paywallOpening.value = false;
@@ -786,6 +812,8 @@ onBeforeUnmount(() => {
 
 // Actions
 const handleLogout = async () => {
+  ActivityLogService.log('profile_logout')
+
   const {error} = await supabase.auth.signOut();
   if (!error) {
     userEmail.value = "";
@@ -801,7 +829,12 @@ const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
 const goToAnalyticsDashboard = () => router.push("/admin/analytics");
 const goToScanLogs = () => router.push("/admin/scan-logs");
-const goToEditProfile = () => router.push({name: "EditProfile"});
+
+const goToEditProfile = () => {
+  ActivityLogService.log('profile_edit_open')
+  router.push({ name: "EditProfile" })
+}
+
 const goToMasterData = () => router.push('/admin/master-data')
 
 </script>
