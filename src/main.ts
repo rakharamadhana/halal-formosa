@@ -144,6 +144,8 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             user.last_sign_in_at &&
             user.created_at === user.last_sign_in_at;
 
+        console.log('🧪 isNewUser:', isNewUser);
+
         if (isNewUser) {
             // 🔔 Notify admin (Discord only)
             notifyEvent(
