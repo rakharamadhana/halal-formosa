@@ -13,6 +13,21 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <!-- 🔔 Mandatory profile completion notice -->
+      <ion-card
+          v-if="mustCompleteProfile"
+          color="warning"
+          class="ion-margin-bottom"
+      >
+        <ion-card-content>
+          <strong>⚠️ Complete Your Profile</strong>
+          <p style="margin-top: 6px;">
+            Before continuing, please complete your profile so we can better understand you and support your journey.
+          </p>
+        </ion-card-content>
+      </ion-card>
+
+
       <ion-list>
         <ion-item>
           <ion-label>{{ $t('profile.editProfile.dob') }}</ion-label>
@@ -116,9 +131,15 @@
         </ion-label>
       </ion-item>
 
-      <ion-button expand="block" color="carrot" @click="saveProfile" :disabled="!isProfileComplete">
-        {{ $t('profile.editProfile.save') }}
+      <ion-button
+          expand="block"
+          color="carrot"
+          @click="saveProfile"
+          :disabled="!isProfileComplete"
+      >
+        {{ mustCompleteProfile ? 'Complete Profile to Continue' : $t('profile.editProfile.save') }}
       </ion-button>
+
 
     </ion-content>
   </ion-page>
@@ -130,7 +151,7 @@ import {
   IonBackButton, IonList, IonItem, IonLabel, IonDatetime,
   IonSelect, IonSelectOption, IonTextarea, IonButton, IonModal,
   IonNote, IonSearchbar, IonDatetimeButton, IonText, IonCheckbox,
-    IonSkeletonText
+    IonSkeletonText, IonCard, IonCardContent
 } from "@ionic/vue";
 
 import {
@@ -153,6 +174,7 @@ import { useNotifier } from "@/composables/useNotifier";
 const { notifyEvent } = useNotifier();
 
 const router = useRouter();
+const mustCompleteProfile = computed(() => !isProfileComplete.value)
 
 interface Country {
   cca2: string;
@@ -286,8 +308,8 @@ async function saveProfile() {
         .eq('id', userId);
   }
 
-  /* 6️⃣ Leave edit page */
-  router.back();
+  /* 6️⃣ Leave edit page (explicit navigation for native) */
+  router.replace('/profile');
 }
 
 </script>

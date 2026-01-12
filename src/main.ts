@@ -49,14 +49,31 @@ import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 defineCustomElements(window)
 
 // ✅ Init safe areas & system bars
-initSafeArea()
+if (Capacitor.isNativePlatform()) {
+    try {
+        initSafeArea()
+    } catch (e) {
+        console.warn('[SafeArea] init skipped:', e)
+    }
+}
 
 /* Native-only setup */
 if (Capacitor.isNativePlatform()) {
-    Keyboard.setResizeMode({ mode: 'body' as KeyboardResize })
-    Keyboard.setScroll({ isDisabled: false })
+    try {
+        Keyboard.setResizeMode({ mode: 'body' as KeyboardResize })
+    } catch (e) {
+        console.warn('[Keyboard] setResizeMode not available:', e)
+    }
+
+    try {
+        Keyboard.setScroll({ isDisabled: false })
+    } catch (e) {
+        console.warn('[Keyboard] setScroll not available:', e)
+    }
+
     Keyboard.addListener('keyboardWillShow', () => document.body.classList.add('keyboard-visible'))
     Keyboard.addListener('keyboardWillHide', () => document.body.classList.remove('keyboard-visible'))
+
     initAdMob().catch((e) => console.warn('AdMob init skipped/failed:', e))
 }
 
@@ -116,23 +133,32 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 
 
-// ✅ Auth events (still needed for sign-in/out within app)
+// ✅ Auth events (lightweight & Android-safe)
 let hasHandledSignIn = false
 
-supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('🔐 Auth event:', event)
-    console.log('👤 Session user:', session?.user?.id)
+supabase.auth.onAuthStateChange((event, session) => {
+    console.log('🔐 [AUTH] Event:', event)
+    console.log('👤 [AUTH] Session user:', session?.user?.id)
 
     /* ------------------------
        SIGNED OUT
     ------------------------ */
     if (event === 'SIGNED_OUT') {
+        console.log('🚪 [AUTH] Handling SIGNED_OUT')
+
         hasHandledSignIn = false
 
-        try { await Purchases.logOut() } catch {}
+        // 🔒 Fire-and-forget native cleanup
+        if (Capacitor.isNativePlatform()) {
+            Purchases.logOut().catch(e =>
+                console.warn('⚠️ [RC] logOut failed:', e)
+            )
+        }
 
         resetUserProfileState()
         currentUser.value = null
+
+        console.log('➡️ [ROUTER] Redirecting to /login')
         router.replace('/login')
         return
     }
@@ -140,66 +166,77 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     /* ------------------------
        IGNORE INITIAL SESSION
     ------------------------ */
-    if (event === 'INITIAL_SESSION') return
+    if (event === 'INITIAL_SESSION') {
+        console.log('ℹ️ [AUTH] INITIAL_SESSION ignored')
+        return
+    }
 
     /* ------------------------
        SIGNED IN (HANDLE ONCE)
     ------------------------ */
-    if (event !== 'SIGNED_IN' || !session?.user) return
-    if (hasHandledSignIn) return
+    if (event !== 'SIGNED_IN' || !session?.user) {
+        console.log('ℹ️ [AUTH] Event ignored:', event)
+        return
+    }
+
+    if (hasHandledSignIn) {
+        console.log('⏭️ [AUTH] SIGNED_IN already handled')
+        return
+    }
+
     hasHandledSignIn = true
 
     const user = session.user
     currentUser.value = user
 
-    /* ------------------------
-       LOAD PROFILE (SOURCE OF TRUTH)
-    ------------------------ */
-    const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('bio, date_of_birth, nationality, profile_completed_notified')
-        .eq('id', user.id)
-        .maybeSingle()
+    console.log('✅ [AUTH] SIGNED_IN basic state set for:', user.id)
 
-    /* ------------------------
-       ONBOARDING STATE
-    ------------------------ */
-    const isProfileIncomplete =
-        !profile?.bio ||
-        !profile?.date_of_birth ||
-        !profile?.nationality
+    /* ------------------------------------------------
+       🔁 DEFER EVERYTHING ELSE (CRITICAL FIX)
+       This avoids Android native-plugin race crashes
+    ------------------------------------------------ */
+    queueMicrotask(() => {
+        console.log('⏳ [DEFERRED] Post-auth tasks starting')
 
-    /* ------------------------
-       ROUTING (HARD RULE)
-    ------------------------ */
-    if (isProfileIncomplete) {
-        // 🔒 mandatory onboarding
-        router.replace('/profile/edit')
-    } else {
+        /* ------------------------
+           LOAD CACHED DATA (SAFE)
+        ------------------------ */
+        try {
+            loadDonorFromCache(user.id)
+            loadUserRoleFromCache(user.id)
+            loadPublicLeaderboardFromCache(user.id)
+            console.log('✅ [CACHE] Loaded')
+        } catch (e) {
+            console.warn('⚠️ [CACHE] Failed:', e)
+        }
+
+        /* ------------------------
+           NATIVE SIDE EFFECTS (NON-BLOCKING)
+        ------------------------ */
+        if (Capacitor.isNativePlatform()) {
+            Purchases.logIn({ appUserID: user.id })
+                .then(() => console.log('✅ [RC] logIn success'))
+                .catch(e => console.warn('⚠️ [RC] logIn failed:', e))
+
+            refreshSubscriptionStatus({ syncToServer: true })
+                .then(() => console.log('✅ [RC] refreshSubscriptionStatus success'))
+                .catch(e => console.warn('⚠️ [RC] refreshSubscriptionStatus failed:', e))
+        }
+
+        /* ------------------------
+           ROUTING DECISION
+           (profile loading happens in views)
+        ------------------------ */
         const rawRedirect = router.currentRoute.value.query.redirect
         router.replace(
             typeof rawRedirect === 'string' && rawRedirect.trim()
                 ? rawRedirect
                 : '/profile'
         )
-    }
 
-    /* ------------------------
-       NON-BLOCKING SIDE EFFECTS
-    ------------------------ */
-    loadDonorFromCache(user.id)
-    loadUserRoleFromCache(user.id)
-    loadPublicLeaderboardFromCache(user.id)
-
-    if (Capacitor.isNativePlatform()) {
-        Purchases.logIn({ appUserID: user.id }).catch(console.warn)
-        refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
-    }
+        console.log('🏁 [DEFERRED] Post-auth tasks completed')
+    })
 })
-
-
-
-
 
 let lastHandledUrl: string | null = null;
 
