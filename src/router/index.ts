@@ -20,8 +20,13 @@ const routes: Array<RouteRecordRaw> = [
             { path: 'news', component: () => import('@/views/news/NewsView.vue'), meta: { noAds: true } },
             { path: 'add', component: () => import('@/views/add-product/AddProductView.vue'), meta: { requiresAuth: true } },
             { path: 'profile', component: () => import('@/views/profile/ProfileView.vue'), meta: { noAds: true } },
-            { path: 'profile/edit', name: 'EditProfile', component: () => import('@/views/profile/EditProfileView.vue'), meta: { requiresAuth: true, noAds: true } },
         ],
+    },
+    {
+        path: '/profile/edit',
+        name: 'EditProfile',
+        component: () => import('@/views/profile/EditProfileView.vue'),
+        meta: { requiresAuth: true, noTabs: true, noAds: true }
     },
     { path: '/place/:id', name: 'PlaceDetail', component: () => import('@/views/explore/PlaceDetailsView.vue'), props: true, meta: { noAds: true }},
     { path: '/place/:id/edit', name: 'EditPlace',component: () => import('@/views/explore/AddPlaceView.vue'),},
