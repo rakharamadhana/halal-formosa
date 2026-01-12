@@ -121,6 +121,9 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('🔐 Auth event:', event);
+    console.log('👤 Session user:', session?.user?.id);
+
     if (event === 'SIGNED_OUT') {
         try { await Purchases.logOut() } catch { /* empty */ }
         resetUserProfileState()
@@ -131,6 +134,9 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
     if (event === 'SIGNED_IN' && session?.user) {
         const user = session.user;
+
+        console.log('🆕 created_at:', user.created_at);
+        console.log('🆕 last_sign_in_at:', user.last_sign_in_at);
 
         // ✅ Detect NEW user (fires only once)
         const isNewUser =
