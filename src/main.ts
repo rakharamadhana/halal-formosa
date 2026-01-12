@@ -160,12 +160,18 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
         // ✅ redirect IMMEDIATELY (don’t wait for RevenueCat/network)
         if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
-            const rawRedirect = router.currentRoute.value.query.redirect
-            router.replace(
-                typeof rawRedirect === 'string' && rawRedirect.trim()
-                    ? rawRedirect
-                    : '/profile'
-            )
+            if (isNewUser) {
+                // 🆕 First-time user → force profile completion
+                router.replace('/profile/edit')
+            } else {
+                // 👤 Returning user → normal flow
+                const rawRedirect = router.currentRoute.value.query.redirect
+                router.replace(
+                    typeof rawRedirect === 'string' && rawRedirect.trim()
+                        ? rawRedirect
+                        : '/profile'
+                )
+            }
         }
 
         // ✅ do the rest AFTER redirect (non-blocking)
