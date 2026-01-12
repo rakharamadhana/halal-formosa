@@ -1,4 +1,6 @@
-import { supabase } from "@/plugins/supabaseClient";
+import {supabase} from "@/plugins/supabaseClient";
+
+type NotifyChannel = 'discord' | 'onesignal'
 
 /**
  * Centralized notifier composable
@@ -22,7 +24,8 @@ export function useNotifier() {
         title: string,
         message: string,
         image?: string,
-        data: Record<string, any> = {}
+        data: Record<string, any> = {},
+        channels: NotifyChannel[] = ['discord', 'onesignal'] // ✅ DEFAULT = BOTH
     ) => {
         try {
 
@@ -43,7 +46,7 @@ export function useNotifier() {
 
             // 🧩 4️⃣ Get Supabase session (for auth header)
             const {
-                data: { session },
+                data: {session},
             } = await supabase.auth.getSession();
 
             const headers: Record<string, string> = {
@@ -63,6 +66,7 @@ export function useNotifier() {
                 message: message ?? "",
                 image: image || null,
                 data: data || {},
+                channels, // ✅ NEW
             };
 
             // 🧩 6️⃣ Send to Supabase Edge Function
@@ -77,16 +81,16 @@ export function useNotifier() {
 
             if (!res.ok) {
                 console.error("❌ notifyEvent failed:", await res.text());
-                return { success: false };
+                return {success: false};
             }
 
             console.log("✅ notifyEvent sent:", type, data.link || "no link");
-            return { success: true };
+            return {success: true};
         } catch (err) {
             console.error("❌ notifyEvent exception:", err);
-            return { success: false, error: String(err) };
+            return {success: false, error: String(err)};
         }
     };
 
-    return { notifyEvent };
+    return {notifyEvent};
 }

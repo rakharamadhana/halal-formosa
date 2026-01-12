@@ -45,6 +45,9 @@ import {
 import { loadCountriesFromCache } from "@/composables/useCountries"
 import OneSignal from 'onesignal-cordova-plugin';
 import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import { useNotifier } from "@/composables/useNotifier";
+
+const { notifyEvent } = useNotifier();
 
 defineCustomElements(window)
 
@@ -127,6 +130,31 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 
     if (event === 'SIGNED_IN' && session?.user) {
+        const user = session.user;
+
+        // ✅ Detect NEW user (fires only once)
+        const isNewUser =
+            user.created_at &&
+            user.last_sign_in_at &&
+            user.created_at === user.last_sign_in_at;
+
+        if (isNewUser) {
+            // 🔔 Notify admin (Discord only)
+            notifyEvent(
+                'new_user',
+                '🆕 New User Registered',
+                `A new user has joined Halal Formosa\n\nEmail: ${user.email ?? 'unknown'}`,
+                undefined,
+                {
+                    user_id: user.id,
+                    email: user.email,
+                    provider: user.app_metadata?.provider,
+                    isNative: Capacitor.isNativePlatform(),
+                },
+                ['discord'] // ✅ Discord ONLY
+            ).catch(console.error);
+        }
+
         // ✅ always set immediately
         currentUser.value = session.user
 
