@@ -141,13 +141,16 @@ import {
   acknowledged,
   isProfileComplete,
   loadUserProfile,
-  updateUserProfile
+  updateUserProfile, currentUser
 } from "@/composables/userProfile";
 
 import { countries, loadCountries } from "@/composables/useCountries"
 import { onBeforeMount, ref, computed } from "vue";
 import { supabase } from "@/plugins/supabaseClient";
 import { useRouter, onBeforeRouteLeave } from "vue-router";
+import { useNotifier } from "@/composables/useNotifier";
+
+const { notifyEvent } = useNotifier();
 
 const router = useRouter();
 
@@ -215,8 +218,52 @@ onBeforeRouteLeave((to, from, next) => {
 
 async function saveProfile() {
   if (!userId) return;
+
+  // 1️⃣ Save profile fields
   await updateUserProfile(userId);
+
+  // 2️⃣ Re-fetch minimal profile state
+  const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('bio, date_of_birth, nationality, profile_completed_notified')
+      .eq('id', userId)
+      .single();
+
+  if (!profile) {
+    router.back();
+    return;
+  }
+
+  // 3️⃣ Check completion state
+  const isProfileCompleteNow =
+      !!profile.bio &&
+      !!profile.date_of_birth &&
+      !!profile.nationality;
+
+  // 4️⃣ Fire Option 2 notification ONCE
+  if (isProfileCompleteNow && !profile.profile_completed_notified) {
+    notifyEvent(
+        'user_activated',
+        '🎉 User Activated',
+        `A user has completed their profile and is now active.\n\nEmail: ${currentUser.value?.email ?? 'unknown'}`,
+        undefined,
+        {
+          user_id: userId,
+          email: currentUser.value?.email,
+        },
+        ['discord']
+    ).catch(console.error);
+
+    // 5️⃣ Mark as notified (CRITICAL)
+    await supabase
+        .from('user_profiles')
+        .update({ profile_completed_notified: true })
+        .eq('id', userId);
+  }
+
+  // 6️⃣ Leave edit page
   router.back();
 }
+
 </script>
 

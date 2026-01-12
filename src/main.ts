@@ -45,9 +45,6 @@ import {
 import { loadCountriesFromCache } from "@/composables/useCountries"
 import OneSignal from 'onesignal-cordova-plugin';
 import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
-import { useNotifier } from "@/composables/useNotifier";
-
-const { notifyEvent } = useNotifier();
 
 defineCustomElements(window)
 
@@ -132,9 +129,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
         hasHandledSignIn = false
 
-        try {
-            await Purchases.logOut()
-        } catch {}
+        try { await Purchases.logOut() } catch {}
 
         resetUserProfileState()
         currentUser.value = null
@@ -148,7 +143,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'INITIAL_SESSION') return
 
     /* ------------------------
-       SIGNED IN (ONCE)
+       SIGNED IN (HANDLE ONCE)
     ------------------------ */
     if (event !== 'SIGNED_IN' || !session?.user) return
     if (hasHandledSignIn) return
@@ -158,45 +153,26 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     currentUser.value = user
 
     /* ------------------------
-       CHECK USER PROFILE (SOURCE OF TRUTH)
+       LOAD PROFILE (SOURCE OF TRUTH)
     ------------------------ */
-    const { data: profile, error } = await supabase
+    const { data: profile } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('bio, date_of_birth, nationality, profile_completed_notified')
         .eq('id', user.id)
-        .single()
-
-    const isNewUser = !!error && error.code === 'PGRST116' // no rows found
+        .maybeSingle()
 
     /* ------------------------
-       CREATE PROFILE (FIRST TIME ONLY)
+       ONBOARDING STATE
     ------------------------ */
-    if (isNewUser) {
-        await supabase.from('user_profiles').insert({
-            id: user.id,
-            email: user.email,
-        })
-
-        // 🔔 notify admin ONCE
-        notifyEvent(
-            'new_user',
-            '🆕 New User Registered',
-            `A new user has joined Halal Formosa\n\nEmail: ${user.email ?? 'unknown'}`,
-            undefined,
-            {
-                user_id: user.id,
-                email: user.email,
-                provider: user.app_metadata?.provider,
-                isNative: Capacitor.isNativePlatform(),
-            },
-            ['discord']
-        ).catch(console.error)
-    }
+    const isProfileIncomplete =
+        !profile?.bio ||
+        !profile?.date_of_birth ||
+        !profile?.nationality
 
     /* ------------------------
        ROUTING (HARD RULE)
     ------------------------ */
-    if (isNewUser) {
+    if (isProfileIncomplete) {
         // 🔒 mandatory onboarding
         router.replace('/profile/edit')
     } else {
@@ -220,6 +196,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
     }
 })
+
 
 
 
