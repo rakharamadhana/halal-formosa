@@ -219,49 +219,74 @@ onBeforeRouteLeave((to, from, next) => {
 async function saveProfile() {
   if (!userId) return;
 
-  // 1️⃣ Save profile fields
+  /* 1️⃣ Save profile fields */
   await updateUserProfile(userId);
 
-  // 2️⃣ Re-fetch minimal profile state
-  const { data: profile } = await supabase
+  /* 2️⃣ Re-fetch profile (authoritative state after save) */
+  const { data: profile, error } = await supabase
       .from('user_profiles')
-      .select('bio, date_of_birth, nationality, profile_completed_notified')
+      .select(`
+      display_name,
+      bio,
+      date_of_birth,
+      nationality,
+      profile_completed_notified
+    `)
       .eq('id', userId)
       .single();
 
-  if (!profile) {
+  if (error || !profile) {
+    console.warn('Failed to reload profile after save', error);
     router.back();
     return;
   }
 
-  // 3️⃣ Check completion state
+  /* 3️⃣ Check completion state */
   const isProfileCompleteNow =
       !!profile.bio &&
       !!profile.date_of_birth &&
       !!profile.nationality;
 
-  // 4️⃣ Fire Option 2 notification ONCE
+  /* 4️⃣ Fire Option 2 notification (ONCE) */
   if (isProfileCompleteNow && !profile.profile_completed_notified) {
+
+    // 🌍 Convert nationality code → country name
+    const countryName =
+        countries.value.find(c => c.cca2 === profile.nationality)?.name.common
+        ?? profile.nationality;
+
+    const message = [
+      'A user has completed their profile and is now active.',
+      '',
+      `📧 Email: ${currentUser.value?.email ?? 'unknown'}`,
+      `👤 Name: ${profile.display_name || 'Not provided'}`,
+      `🎂 Date of Birth: ${profile.date_of_birth}`,
+      `🌍 Nationality: ${countryName}`,
+    ].join('\n');
+
     notifyEvent(
         'user_activated',
         '🎉 User Activated',
-        `A user has completed their profile and is now active.\n\nEmail: ${currentUser.value?.email ?? 'unknown'}`,
+        message,
         undefined,
         {
           user_id: userId,
           email: currentUser.value?.email,
+          name: profile.display_name,
+          date_of_birth: profile.date_of_birth,
+          nationality: countryName,
         },
         ['discord']
     ).catch(console.error);
 
-    // 5️⃣ Mark as notified (CRITICAL)
+    /* 5️⃣ Mark as notified (CRITICAL) */
     await supabase
         .from('user_profiles')
         .update({ profile_completed_notified: true })
         .eq('id', userId);
   }
 
-  // 6️⃣ Leave edit page
+  /* 6️⃣ Leave edit page */
   router.back();
 }
 
