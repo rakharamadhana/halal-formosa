@@ -120,6 +120,8 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 
 // ✅ Auth events (still needed for sign-in/out within app)
+let hasHandledSignIn = false
+
 supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('🔐 Auth event:', event)
     console.log('👤 Session user:', session?.user?.id)
@@ -128,11 +130,11 @@ supabase.auth.onAuthStateChange(async (event, session) => {
        SIGNED OUT
     ------------------------ */
     if (event === 'SIGNED_OUT') {
+        hasHandledSignIn = false
+
         try {
             await Purchases.logOut()
-        } catch {
-            /* ignore */
-        }
+        } catch {}
 
         resetUserProfileState()
         currentUser.value = null
@@ -141,32 +143,41 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 
     /* ------------------------
-       SIGNED IN
+       IGNORE INITIAL SESSION
+    ------------------------ */
+    if (event === 'INITIAL_SESSION') return
+
+    /* ------------------------
+       SIGNED IN (ONCE)
     ------------------------ */
     if (event !== 'SIGNED_IN' || !session?.user) return
+    if (hasHandledSignIn) return
+    hasHandledSignIn = true
 
     const user = session.user
-
-    console.log('🆕 created_at:', user.created_at)
-    console.log('🆕 last_sign_in_at:', user.last_sign_in_at)
+    currentUser.value = user
 
     /* ------------------------
-       NEW USER DETECTION (SAFE)
+       CHECK USER PROFILE (SOURCE OF TRUTH)
     ------------------------ */
-    let isNewUser = false
+    const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
 
-    if (user.created_at && user.last_sign_in_at) {
-        const createdAt = new Date(user.created_at).getTime()
-        const lastSignInAt = new Date(user.last_sign_in_at).getTime()
-        isNewUser = Math.abs(lastSignInAt - createdAt) < 5000
-    }
-
-    console.log('🧪 isNewUser:', isNewUser)
+    const isNewUser = !!error && error.code === 'PGRST116' // no rows found
 
     /* ------------------------
-       ADMIN NOTIFICATION (ONCE)
+       CREATE PROFILE (FIRST TIME ONLY)
     ------------------------ */
     if (isNewUser) {
+        await supabase.from('user_profiles').insert({
+            id: user.id,
+            email: user.email,
+        })
+
+        // 🔔 notify admin ONCE
         notifyEvent(
             'new_user',
             '🆕 New User Registered',
@@ -183,26 +194,18 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 
     /* ------------------------
-       SET USER STATE IMMEDIATELY
+       ROUTING (HARD RULE)
     ------------------------ */
-    currentUser.value = user
-
-    /* ------------------------
-       ROUTING (IMMEDIATE)
-    ------------------------ */
-    const currentPath = router.currentRoute.value.path
-
-    if (currentPath === '/login' || currentPath === '/signup') {
-        if (isNewUser) {
-            router.replace('/profile/edit')
-        } else {
-            const rawRedirect = router.currentRoute.value.query.redirect
-            router.replace(
-                typeof rawRedirect === 'string' && rawRedirect.trim()
-                    ? rawRedirect
-                    : '/profile'
-            )
-        }
+    if (isNewUser) {
+        // 🔒 mandatory onboarding
+        router.replace('/profile/edit')
+    } else {
+        const rawRedirect = router.currentRoute.value.query.redirect
+        router.replace(
+            typeof rawRedirect === 'string' && rawRedirect.trim()
+                ? rawRedirect
+                : '/profile'
+        )
     }
 
     /* ------------------------
@@ -217,6 +220,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
     }
 })
+
 
 
 
