@@ -121,80 +121,103 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('🔐 Auth event:', event);
-    console.log('👤 Session user:', session?.user?.id);
+    console.log('🔐 Auth event:', event)
+    console.log('👤 Session user:', session?.user?.id)
 
+    /* ------------------------
+       SIGNED OUT
+    ------------------------ */
     if (event === 'SIGNED_OUT') {
-        try { await Purchases.logOut() } catch { /* empty */ }
+        try {
+            await Purchases.logOut()
+        } catch {
+            /* ignore */
+        }
+
         resetUserProfileState()
         currentUser.value = null
         router.replace('/login')
         return
     }
 
-    if (event === 'SIGNED_IN' && session?.user) {
-        const user = session.user;
+    /* ------------------------
+       SIGNED IN
+    ------------------------ */
+    if (event !== 'SIGNED_IN' || !session?.user) return
 
-        console.log('🆕 created_at:', user.created_at);
-        console.log('🆕 last_sign_in_at:', user.last_sign_in_at);
+    const user = session.user
 
-        // ✅ Detect NEW user (fires only once)
-        const isNewUser =
-            user.created_at &&
-            user.last_sign_in_at &&
-            user.created_at === user.last_sign_in_at;
+    console.log('🆕 created_at:', user.created_at)
+    console.log('🆕 last_sign_in_at:', user.last_sign_in_at)
 
-        console.log('🧪 isNewUser:', isNewUser);
+    /* ------------------------
+       NEW USER DETECTION (SAFE)
+    ------------------------ */
+    let isNewUser = false
 
+    if (user.created_at && user.last_sign_in_at) {
+        const createdAt = new Date(user.created_at).getTime()
+        const lastSignInAt = new Date(user.last_sign_in_at).getTime()
+        isNewUser = Math.abs(lastSignInAt - createdAt) < 5000
+    }
+
+    console.log('🧪 isNewUser:', isNewUser)
+
+    /* ------------------------
+       ADMIN NOTIFICATION (ONCE)
+    ------------------------ */
+    if (isNewUser) {
+        notifyEvent(
+            'new_user',
+            '🆕 New User Registered',
+            `A new user has joined Halal Formosa\n\nEmail: ${user.email ?? 'unknown'}`,
+            undefined,
+            {
+                user_id: user.id,
+                email: user.email,
+                provider: user.app_metadata?.provider,
+                isNative: Capacitor.isNativePlatform(),
+            },
+            ['discord']
+        ).catch(console.error)
+    }
+
+    /* ------------------------
+       SET USER STATE IMMEDIATELY
+    ------------------------ */
+    currentUser.value = user
+
+    /* ------------------------
+       ROUTING (IMMEDIATE)
+    ------------------------ */
+    const currentPath = router.currentRoute.value.path
+
+    if (currentPath === '/login' || currentPath === '/signup') {
         if (isNewUser) {
-            // 🔔 Notify admin (Discord only)
-            notifyEvent(
-                'new_user',
-                '🆕 New User Registered',
-                `A new user has joined Halal Formosa\n\nEmail: ${user.email ?? 'unknown'}`,
-                undefined,
-                {
-                    user_id: user.id,
-                    email: user.email,
-                    provider: user.app_metadata?.provider,
-                    isNative: Capacitor.isNativePlatform(),
-                },
-                ['discord'] // ✅ Discord ONLY
-            ).catch(console.error);
+            router.replace('/profile/edit')
+        } else {
+            const rawRedirect = router.currentRoute.value.query.redirect
+            router.replace(
+                typeof rawRedirect === 'string' && rawRedirect.trim()
+                    ? rawRedirect
+                    : '/profile'
+            )
         }
+    }
 
-        // ✅ always set immediately
-        currentUser.value = session.user
+    /* ------------------------
+       NON-BLOCKING SIDE EFFECTS
+    ------------------------ */
+    loadDonorFromCache(user.id)
+    loadUserRoleFromCache(user.id)
+    loadPublicLeaderboardFromCache(user.id)
 
-        // ✅ redirect IMMEDIATELY (don’t wait for RevenueCat/network)
-        if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
-            if (isNewUser) {
-                // 🆕 First-time user → force profile completion
-                router.replace('/profile/edit')
-            } else {
-                // 👤 Returning user → normal flow
-                const rawRedirect = router.currentRoute.value.query.redirect
-                router.replace(
-                    typeof rawRedirect === 'string' && rawRedirect.trim()
-                        ? rawRedirect
-                        : '/profile'
-                )
-            }
-        }
-
-        // ✅ do the rest AFTER redirect (non-blocking)
-        loadDonorFromCache(session.user.id)
-        loadUserRoleFromCache(session.user.id)
-        loadPublicLeaderboardFromCache(session.user.id)
-
-        // RevenueCat: don’t block UI
-        if (Capacitor.isNativePlatform()) Purchases.logIn({ appUserID: session.user.id }).catch(console.warn)
-
-        // Profile + entitlement sync: don’t block UI
-        // loadUserProfile(session.user.id).catch(console.error)
-        if (Capacitor.isNativePlatform()) refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
+    if (Capacitor.isNativePlatform()) {
+        Purchases.logIn({ appUserID: user.id }).catch(console.warn)
+        refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
     }
 })
+
 
 
 let lastHandledUrl: string | null = null;
