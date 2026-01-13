@@ -569,10 +569,10 @@ async function logRevenueCatStatus() {
     console.log("[RC] Fetching customer info...");
     const {customerInfo} = await Purchases.getCustomerInfo();
 
-    console.log(
-        "🧾 [RC] customerInfo =",
-        JSON.stringify(customerInfo, null, 2)
-    );
+    // console.log(
+    //     "🧾 [RC] customerInfo =",
+    //     JSON.stringify(customerInfo, null, 2)
+    // );
 
     const entitlement = customerInfo.entitlements.active["Halal Formosa Pro"];
 
