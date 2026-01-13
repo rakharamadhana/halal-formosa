@@ -153,8 +153,9 @@
         </ion-refresher-content>
       </ion-refresher>
 
-      <!-- ✅ Scanner Modal -->
+      <!-- ✅ Scanner Modal (WEB ONLY) -->
       <ion-modal
+          v-if="!isNative"
           ref="scannerModal"
           :is-open="scanning"
           @didDismiss="handleDismiss"
@@ -165,7 +166,6 @@
           </div>
         </ion-content>
       </ion-modal>
-
 
       <div>
         <div v-if="!scanning" class="ion-padding" style="padding-top: 5px;">
