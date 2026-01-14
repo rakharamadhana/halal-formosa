@@ -1,6 +1,9 @@
 import {supabase} from '@/plugins/supabaseClient'
 import SessionService from '@/services/SessionService'
 
+// 🔧 TEMPORARY GLOBAL SWITCH
+const ACTIVITY_LOG_ENABLED = true
+
 /* -------------------------
    Types
 -------------------------- */
@@ -221,6 +224,13 @@ function resolveActivityGroup(activity: string): string | null {
 -------------------------- */
 export class ActivityLogService {
     static async log(activity: string, detail: any = {}) {
+
+        // 🚫 HARD STOP (no Supabase, no auth, no side effects)
+        if (!ACTIVITY_LOG_ENABLED) {
+            console.log("[ActivityLogService] Skipped")
+            return
+        }
+
         const user = (await supabase.auth.getUser()).data.user
         const session_id = SessionService.getSessionId()
 
@@ -229,9 +239,8 @@ export class ActivityLogService {
             return
         }
 
-        const {entity_type, entity_id} = resolveEntity(activity, detail)
+        const { entity_type, entity_id } = resolveEntity(activity, detail)
 
-        // ⚠️ Optional guard for developer mistakes
         if (entity_type && !entity_id) {
             console.warn(
                 `[ActivityLogService] Missing entity_id for activity "${activity}"`,
@@ -251,14 +260,12 @@ export class ActivityLogService {
             entity_id
         }
 
-        const {data, error} = await supabase
+        const { error } = await supabase
             .from('activity_log')
             .insert(payload)
 
         if (error) {
             console.error('[ActivityLogService] Insert error:', error)
         }
-
-        return {data, error}
     }
 }

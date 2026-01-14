@@ -59,21 +59,10 @@ if (Capacitor.isNativePlatform()) {
 
 /* Native-only setup */
 if (Capacitor.isNativePlatform()) {
-    try {
-        Keyboard.setResizeMode({ mode: 'body' as KeyboardResize })
-    } catch (e) {
-        console.warn('[Keyboard] setResizeMode not available:', e)
-    }
-
-    try {
-        Keyboard.setScroll({ isDisabled: false })
-    } catch (e) {
-        console.warn('[Keyboard] setScroll not available:', e)
-    }
-
+    Keyboard.setResizeMode({ mode: 'body' as KeyboardResize })
+    Keyboard.setScroll({ isDisabled: false })
     Keyboard.addListener('keyboardWillShow', () => document.body.classList.add('keyboard-visible'))
     Keyboard.addListener('keyboardWillHide', () => document.body.classList.remove('keyboard-visible'))
-
     initAdMob().catch((e) => console.warn('AdMob init skipped/failed:', e))
 }
 
@@ -133,110 +122,49 @@ supabase.auth.getSession().then(async ({ data }) => {
 
 
 
-// ✅ Auth events (lightweight & Android-safe)
-let hasHandledSignIn = false
-
-supabase.auth.onAuthStateChange((event, session) => {
-    console.log('🔐 [AUTH] Event:', event)
-    console.log('👤 [AUTH] Session user:', session?.user?.id)
-
-    /* ------------------------
-       SIGNED OUT
-    ------------------------ */
+// ✅ Auth events (still needed for sign-in/out within app)
+supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
-        console.log('🚪 [AUTH] Handling SIGNED_OUT')
-
-        hasHandledSignIn = false
-
-        // 🔒 Fire-and-forget native cleanup
-        if (Capacitor.isNativePlatform()) {
-            Purchases.logOut().catch(e =>
-                console.warn('⚠️ [RC] logOut failed:', e)
-            )
-        }
-
+        try { await Purchases.logOut() } catch { /* empty */ }
         resetUserProfileState()
         currentUser.value = null
-
-        console.log('➡️ [ROUTER] Redirecting to /login')
         router.replace('/login')
         return
     }
 
-    /* ------------------------
-       IGNORE INITIAL SESSION
-    ------------------------ */
-    if (event === 'INITIAL_SESSION') {
-        console.log('ℹ️ [AUTH] INITIAL_SESSION ignored')
-        return
-    }
+    if (event === 'SIGNED_IN' && session?.user) {
+        // ✅ always set immediately
+        currentUser.value = session.user
 
-    /* ------------------------
-       SIGNED IN (HANDLE ONCE)
-    ------------------------ */
-    if (event !== 'SIGNED_IN' || !session?.user) {
-        console.log('ℹ️ [AUTH] Event ignored:', event)
-        return
-    }
-
-    if (hasHandledSignIn) {
-        console.log('⏭️ [AUTH] SIGNED_IN already handled')
-        return
-    }
-
-    hasHandledSignIn = true
-
-    const user = session.user
-    currentUser.value = user
-
-    console.log('✅ [AUTH] SIGNED_IN basic state set for:', user.id)
-
-    /* ------------------------------------------------
-       🔁 DEFER EVERYTHING ELSE (CRITICAL FIX)
-       This avoids Android native-plugin race crashes
-    ------------------------------------------------ */
-    queueMicrotask(() => {
-        console.log('⏳ [DEFERRED] Post-auth tasks starting')
-
-        /* ------------------------
-           LOAD CACHED DATA (SAFE)
-        ------------------------ */
-        try {
-            loadDonorFromCache(user.id)
-            loadUserRoleFromCache(user.id)
-            loadPublicLeaderboardFromCache(user.id)
-            console.log('✅ [CACHE] Loaded')
-        } catch (e) {
-            console.warn('⚠️ [CACHE] Failed:', e)
+        // ✅ redirect IMMEDIATELY (don’t wait for RevenueCat/network)
+        if (['/login', '/signup'].includes(router.currentRoute.value.path)) {
+            const rawRedirect = router.currentRoute.value.query.redirect
+            router.replace(
+                typeof rawRedirect === 'string' && rawRedirect.trim()
+                    ? rawRedirect
+                    : '/profile'
+            )
         }
 
-        /* ------------------------
-           NATIVE SIDE EFFECTS (NON-BLOCKING)
-        ------------------------ */
+        // ✅ do the rest AFTER redirect (non-blocking)
+        Promise.resolve().then(async () => {
+            try {
+                loadDonorFromCache(session.user.id)
+                loadUserRoleFromCache(session.user.id)
+                loadPublicLeaderboardFromCache(session.user.id)
+            } catch (e) {
+                console.warn('[Post-login cache] failed', e)
+            }
+        })
+
+        // Native plugins: never block
         if (Capacitor.isNativePlatform()) {
-            Purchases.logIn({ appUserID: user.id })
-                .then(() => console.log('✅ [RC] logIn success'))
-                .catch(e => console.warn('⚠️ [RC] logIn failed:', e))
-
-            refreshSubscriptionStatus({ syncToServer: true })
-                .then(() => console.log('✅ [RC] refreshSubscriptionStatus success'))
-                .catch(e => console.warn('⚠️ [RC] refreshSubscriptionStatus failed:', e))
+            Purchases.logIn({ appUserID: session.user.id }).catch(console.warn)
+            refreshSubscriptionStatus({ syncToServer: true }).catch(console.warn)
         }
-
-        /* ------------------------
-           ROUTING DECISION
-           (profile loading happens in views)
-        ------------------------ */
-        const rawRedirect = router.currentRoute.value.query.redirect
-        router.replace(
-            typeof rawRedirect === 'string' && rawRedirect.trim()
-                ? rawRedirect
-                : '/profile'
-        )
-
-        console.log('🏁 [DEFERRED] Post-auth tasks completed')
-    })
+    }
 })
+
 
 let lastHandledUrl: string | null = null;
 

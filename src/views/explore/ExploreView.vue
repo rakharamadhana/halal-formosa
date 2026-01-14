@@ -287,7 +287,7 @@
 import {
   IonPage, IonContent, IonToolbar, IonSearchbar, IonIcon, IonFab, IonFabButton,
   IonCard, IonThumbnail, IonButton, onIonViewDidEnter, IonLabel, IonChip, IonHeader,
-  IonSkeletonText, onIonViewWillEnter, IonFabList
+  IonSkeletonText, onIonViewWillEnter, IonFabList, onIonViewWillLeave
 } from '@ionic/vue'
 import {
   navigateCircleOutline,
@@ -397,18 +397,122 @@ const markerMap = new Map<number, google.maps.marker.AdvancedMarkerElement>()
 const userMarker = ref<google.maps.marker.AdvancedMarkerElement | null>(null)
 const {sharePlace} = useSharePlace()
 const locationTypes = ref<LocationType[]>([])
-let clusterer: MarkerClusterer | null = null
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+let hasCenteredInitially = false
+let clusterer: MarkerClusterer | null = null
+let locationWatchId: string | null = null
+let lastStableLoc: LatLng | null = null
+
+const distanceInMeters = (a: LatLng, b: LatLng) => {
+  const R = 6371000
+  const dLat = (b.lat - a.lat) * Math.PI / 180
+  const dLng = (b.lng - a.lng) * Math.PI / 180
+
+  const x =
+      dLng * Math.cos((a.lat + b.lat) * Math.PI / 360)
+  const y = dLat
+
+  return Math.sqrt(x * x + y * y) * R
+}
+
+const startWatchingUserLocation = async () => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const perm = await Geolocation.checkPermissions()
+      if (perm.location !== 'granted') {
+        const req = await Geolocation.requestPermissions()
+        if (req.location !== 'granted') return
+      }
+    }
+
+    locationWatchId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,   // reuse recent GPS
+          timeout: 10000
+        },
+        (pos, err) => {
+          if (err || !pos) {
+            console.warn('[GPS] watch error', err)
+            return
+          }
+
+          const userLoc = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          }
+
+          userLocation.value = userLoc
+
+          // 🔥 CENTER MAP ON FIRST GPS FIX ONLY
+          if (!hasCenteredInitially && mapInstance) {
+            setTimeout(() => {
+              mapInstance?.panTo(userLoc)
+              mapInstance?.setZoom(15)
+            }, 800)
+            hasCenteredInitially = true
+          }
+
+
+          // 🟦 Update dot
+          if (userMarker.value) {
+            const prevPos = userMarker.value.position
+
+            const prevLat =
+                prevPos instanceof google.maps.LatLng
+                    ? prevPos.lat()
+                    : prevPos.lat
+
+            const prevLng =
+                prevPos instanceof google.maps.LatLng
+                    ? prevPos.lng()
+                    : prevPos.lng
+
+            const prev: LatLng = lastStableLoc ?? { lat: prevLat, lng: prevLng }
+
+            const d = distanceInMeters(prev, userLoc)
+            if (d < 5) return
+
+            const t = d > 30 ? 0.7 : d > 10 ? 0.45 : 0.3
+
+            const next: LatLng = {
+              lat: lerp(prev.lat, userLoc.lat, t),
+              lng: lerp(prev.lng, userLoc.lng, t),
+            }
+
+            userMarker.value.position = next
+            lastStableLoc = next
+
+
+          } else if (advancedMarkerLib && mapInstance) {
+            const dot = document.createElement('div')
+            dot.className = 'user-location-dot'
+
+            userMarker.value =
+                new advancedMarkerLib.AdvancedMarkerElement({
+                  position: userLoc,
+                  map: mapInstance,
+                  content: dot,
+                  title: 'You are here'
+                })
+          }
+        }
+    )
+  } catch (e) {
+    console.warn('[GPS] Failed to start watch', e)
+  }
+}
 
 const fetchLocationTypes = async () => {
   loadingCategories.value = true
 
-  const { data, error } = await supabase
+  const {data, error} = await supabase
       .from('location_types')
       .select('id, name, color, emoji, icon')
       .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true })
+      .order('sort_order', {ascending: true})
+      .order('name', {ascending: true})
 
   if (!error && data) locationTypes.value = data
 
@@ -482,7 +586,7 @@ const onSearchCommit = async () => {
 }
 
 
-import { toastController } from '@ionic/vue'
+import {toastController} from '@ionic/vue'
 
 const showAddressToast = async () => {
   const toast = await toastController.create({
@@ -494,7 +598,6 @@ const showAddressToast = async () => {
   })
   await toast.present()
 }
-
 
 
 const geocodeAddress = async (query: string) => {
@@ -512,7 +615,7 @@ const geocodeAddress = async (query: string) => {
     if (!place) return
 
     const loc = place.geometry.location
-    const latLng = { lat: loc.lat(), lng: loc.lng() }
+    const latLng = {lat: loc.lat(), lng: loc.lng()}
 
     // Move map
     mapInstance!.panTo(latLng)
@@ -751,18 +854,20 @@ const buildInfoHtml = (p: Place) => {
 
       <!-- Category badge -->
       <span
-        style="
-          display: inline-block;
-          margin-top: 2px;
-          padding: 2px 8px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 500;
-          color: ${textColor};
-          border: 1px solid ${textColor};
-          background: rgba(0,0,0,0.03);
-        "
-      >
+  style="
+    display: inline-block;
+    margin-top: 2px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: ${textColor};
+    border-width: 1px;
+    border-style: solid;
+    border-color: ${textColor};
+    background: rgba(0,0,0,0.03);
+  "
+>
         ${emoji ? `${emoji}&nbsp;` : ''}${p.type}
       </span>
 
@@ -1051,7 +1156,6 @@ watch(searchQuery, q => {
   }
 })
 
-
 /* ---------------- Interactions ---------------- */
 const selectPlace = (place: Place) => {
   ActivityLogService.log("explore_place_card_click", {
@@ -1112,54 +1216,19 @@ const selectPlace = (place: Place) => {
 }
 
 const centerOnUser = async () => {
-  await ActivityLogService.log("explore_center_user");
+  await ActivityLogService.log("explore_center_user")
 
-  try {
-    let coords: { latitude: number; longitude: number }
+  if (!userLocation.value || !mapInstance) return
 
-    if (Capacitor.isNativePlatform()) {
-      // Native (Android/iOS) → Capacitor Geolocation
-      const perm = await Geolocation.checkPermissions()
-      if (perm.location !== 'granted') {
-        const req = await Geolocation.requestPermissions()
-        if (req.location !== 'granted') {
-          console.warn('Location permission denied')
-          return
-        }
-      }
-      const pos = await Geolocation.getCurrentPosition({enableHighAccuracy: true})
-      coords = pos.coords
-    } else {
-      // Web → use browser navigator.geolocation
-      coords = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-            pos => resolve(pos.coords),
-            err => reject(err),
-            {enableHighAccuracy: true}
-        )
-      })
-    }
+  mapInstance.panTo(userLocation.value)
 
-    const userLoc: LatLng = {lat: coords.latitude, lng: coords.longitude}
-    userLocation.value = userLoc
-    mapInstance?.panTo(userLoc)
-
-    if (userMarker.value) {
-      userMarker.value.position = userLoc
-    } else {
-      const dot = document.createElement('div')
-      dot.className = 'user-location-dot'
-      userMarker.value = new google.maps.marker.AdvancedMarkerElement({
-        position: userLoc,
-        map: mapInstance!,
-        content: dot,
-        title: 'You are here'
-      })
-    }
-  } catch (err) {
-    console.warn('Could not get location:', err)
+  // Optional: gentle zoom only if far
+  const zoom = mapInstance.getZoom() ?? 14
+  if (zoom < 16) {
+    mapInstance.setZoom(16)
   }
 }
+
 
 const onSearchInput = (event: CustomEvent) => {
   searchQuery.value = (event.detail?.value ?? '') as string
@@ -1199,17 +1268,17 @@ const sortedLocations = computed(() => {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
-  await ActivityLogService.log("explore_page_open");
+  await ActivityLogService.log("explore_page_open")
 
-  await initMap();
-  await loadRole();
-  fetchLocationTypes();
-  await fetchLocations();
+  await initMap()
+  await loadRole()
+  fetchLocationTypes()
+  await fetchLocations()
+  await refreshViewCounts()
 
-  await refreshViewCounts();   // 👈 refresh initial view_count
-
-  centerOnUser();
-});
+  // 🔥 START GPS WATCH HERE
+  await startWatchingUserLocation()
+})
 
 let firstEnter = true
 
@@ -1239,6 +1308,17 @@ onIonViewWillEnter(async () => {
 onIonViewDidEnter(async () => {
   await refreshViewCounts();  // 👈 refresh again when user returns
 });
+
+onIonViewWillLeave(() => {
+  if (locationWatchId) {
+    Geolocation.clearWatch({ id: locationWatchId })
+    locationWatchId = null
+  }
+
+  hasCenteredInitially = false
+  lastStableLoc = null   // 🔥 REQUIRED
+})
+
 
 async function refreshViewCounts() {
   if (locations.value.length === 0) return;
@@ -1380,8 +1460,9 @@ button.gm-ui-hover-effect > span {
  * USER LOCATION DOT
  *********************************************/
 .user-location-dot {
-  width: 16px;
-  height: 16px;
+  position: relative; /* 🔥 REQUIRED */
+  width: 18px;
+  height: 18px;
   background: var(--ion-color-carrot);
   border-radius: 50%;
   border: 4px solid white;

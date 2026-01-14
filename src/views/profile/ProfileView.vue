@@ -557,7 +557,9 @@ onIonViewWillEnter(async () => {
     await fetchCurrentPoints(data.user.id);
     await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
     await refreshCustomerInfo()
-    ActivityLogService.log('profile_page_open')
+    ActivityLogService.log('profile_page_open', {
+      user_id: data.user.id
+    })
   }
 
 });
