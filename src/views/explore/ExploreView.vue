@@ -458,6 +458,7 @@ const startWatchingUserLocation = async () => {
           // 🟦 Update dot
           if (userMarker.value) {
             const prevPos = userMarker.value.position
+            if (!prevPos) return
 
             const prevLat =
                 prevPos instanceof google.maps.LatLng
