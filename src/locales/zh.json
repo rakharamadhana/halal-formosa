@@ -29,6 +29,23 @@
   },
   "scanIngredients": {
     "title": "掃描成分",
+    "todayScans": "今日掃描次數：{used} / {total}",
+    "help": "掃描說明",
+    "tips": {
+      "title": "掃描小技巧",
+      "content": "📸 請清楚拍攝成分（成分／原料／內容物）與產品名稱（品名）的那一面。"
+    },
+    "status": {
+      "Halal": "清真",
+      "Muslim-friendly": "穆斯林友善",
+      "Syubhah": "可疑",
+      "Haram": "禁忌",
+      "Unknown": "未知"
+    },
+    "muslimFriendly": {
+      "show": "顯示穆斯林友善成分",
+      "hide": "隱藏穆斯林友善成分"
+    },
     "disclaimer": {
       "title": "清真掃描器聲明",
       "message": "此掃描器僅根據關鍵詞資料庫檢查成分，並非官方清真判斷。食用前請自行判斷。",
@@ -97,7 +114,13 @@
   "search": {
     "title": "產品",
     "placeholder": "搜尋（例如：茶）",
-    "filters": "篩選",
+    "filtersLabel": "篩選",
+
+    "filters": {
+      "stores": "商店",
+      "categories": "分類",
+      "statuses": "狀態"
+    },
     "registeredProductCount": "數量",
     "noProductFound": "抱歉，沒有找到產品...",
     "pullToRefresh": "下拉更新",
@@ -135,7 +158,10 @@
     "title": "探索",
     "placeholder": "搜尋地點（如：清真寺）",
     "clear": "清除",
-    "showingPlace": "顯示 1 個地點"
+    "showingPlace": "顯示 1 個地點",
+    "details": {
+      "title": "地點詳情"
+    }
   },
   "news": {
     "title": "清真 & 伊斯蘭新聞",
@@ -158,6 +184,21 @@
     "aboutMe": "關於我",
     "edit": "編輯",
     "bio": "簡介",
+    "admin": {
+      "pointsLogs": "積分紀錄",
+      "scanLogs": "成分掃描紀錄",
+      "analytics": "分析儀表板",
+      "masterData": "主資料管理"
+    },
+    "pro": {
+      "title": "Halal Formosa Pro ⭐",
+      "upgrade": "升級為 Pro ⭐",
+      "active": "✅ Pro 已啟用",
+      "renew": "🔁 訂閱將自動續約",
+      "noRenew": "⚠️ 訂閱不會自動續約",
+      "accessUntil": "⏳ 使用期限至",
+      "manage": "管理訂閱"
+    },
     "experiencePoints": "⭐ 經驗值",
     "login": "登入",
     "review": "產品審核",
@@ -197,5 +238,108 @@
     "database": "資料庫貢獻者",
     "specialThanks": "特別感謝",
     "thankYou": "感謝所有支持清真福爾摩沙的社群與測試者，願真主回報您。"
+  },
+  "addProduct": {
+    "title": "新增產品",
+    "editTitle": "編輯產品",
+    "cropIngredients": "裁切成分圖片",
+    "done": "完成",
+    "processingOcr": "正在處理 OCR…",
+
+    "barcode": "條碼",
+    "barcodePlaceholder": "請輸入數字",
+    "barcodeValid": "✅ 條碼有效",
+    "barcodeInvalid": "❌ 條碼無效",
+    "barcodeExists": "❌ 此條碼已存在於資料庫",
+
+    "productName": "產品名稱",
+    "productNamePlaceholder": "請輸入文字",
+
+    "status": "狀態",
+    "statusRequired": "狀態",
+    "halal": "清真",
+    "muslimFriendly": "穆斯林友善",
+    "syubhah": "疑慮（Syubhah）",
+    "haram": "非清真",
+
+    "ingredients": "成分",
+    "ingredientsPlaceholder": "請輸入文字或使用相機／相簿",
+    "detectedText": "🔎 偵測到的文字",
+
+    "category": "分類",
+    "stores": "販售店家",
+
+    "description": "產品描述",
+    "descriptionPlaceholder": "請輸入描述",
+
+    "frontImage": "正面圖片",
+    "backImage": "背面圖片",
+
+    "showMuslimFriendly": "顯示穆斯林友善成分",
+    "hideMuslimFriendly": "隱藏穆斯林友善成分",
+
+    "quickDescription": {
+      "halal": "經清真認證：",
+      "muslimFriendly": "成分為穆斯林友善，可食用。",
+      "syubhah": "發現疑慮（Syubhah）成分。",
+      "haram": "發現非清真成分。"
+    },
+
+    "statusDescription": {
+      "Halal": "經清真認證。",
+      "Muslim-friendly": "成分為穆斯林友善。",
+      "Syubhah": "含有疑慮成分。",
+      "Haram": "含有非清真成分。"
+    },
+
+    "submit": "送出",
+    "update": "更新",
+    "submitting": "正在送出產品…",
+    "submitSuccess": "產品已成功送出！",
+    "ocrSuccess": "✅ 成分已成功擷取！",
+
+    "errors": {
+      "loginRequired": "請先登入後再提交產品。",
+      "nameRequired": "請輸入產品名稱。",
+      "statusRequired": "請選擇產品狀態。",
+      "ingredientsRequired": "請輸入成分。",
+      "categoryRequired": "請選擇產品分類。",
+      "descriptionRequired": "請填寫產品描述。",
+      "frontImageRequired": "請上傳正面圖片。",
+      "backImageRequired": "請上傳背面圖片。"
+    }
+  },
+  "addPlace": {
+    "title": "新增地點",
+    "editTitle": "編輯地點",
+    "noPermission": "您沒有新增地點的權限，請聯絡管理員。",
+
+    "nameLabel": "地點名稱",
+    "namePlaceholder": "例如：台北清真大清真寺",
+
+    "typeLabel": "地點類型",
+    "typePlaceholder": "請選擇類型",
+
+    "imageLabel": "圖片",
+
+    "addressLabel": "地址",
+    "addressPlaceholder": "請輸入或確認地址",
+
+    "latLabel": "緯度",
+    "lngLabel": "經度",
+    "mapHint": "請點擊地圖以設定座標",
+
+    "saveBtn": "儲存地點",
+    "updateBtn": "更新地點",
+
+    "toast": {
+      "pleaseImage": "請選擇一張圖片。",
+      "tooLarge": "圖片壓縮後仍然過大。",
+      "processError": "圖片處理失敗。",
+      "saved": "地點已成功儲存！",
+      "failed": "儲存失敗，請稍後再試。"
+    }
   }
+
+
 }

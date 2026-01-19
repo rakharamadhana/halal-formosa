@@ -6,7 +6,18 @@
           :icon="scanOutline"
           :showBack="true"
           backRoute="/home"
-      />
+      >
+        <template #actions>
+          <ion-item
+              button
+              lines="none"
+              @click="showDetailedDisclaimer = true"
+          >
+            <ion-icon slot="start" :icon="helpCircleOutline" />
+            <ion-label>{{ $t('scanIngredients.help') }}</ion-label>
+          </ion-item>
+        </template>
+      </app-header>
     </ion-header>
 
     <ion-content class="ion-padding">
@@ -89,27 +100,34 @@
 
             <ion-item>
               <ion-label>
-                <h2 style="color: var(--ion-color-primary); font-weight: bold;">Muslim-Friendly</h2>
-                <p>No <em>Syubhah</em> or <em>Haram</em> ingredients detected, but not officially halal certified.</p>
-                <small><em>Examples:</em> Lecithin (Soy), Soy Lecithin, Emulsifier (Sugar Cane), Fresh Cream</small>
+                <h2 style="color: var(--ion-color-primary); font-weight: bold;">
+                  {{ $t('scanIngredients.details.categories.muslimFriendly.label') }}
+                </h2>
+                <p>{{ $t('scanIngredients.details.categories.muslimFriendly.desc') }}</p>
+                <small>{{ $t('scanIngredients.details.categories.muslimFriendly.examples') }}</small>
               </ion-label>
             </ion-item>
 
             <ion-item>
               <ion-label>
-                <h2 style="color: var(--ion-color-warning); font-weight: bold;">Syubhah</h2>
-                <p>Doubtful or unclear ingredients that may need further checking.</p>
-                <small><em>Examples:</em> Unknown Emulsifier, Butter, Margarine, Vinegar</small>
+                <h2 style="color: var(--ion-color-warning); font-weight: bold;">
+                  {{ $t('scanIngredients.details.categories.syubhah.label') }}
+                </h2>
+                <p>{{ $t('scanIngredients.details.categories.syubhah.desc') }}</p>
+                <small>{{ $t('scanIngredients.details.categories.syubhah.examples') }}</small>
               </ion-label>
             </ion-item>
 
             <ion-item>
               <ion-label>
-                <h2 style="color: var(--ion-color-danger); font-weight: bold;">Haram</h2>
-                <p>Prohibited ingredients.</p>
-                <small><em>Examples:</em> Pork, Gelatin, Alcohol, Lard, Wine</small>
+                <h2 style="color: var(--ion-color-danger); font-weight: bold;">
+                  {{ $t('scanIngredients.details.categories.haram.label') }}
+                </h2>
+                <p>{{ $t('scanIngredients.details.categories.haram.desc') }}</p>
+                <small>{{ $t('scanIngredients.details.categories.haram.examples') }}</small>
               </ion-label>
             </ion-item>
+
           </ion-list>
 
           <p style="margin-top: 16px;">
@@ -130,7 +148,10 @@
             <ion-chip color="primary" style="width: 100%; justify-content: center;">
               <ion-icon :icon="scanOutline"></ion-icon>
               <ion-label>
-                Today Scans: {{ todayScanCount }} / {{ isDonor ? "∞" : 10 + bonusScans }}
+                {{ $t('scanIngredients.todayScans', {
+                used: todayScanCount,
+                total: isDonor ? '∞' : 10 + bonusScans
+              }) }}
               </ion-label>
             </ion-chip>
 
@@ -148,7 +169,7 @@
           <!-- Tutorial Image Carousel (shows before scanning) -->
           <div v-if="showTutorial" style="text-align:center; margin-bottom:24px;">
             <h2 style="font-size:16px; font-weight:700; color:var(--ion-color-carrot); margin-bottom:12px;">
-              🧭 Tips: How to Scan Correctly
+              🧭 {{ $t('scanIngredients.tips.title') }}
             </h2>
 
             <swiper
@@ -168,10 +189,7 @@
             </swiper>
 
             <div style="margin-top:14px; line-height:1.6;">
-              <p style="font-size:14px; font-weight:700; color:var(--ion-color-dark); margin-bottom:8px;">
-                📸 Take a clear photo of the <strong>ingredients (成分 / 原料 / 內容物)</strong> and
-                <strong>product name (品名)</strong> side.
-              </p>
+              <p>{{ $t('scanIngredients.tips.content') }}</p>
             </div>
           </div>
 
@@ -243,7 +261,7 @@
     'chip-medium': !['Halal', 'Muslim-friendly', 'Syubhah', 'Haram'].includes(autoStatus)
   }"
           >
-            {{ autoStatus }}
+            {{ $t(`search.status.${autoStatus}`, autoStatus) }}
           </ion-chip>
 
 
@@ -304,7 +322,10 @@
                   color="primary"
                   @click="showMuslimFriendly = !showMuslimFriendly"
               >
-                {{ showMuslimFriendly ? 'Hide' : 'Show' }} Muslim-Friendly Ingredients
+                {{ showMuslimFriendly
+                  ? $t('scanIngredients.muslimFriendly.hide')
+                  : $t('scanIngredients.muslimFriendly.show')
+                }}
               </ion-button>
 
               <div v-if="showMuslimFriendly" class="ion-padding-top">
@@ -445,7 +466,7 @@ import {
 } from '@ionic/vue'
 import {
   cameraOutline,
-  cloudUploadOutline,
+  cloudUploadOutline, helpCircleOutline,
   refreshOutline,
   scanOutline,
   shareSocialOutline

@@ -102,21 +102,22 @@
         <!-- Pro -->
         <ion-card v-if="userEmail && isNative" class="profile-card ion-text-center">
           <ion-card-header>
-            <ion-card-title>Halal Formosa Pro ⭐</ion-card-title>
+            <ion-card-title>{{ $t('profile.pro.title') }}</ion-card-title>
           </ion-card-header>
           <ion-card-content>
             <ion-button v-if="!isSubscribed" color="carrot" expand="block" @click="openProPaywall">
-              Upgrade to Pro ⭐
+              {{ $t('profile.pro.upgrade') }}
             </ion-button>
 
             <div v-else>
-              <p style="font-weight:600;color:var(--ion-color-success)">✅ Pro is active</p>
+              <p style="font-weight:600;color:var(--ion-color-success)">{{ $t('profile.pro.active') }}</p>
               <p style="font-size:14px">{{ renewalMessage }}</p>
               <p style="font-size:14px;color:var(--ion-color-medium)">
-                ⏳ Access until <strong>{{ formattedExpirationDate }}</strong>
+                {{ $t('profile.pro.accessUntil') }}
+                <strong>{{ formattedExpirationDate }}</strong>
               </p>
               <ion-button fill="outline" size="small" @click="openManageSubscription">
-                Manage Subscription
+                {{ $t('profile.pro.manage') }}
               </ion-button>
             </div>
           </ion-card-content>
@@ -191,23 +192,24 @@
 
           <ion-item button @click="goToPointsLogs">
             <ion-icon :icon="listOutline"/>&nbsp;
-            <ion-label>View Points Logs</ion-label>
+            <ion-label>{{ $t('profile.admin.pointsLogs') }}</ion-label>
           </ion-item>
 
           <ion-item button @click="goToScanLogs">
             <ion-icon :icon="listOutline"/>&nbsp;
-            <ion-label>Ingredient Scan Logs</ion-label>
+            <ion-label>{{ $t('profile.admin.scanLogs') }}</ion-label>
           </ion-item>
 
           <ion-item button @click="goToAnalyticsDashboard">
             <ion-icon :icon="listOutline"/>&nbsp;
-            <ion-label>Analytics Dashboard</ion-label>
+            <ion-label>{{ $t('profile.admin.analytics') }}</ion-label>
           </ion-item>
 
           <ion-item button @click="goToMasterData" lines="none">
             <ion-icon :icon="constructOutline"/>&nbsp;
-            <ion-label>Master Data</ion-label>
+            <ion-label>{{ $t('profile.admin.masterData') }}</ion-label>
           </ion-item>
+
 
         </ion-list>
       </template>
@@ -389,6 +391,8 @@ import {RevenueCatUI, PAYWALL_RESULT} from '@revenuecat/purchases-capacitor-ui';
 import {refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 import {toastController} from "@ionic/vue";
 import { ActivityLogService } from '@/services/ActivityLogService'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 
 interface RcProduct {
   identifier: string;
@@ -498,8 +502,8 @@ const renewalMessage = computed(() => {
   if (!entitlement.value) return ''
 
   return willRenew.value
-      ? '🔁 Subscription will renew automatically'
-      : '⚠️ Subscription will NOT renew'
+      ? t('profile.pro.renew')
+      : t('profile.pro.noRenew')
 })
 
 const formattedExpirationDate = computed(() => {

@@ -30,6 +30,23 @@
   "scanIngredients" :
   {
     "title": "Scan Ingredients",
+    "todayScans": "Today Scans: {used} / {total}",
+    "help": "How it works",
+    "tips": {
+      "title": "Tips: How to Scan Correctly",
+      "content": "📸 Please take a clear photo of the ingredients (成分 / 原料 / 內容物) and the product name (品名)."
+    },
+    "status": {
+      "Halal": "Halal",
+      "Muslim-friendly": "Muslim-friendly",
+      "Syubhah": "Syubhah",
+      "Haram": "Haram",
+      "Unknown": "Unknown"
+    },
+    "muslimFriendly": {
+      "show": "Show Muslim-Friendly Ingredients",
+      "hide": "Hide Muslim-Friendly Ingredients"
+    },
     "disclaimer": {
       "title": "Halal Scanner Disclaimer",
       "message": "This scanner only checks ingredients based on a keyword database. It does not provide an official halal ruling. Please use your own judgment before consuming.",
@@ -98,7 +115,12 @@
   "search": {
     "title": "Product",
     "placeholder": "Search (e.g. Tea)",
-    "filters": "Filters",
+    "filtersLabel": "Filters",
+    "filters": {
+      "stores": "Stores",
+      "categories": "Categories",
+      "statuses": "Statuses"
+    },
     "registeredProductCount": "Count",
     "noProductFound": "Sorry, no product found...",
     "pullToRefresh": "Pull to refresh",
@@ -159,6 +181,21 @@
     "logout": "Logout",
     "donor": "Donor Status",
     "noUserLogged": "No user logged in",
+    "admin": {
+      "pointsLogs": "View Points Logs",
+      "scanLogs": "Ingredient Scan Logs",
+      "analytics": "Analytics Dashboard",
+      "masterData": "Master Data"
+    },
+    "pro": {
+      "title": "Halal Formosa Pro ⭐",
+      "upgrade": "Upgrade to Pro ⭐",
+      "active": "✅ Pro is active",
+      "renew": "🔁 Subscription will renew automatically",
+      "noRenew": "⚠️ Subscription will NOT renew",
+      "accessUntil": "⏳ Access until",
+      "manage": "Manage Subscription"
+    },
     "aboutMe": "About Me",
     "edit": "Edit",
     "bio": "Bio",
@@ -208,31 +245,71 @@
     "cropIngredients": "Crop Ingredients",
     "done": "Done",
     "processingOcr": "Processing OCR...",
+
     "barcode": "Barcode",
     "barcodePlaceholder": "Enter digits only",
+    "barcodeValid": "✅ Valid barcode",
+    "barcodeInvalid": "❌ Invalid barcode",
+    "barcodeExists": "❌ This barcode already exists in the database",
+
     "productName": "Product Name",
     "productNamePlaceholder": "Enter text",
+
     "status": "Status",
     "statusRequired": "Status",
     "halal": "Halal",
     "muslimFriendly": "Muslim-friendly",
     "syubhah": "Syubhah",
     "haram": "Haram",
+
     "ingredients": "Ingredients",
-    "ingredientsPlaceholder": "Enter text or use camera/gallery",
+    "ingredientsPlaceholder": "Enter text or use camera / gallery",
     "detectedText": "🔎 Detected Text",
+
     "category": "Category",
     "stores": "Store",
+
     "description": "Description",
     "descriptionPlaceholder": "Enter text",
+
     "frontImage": "Front Image",
     "backImage": "Back Image",
+
+    "showMuslimFriendly": "Show Muslim-friendly ingredients",
+    "hideMuslimFriendly": "Hide Muslim-friendly ingredients",
+
+    "quickDescription": {
+      "halal": "Halal certified by ",
+      "muslimFriendly": "Muslim-friendly ingredients, OK.",
+      "syubhah": "Syubhah ingredients found.",
+      "haram": "Haram ingredients found."
+    },
+
+    "statusDescription": {
+      "Halal": "Halal certified.",
+      "Muslim-friendly": "Muslim-friendly ingredients, OK.",
+      "Syubhah": "Syubhah ingredients found.",
+      "Haram": "Haram ingredients found."
+    },
+
     "submit": "Submit",
     "update": "Update",
     "submitting": "Submitting product...",
     "submitSuccess": "Product submitted successfully!",
-    "ocrSuccess": "✅ Ingredients successfully extracted!"
+    "ocrSuccess": "✅ Ingredients successfully extracted!",
+
+    "errors": {
+      "loginRequired": "You must be logged in to submit a product.",
+      "nameRequired": "Product name is required.",
+      "statusRequired": "Product status is required.",
+      "ingredientsRequired": "Ingredients are required.",
+      "categoryRequired": "Product category is required.",
+      "descriptionRequired": "Description is required.",
+      "frontImageRequired": "Front image is required.",
+      "backImageRequired": "Back image is required."
+    }
   },
+
   "addPlace": {
     "title": "Add New Place",
     "editTitle": "Edit Place",

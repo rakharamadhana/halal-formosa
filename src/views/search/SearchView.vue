@@ -47,7 +47,7 @@
         <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
           <ion-text class="ion-padding-horizontal">
             <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;"/>
-            <strong>{{ $t('search.filters') }}</strong>
+            <strong>{{ $t('search.filtersLabel') }}</strong>
           </ion-text>
           <ion-button fill="clear" size="small" @click="toggleFilters">
             <ion-icon :icon="showFilters ? chevronUpOutline : chevronDownOutline"/>
@@ -60,7 +60,7 @@
             <div style="margin: 8px 0;">
               <div class="filter-title">
                 <ion-icon :icon="storefrontOutline"/>
-                Stores
+                {{ $t('search.filters.stores') }}
               </div>
               <div class="store-scroll">
                 <template v-if="loadingStores">
@@ -85,7 +85,7 @@
             <div style="margin: 8px 0;">
               <div class="filter-title">
                 <ion-icon :icon="pricetagsOutline"/>
-                Categories
+                {{ $t('search.filters.categories') }}
               </div>
               <div class="category-bar">
                 <template v-if="loadingCategories">
@@ -113,7 +113,7 @@
             <div style="margin: 8px 0;">
               <div class="filter-title">
                 <ion-icon :icon="shieldCheckmarkOutline"/>
-                Statuses
+                {{ $t('search.filters.statuses') }}
               </div>
               <div class="category-bar">
                 <ion-chip
@@ -128,7 +128,7 @@
                     @click="toggleStatus(status.key)"
                 >
                   <ion-label>
-                    {{ status.emoji }} {{ status.label }}
+                    {{ status.emoji }} {{ $t(`search.status.${status.key}`) }}
                   </ion-label>
                 </ion-chip>
 
@@ -425,11 +425,12 @@ const showFilters = ref(false)
 
 
 const statuses = [
-  {key: 'Halal', label: 'Halal', emoji: '✅'},
-  {key: 'Muslim-friendly', label: 'Muslim-friendly', emoji: '🤝'},
-  {key: 'Syubhah', label: 'Syubhah', emoji: '⚠️'},
-  {key: 'Haram', label: 'Haram', emoji: '⛔'}
+  { key: 'Halal', emoji: '✅' },
+  { key: 'Muslim-friendly', emoji: '🤝' },
+  { key: 'Syubhah', emoji: '⚠️' },
+  { key: 'Haram', emoji: '⛔' }
 ]
+
 
 
 const activeStatus = ref<string | null>(null)
