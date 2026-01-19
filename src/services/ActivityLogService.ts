@@ -22,8 +22,6 @@ function normalizeDetail(detail: any): Record<string, any> {
 function resolveEntity(activity: string, rawDetail: any): EntityResult {
     const detail = normalizeDetail(rawDetail)
 
-    console.log(detail)
-
     switch (activity) {
 
         // 🟢 PLACE interactions

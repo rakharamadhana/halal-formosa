@@ -8,72 +8,96 @@
     "add": "Tambah Produk",
     "news": "Berita",
     "congratulation": "Selamat",
-    "increasePoint": "Kamu mendapat",
+    "increasePoint": "Kamu mendapatkan",
     "point": "EXP",
     "for": "untuk"
   },
+
   "home": {
     "title": "Halal Formosa",
     "scan": "Pindai Bahan",
     "scanBarcode": "Pindai Barcode",
     "productStatus": "Status Produk",
-    "productsCount": "Jumlah Produk",
+    "productsCount": "Produk",
     "halalLocationsCount": "Lokasi Halal",
     "news": "Berita Halal & Islam",
     "viewMore": "Lihat Selengkapnya",
-    "mainFeature": "Menu Utama",
-    "discoverProducts": "Cari Produk",
-    "discoverLocations": "Cari Lokasi",
+    "mainFeature": "Menu Unggulan",
+    "discoverProducts": "Jelajahi Produk",
+    "discoverLocations": "Jelajahi Lokasi",
     "locationCategories": "Status Lokasi",
     "leaderboard": "Papan Peringkat"
   },
+
   "scanIngredients": {
     "title": "Pindai Bahan",
+    "todayScans": "Pemindaian hari ini: {used} / {total}",
+    "help": "Cara kerja",
+    "tips": {
+      "title": "Tips: Cara Memindai dengan Benar",
+      "content": "📸 Ambil foto yang jelas dari daftar bahan (成分 / 原料 / 內容物) dan nama produk (品名)."
+    },
+
+    "status": {
+      "Halal": "Halal",
+      "Muslim-friendly": "Ramah Muslim",
+      "Syubhah": "Syubhah",
+      "Haram": "Haram",
+      "Unknown": "Tidak Diketahui"
+    },
+
+    "muslimFriendly": {
+      "show": "Tampilkan bahan ramah Muslim",
+      "hide": "Sembunyikan bahan ramah Muslim"
+    },
+
     "disclaimer": {
       "title": "Peringatan Pemindai Halal",
-      "message": "Pemindai ini hanya memeriksa bahan berdasarkan database kata kunci. Bukan fatwa halal resmi. Mohon gunakan pertimbangan pribadi sebelum mengonsumsi.",
+      "message": "Pemindai ini hanya memeriksa bahan berdasarkan database kata kunci. Ini bukan fatwa halal resmi. Gunakan pertimbangan pribadi sebelum mengonsumsi.",
       "verse": "\"Wahai manusia, makanlah dari (makanan) yang halal lagi baik di bumi...\"",
       "verseRef": "— Al-Qur'an 2:168",
       "agree": "Saya Mengerti",
       "learnMore": "Pelajari Lebih Lanjut",
-      "decline": "Tidak, Saya Tidak Ingin Menggunakan"
+      "decline": "Tidak, Saya Tidak Ingin Menggunakan Fitur Ini"
     },
+
     "details": {
       "title": "Cara Kerja",
-      "intro": "Pemindai ini membaca bahan produk menggunakan OCR dan database halal kami.",
+      "intro": "Pemindai ini memeriksa bahan produk menggunakan OCR (Optical Character Recognition) dan database bahan halal kami.",
       "stepsTitle": "Langkah-langkah",
       "steps": {
-        "ocr": "Proses OCR – Gambar produk dipindai untuk membaca teks bahan.",
-        "translate": "Terjemahan – Jika teks dalam bahasa Mandarin, akan diterjemahkan ke Inggris.",
-        "match": "Pencocokan – Daftar bahan dicek dengan database halal, syubhah, haram.",
-        "display": "Hasil – Bahan ditandai dengan status masing-masing."
+        "ocr": "Proses OCR – Gambar produk dikirim ke server OCR untuk membaca dan mengekstrak teks bahan.",
+        "translate": "Terjemahan – Jika teks terdeteksi dalam bahasa Mandarin, akan diterjemahkan ke bahasa Inggris.",
+        "match": "Pencocokan Database – Daftar bahan dicocokkan dengan database halal, ramah Muslim, syubhah, dan haram.",
+        "display": "Tampilan Hasil – Bahan yang cocok ditandai berdasarkan kategori status."
       },
       "categories": {
         "title": "Kategori Bahan",
         "halal": {
           "label": "Halal",
-          "desc": "Memiliki sertifikat halal.",
-          "examples": "Contoh: Halal BPJPH Indonesia, Halal CMA"
+          "desc": "Memiliki sertifikasi halal.",
+          "examples": "Contoh: Halal BPJPH Indonesia, Halal CMA, Halal TGM, Halal Thailand"
         },
         "muslimFriendly": {
           "label": "Ramah Muslim",
-          "desc": "Tidak ada syubhah/haram, tapi tidak bersertifikat halal.",
-          "examples": "Contoh: Lecithin (Kedelai), Emulsifier (Tebu)"
+          "desc": "Tidak ditemukan bahan syubhah atau haram, namun belum bersertifikat halal.",
+          "examples": "Contoh: Lesitin (Kedelai), Emulsifier (Tebu), Krim Segar"
         },
         "syubhah": {
           "label": "Syubhah",
-          "desc": "Diragukan, butuh pengecekan lebih lanjut.",
-          "examples": "Contoh: Mentega, Margarin, Cuka"
+          "desc": "Bahan yang diragukan dan perlu pengecekan lebih lanjut.",
+          "examples": "Contoh: Emulsifier tidak jelas, Mentega, Margarin, Cuka"
         },
         "haram": {
           "label": "Haram",
-          "desc": "Bahan terlarang.",
-          "examples": "Contoh: Babi, Gelatin, Alkohol, Lard"
+          "desc": "Bahan yang diharamkan.",
+          "examples": "Contoh: Babi, Gelatin, Alkohol, Lemak Babi, Wine"
         }
       },
-      "disclaimerNote": "Hasil hanya referensi. Selalu verifikasi ke sumber terpercaya.",
+      "disclaimerNote": "Hasil hanya sebagai referensi. Selalu verifikasi ke sumber terpercaya.",
       "gotIt": "Mengerti"
     },
+
     "scan": {
       "camera": "Kamera",
       "gallery": "Galeri",
@@ -88,30 +112,37 @@
       "done": "Selesai",
       "ocrProcessing": "Memproses OCR..."
     },
+
     "toast": {
       "ok": "✅ Bahan berhasil diekstrak!",
       "error": "Terjadi kesalahan.",
       "copied": "Disalin ke clipboard"
     }
   },
+
   "search": {
     "title": "Produk",
     "placeholder": "Cari (misalnya Teh)",
-    "filters": "Filter",
+    "filtersLabel": "Filter",
+    "filters": {
+      "stores": "Toko",
+      "categories": "Kategori",
+      "statuses": "Status"
+    },
     "registeredProductCount": "Jumlah",
     "noProductFound": "Maaf, produk tidak ditemukan...",
     "pullToRefresh": "Tarik untuk memperbarui",
     "showingResults": "Menampilkan {count} dari {total} produk terdaftar",
-    "loadingMoreProduct": "Memuat produk lagi...",
+    "loadingMoreProduct": "Memuat produk...",
     "details": {
       "title": "Detail Produk",
       "category": "Kategori",
       "description": "Deskripsi",
       "ingredients": "Bahan",
       "report": "Laporkan Produk",
-      "no-item": "Tidak ada produk",
+      "no-item": "Produk tidak ditemukan",
       "viewMore": "Lihat Semua",
-      "viewLess": "Lihat Ringkas",
+      "viewLess": "Lihat Singkat",
       "colorLegend": "Legenda Warna",
       "relatedProducts": "Produk Terkait",
       "edit": "✏️ Edit Produk",
@@ -131,17 +162,23 @@
       "Unknown": "Tidak Diketahui"
     }
   },
+
   "explore": {
     "title": "Jelajahi",
     "placeholder": "Cari tempat (misalnya Masjid)",
     "clear": "Hapus",
-    "showingPlace": "Menampilkan 1 tempat"
+    "showingPlace": "Menampilkan 1 tempat",
+    "details": {
+      "title": "Detail Tempat"
+    }
   },
+
   "news": {
     "title": "Berita Halal & Islam",
     "placeholder": "Cari berita...",
-    "loadingMoreNews": "Memuat berita lagi..."
+    "loadingMoreNews": "Memuat berita..."
   },
+
   "settings": {
     "title": "Pengaturan",
     "appearance": "Tampilan",
@@ -150,11 +187,30 @@
     "leaderboardPrivacy": "Tampilkan nama saya di papan peringkat",
     "language": "Bahasa (Eksperimental)"
   },
+
   "profile": {
     "title": "Profil",
     "logout": "Keluar",
     "donor": "Status Donatur",
     "noUserLogged": "Belum ada pengguna masuk",
+
+    "admin": {
+      "pointsLogs": "Lihat Log Poin",
+      "scanLogs": "Log Pemindaian Bahan",
+      "analytics": "Dashboard Analitik",
+      "masterData": "Data Master"
+    },
+
+    "pro": {
+      "title": "Halal Formosa Pro ⭐",
+      "upgrade": "Upgrade ke Pro ⭐",
+      "active": "✅ Pro aktif",
+      "renew": "🔁 Langganan akan diperpanjang otomatis",
+      "noRenew": "⚠️ Langganan TIDAK akan diperpanjang",
+      "accessUntil": "⏳ Akses hingga",
+      "manage": "Kelola Langganan"
+    },
+
     "aboutMe": "Tentang Saya",
     "edit": "Edit",
     "bio": "Bio",
@@ -164,16 +220,19 @@
     "settings": "Pengaturan",
     "legal": "Legal",
     "credits": "Kredit & Kontributor",
-    "support": "Dukung Halal Formosa ❤",
-    "supportDescription": "Jika kamu suka aplikasi ini, dukung pengembangannya",
+
+    "support": "Dukung Halal Formosa ❤️",
+    "supportDescription": "Jika kamu menyukai aplikasi ini, pertimbangkan untuk mendukung pengembangannya",
     "bobaMe": "Belikan saya Boba!",
     "supportThank": "Terima kasih atas dukunganmu! 🙏",
-    "voluntary": "*Donasi bersifat sukarela, tidak membuka fitur khusus.",
+    "voluntary": "*Donasi bersifat sukarela dan tidak membuka fitur aplikasi.",
     "followUs": "Ikuti kami",
+
     "appInfo": "Info Aplikasi",
     "appNameTitle": "Nama Aplikasi",
     "appName": "Halal Formosa",
     "appVersion": "Versi",
+
     "editProfile": {
       "title": "Edit Profil",
       "dob": "Tanggal Lahir",
@@ -182,12 +241,13 @@
       "selectNationality": "Pilih Kebangsaan",
       "gender": "Jenis Kelamin",
       "bio": "Bio",
-      "consentTitle": "Saya mengerti bahwa:",
-      "consentContent1": "Tanggal lahir, kebangsaan, dan gender hanya untuk statistik anonim.",
-      "consentContent2": "Bio saya bisa terlihat publik jika saya mengaktifkan \"Tampilkan nama di papan peringkat\".",
+      "consentTitle": "Saya memahami bahwa:",
+      "consentContent1": "Tanggal lahir, kebangsaan, dan gender hanya digunakan untuk statistik anonim dan tidak dibagikan secara publik.",
+      "consentContent2": "Bio saya dapat terlihat publik jika saya mengaktifkan \"Tampilkan nama di papan peringkat\" di Pengaturan.",
       "save": "Simpan"
     }
   },
+
   "credits": {
     "title": "Kredit & Kontributor",
     "founder": "Pendiri & Pengembang Utama",
@@ -196,59 +256,105 @@
     "uiUx": "Kontributor UI/UX",
     "database": "Kontributor Database",
     "specialThanks": "Ucapan Terima Kasih",
-    "thankYou": "Kami berterima kasih kepada semua yang mendukung Halal Formosa. Semoga Allah SWT membalas dengan kebaikan."
+    "thankYou": "Kami mengucapkan terima kasih yang sebesar-besarnya kepada seluruh anggota komunitas, penguji, dan pendukung yang telah membantu mewujudkan Halal Formosa. Semoga Allah SWT membalas kontribusi Anda dengan kebaikan yang berlimpah."
   },
+
   "addProduct": {
     "title": "Tambah Produk",
     "editTitle": "Edit Produk",
     "cropIngredients": "Potong Bahan",
     "done": "Selesai",
     "processingOcr": "Memproses OCR...",
-    "barcode": "Barcode *",
-    "barcodePlaceholder": "Masukkan hanya angka",
-    "productName": "Nama Produk *",
+
+    "barcode": "Barcode",
+    "barcodePlaceholder": "Masukkan angka saja",
+    "barcodeValid": "✅ Barcode valid",
+    "barcodeInvalid": "❌ Barcode tidak valid",
+    "barcodeExists": "❌ Barcode ini sudah ada di database",
+
+    "productName": "Nama Produk",
     "productNamePlaceholder": "Masukkan teks",
+
     "status": "Status",
-    "statusRequired": "Status *",
+    "statusRequired": "Status",
     "halal": "Halal",
     "muslimFriendly": "Ramah Muslim",
     "syubhah": "Syubhah",
     "haram": "Haram",
-    "ingredients": "Bahan *",
-    "ingredientsPlaceholder": "Masukkan teks atau gunakan kamera/galeri",
+
+    "ingredients": "Bahan",
+    "ingredientsPlaceholder": "Masukkan teks atau gunakan kamera / galeri",
     "detectedText": "🔎 Teks Terdeteksi",
-    "category": "Kategori *",
-    "stores": "Toko *",
-    "description": "Deskripsi *",
+
+    "category": "Kategori",
+    "stores": "Toko",
+
+    "description": "Deskripsi",
     "descriptionPlaceholder": "Masukkan teks",
-    "frontImage": "Gambar Depan *",
-    "backImage": "Gambar Belakang *",
+
+    "frontImage": "Gambar Depan",
+    "backImage": "Gambar Belakang",
+
+    "showMuslimFriendly": "Tampilkan bahan ramah Muslim",
+    "hideMuslimFriendly": "Sembunyikan bahan ramah Muslim",
+
+    "quickDescription": {
+      "halal": "Bersertifikat halal oleh ",
+      "muslimFriendly": "Bahan ramah Muslim, aman.",
+      "syubhah": "Ditemukan bahan syubhah.",
+      "haram": "Ditemukan bahan haram."
+    },
+
+    "statusDescription": {
+      "Halal": "Bersertifikat halal.",
+      "Muslim-friendly": "Bahan ramah Muslim, aman.",
+      "Syubhah": "Ditemukan bahan syubhah.",
+      "Haram": "Ditemukan bahan haram."
+    },
+
     "submit": "Kirim",
     "update": "Perbarui",
     "submitting": "Mengirim produk...",
     "submitSuccess": "Produk berhasil dikirim!",
-    "ocrSuccess": "✅ Bahan berhasil diekstrak!"
-  },
-  "addPlace": {
-    "title": "Tambah Tempat Baru",
-    "noPermission": "Anda tidak punya izin menambah tempat.",
-    "nameLabel": "Nama Tempat *",
-    "namePlaceholder": "misalnya Masjid Raya Taipei",
-    "typeLabel": "Jenis *",
-    "typePlaceholder": "Pilih jenis",
-    "imageLabel": "Gambar *",
-    "latLabel": "Latitude *",
-    "lngLabel": "Longitude *",
-    "mapHint": "Ketuk peta untuk memilih koordinat",
-    "saveBtn": "Simpan Tempat",
-    "toast": {
-      "pleaseImage": "Pilih gambar terlebih dahulu.",
-      "tooLarge": "Gambar terlalu besar setelah kompresi.",
-      "processError": "Gagal memproses gambar.",
-      "saved": "Tempat disimpan!",
-      "failed": "Gagal menyimpan."
+    "ocrSuccess": "✅ Bahan berhasil diekstrak!",
+
+    "errors": {
+      "loginRequired": "Anda harus login untuk mengirim produk.",
+      "nameRequired": "Nama produk wajib diisi.",
+      "statusRequired": "Status produk wajib dipilih.",
+      "ingredientsRequired": "Bahan wajib diisi.",
+      "categoryRequired": "Kategori produk wajib dipilih.",
+      "descriptionRequired": "Deskripsi wajib diisi.",
+      "frontImageRequired": "Gambar depan wajib diunggah.",
+      "backImageRequired": "Gambar belakang wajib diunggah."
     }
   },
+
+  "addPlace": {
+    "title": "Tambah Tempat Baru",
+    "editTitle": "Edit Tempat",
+    "noPermission": "Anda tidak memiliki izin untuk menambahkan tempat. Silakan hubungi admin.",
+    "nameLabel": "Nama Tempat",
+    "namePlaceholder": "misalnya Masjid Raya Taipei",
+    "typeLabel": "Jenis",
+    "typePlaceholder": "Pilih jenis",
+    "imageLabel": "Gambar",
+    "addressLabel": "Alamat",
+    "addressPlaceholder": "Masukkan atau konfirmasi alamat",
+    "latLabel": "Latitude",
+    "lngLabel": "Longitude",
+    "mapHint": "Ketuk peta untuk menentukan koordinat",
+    "saveBtn": "Simpan Tempat",
+    "updateBtn": "Perbarui Tempat",
+    "toast": {
+      "pleaseImage": "Silakan pilih gambar.",
+      "tooLarge": "Ukuran gambar masih terlalu besar setelah kompresi.",
+      "processError": "Gagal memproses gambar.",
+      "saved": "Tempat berhasil disimpan!",
+      "failed": "Gagal menyimpan tempat."
+    }
+  },
+
   "review": {
     "title": "Tinjau Pengajuan",
     "noPending": "Tidak ada pengajuan 🎉",
@@ -280,6 +386,7 @@
       "--ion-color-danger": "Haram"
     }
   },
+
   "points": {
     "title": "Log Poin Review"
   }
