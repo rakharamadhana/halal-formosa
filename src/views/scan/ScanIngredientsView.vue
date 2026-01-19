@@ -174,8 +174,8 @@
 
             <swiper
                 :modules="[Autoplay, Pagination]"
-                :autoplay="{ delay: 2000 }"
-                :loop="true"
+                :autoplay="{ delay: 5000 }"
+                :loop="false"
                 :pagination="{ clickable: true }"
                 style="width:100%; max-width:340px; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1);"
             >
@@ -276,7 +276,11 @@
           </ion-item>
 
           <div class="ion-margin-top">
-            <ion-item lines="full" class="ion-margin-top">
+            <ion-item
+                v-if="detectedLanguage !== 'english' && ingredientsTextZh"
+                lines="full"
+                class="ion-margin-top"
+            >
               <ion-textarea
                   v-model="ingredientsTextZh"
                   :label="$t('scanIngredients.scan.ingredientsZh')"
@@ -305,10 +309,12 @@
                   class="ion-margin-end ion-margin-bottom"
                   :class="['chip-' + extractIonColor(h.color)]"
               >
-                {{ h.keyword }}
-                <template v-if="h.matchedVariant">
-                  ({{ h.matchedVariant }})
+                {{ detectedLanguage === 'chinese' ? h.keyword_zh || h.keyword : h.keyword }}
+
+                <template v-if="h.keyword_zh && detectedLanguage !== 'chinese'">
+                  ({{ h.keyword_zh }})
                 </template>
+
                 — {{ colorMeaning(extractIonColor(h.color)) }}
               </ion-chip>
             </div>
@@ -335,9 +341,10 @@
                     class="ion-margin-end ion-margin-bottom"
                     :class="['chip-' + extractIonColor(h.color)]"
                 >
-                  {{ h.keyword }}
-                  <template v-if="h.matchedVariant">
-                    ({{ h.matchedVariant }})
+                  {{ detectedLanguage === 'chinese' ? h.keyword_zh || h.keyword : h.keyword }}
+
+                  <template v-if="h.keyword_zh && detectedLanguage !== 'chinese'">
+                    ({{ h.keyword_zh }})
                   </template>
                   — {{ colorMeaning(extractIonColor(h.color)) }}
                 </ion-chip>
@@ -598,7 +605,7 @@ async function handleConfirmCrop() {
     showOk.value = true
 
     // Only log if ingredients were detected
-    if (ingredientsTextZh.value?.trim()) {
+    if (ingredientsText.value?.trim()) {
       showTutorial.value = false
 
       await ActivityLogService.log("scan_ingredients_success", {
@@ -724,6 +731,7 @@ const {
   productName,
   ocrRaw,
   recheckHighlightsSmart,
+  detectedLanguage
 } = useCropperOcr({
   allHighlights,
   blacklistPatterns,

@@ -134,9 +134,15 @@ export default function useOcrPipeline({
                 throw new Error('No ingredient keywords detected. Please crop the ingredients section only.');
             }
 
-            // ✅ Save Chinese ingredients
-            ingredientsTextZh.value = ingredientsOnlyZh || stripToIngredientsOnly(cleanedZh);
-            console.log('🀄 Final ingredients-only Chinese:', ingredientsTextZh.value);
+            // ✅ Save Chinese ingredients ONLY if OCR is Chinese / Mixed
+            if (detectedLanguage.value === 'chinese' || detectedLanguage.value === 'mixed') {
+                ingredientsTextZh.value =
+                    ingredientsOnlyZh || stripToIngredientsOnly(cleanedZh);
+                console.log('🀄 Final ingredients-only Chinese:', ingredientsTextZh.value);
+            } else {
+                // 🔒 English-only OCR → never populate Chinese field
+                ingredientsTextZh.value = '';
+            }
 
             // ✅ Clean translated English
             ingredientsText.value = cleanTranslatedIngredients(translated)
@@ -495,6 +501,12 @@ export default function useOcrPipeline({
     const checkingIngredients = ref(false)
 
     async function recheckHighlights(raw: string = ingredientsTextZh.value) {
+        const lang = detectedLanguage.value;
+
+        const isEnglish = lang === 'english';
+        const isChinese = lang === 'chinese';
+        const isMixed = lang === 'mixed';
+
         checkingIngredients.value = true
         try {
             const text = raw.trim()
@@ -511,10 +523,22 @@ export default function useOcrPipeline({
 
             for (const part of parts) {
                 // 👇 normalize the ingredient part to lowercase, remove commas/spaces
-                const normalized = part.replace(/[,\s]/g, "").toLowerCase();
+                const normalized = part.replace(/[^a-z0-9]/gi, "").toLowerCase();
 
                 for (const h of highlights) {
-                    const variants = h.keyword_zh?.split("|").map(v => v.trim()) ?? [];
+                    let variants: string[] = [];
+
+                    if (isEnglish) {
+                        variants = h.keyword?.split("|").map(v => v.trim()) ?? [];
+                    } else if (isChinese) {
+                        variants = h.keyword_zh?.split("|").map(v => v.trim()) ?? [];
+                    } else {
+                        // mixed → match both EN + ZH
+                        variants = [
+                            ...(h.keyword?.split("|") ?? []),
+                            ...(h.keyword_zh?.split("|") ?? [])
+                        ].map(v => v.trim());
+                    }
 
                     for (const variant of variants) {
                         // 👇 normalize the highlight keyword too

@@ -25,6 +25,7 @@ export function useCropperOcr(options: any) {
         autoStatus,
         productName,
         showOk,
+        detectedLanguage
     } = useOcrService(options)
 
     function openCropper(file: File) {
@@ -126,5 +127,6 @@ export function useCropperOcr(options: any) {
         productName,
         recheckHighlightsSmart,
         ocrRaw, // ✅ exported correctly
+        detectedLanguage
     }
 }
