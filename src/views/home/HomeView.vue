@@ -550,11 +550,6 @@ function viewMoreLocations() {
 }
 
 async function openProduct(p: any) {
-  // increment product views
-  await supabase.rpc("increment_product_view", {
-    product_barcode: p.barcode
-  });
-
   ActivityLogService.log("home_product_click", {
     barcode: p.barcode,
     name: p.name,
@@ -566,12 +561,6 @@ async function openProduct(p: any) {
 
 
 async function openLocation(loc: any) {
-
-  // increment location views
-  await supabase.rpc("increment_location_view", {
-    location_id: loc.id
-  });
-
   ActivityLogService.log("home_location_click", {
     id: loc.id,
     name: loc.name,

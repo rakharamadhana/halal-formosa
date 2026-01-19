@@ -154,6 +154,7 @@ function resolveActivityGroup(activity: string): string | null {
         case 'search_filter_category':
         case 'search_filter_store':
         case 'search_filter_status':
+        case 'search_sort_change':
             return 'search'
 
         /* -------------------------
@@ -199,6 +200,7 @@ function resolveActivityGroup(activity: string): string | null {
         -------------------------- */
         case 'pro_paywall_open':
         case 'pro_purchase_success':
+        case 'pro_paywall_trigger':
         case 'donation_click':
         case 'donation_success':
             return 'monetization'

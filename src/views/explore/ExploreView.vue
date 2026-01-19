@@ -1002,9 +1002,17 @@ const fetchLocations = async () => {
   const {data, error} = await supabase
       .from('locations')
       .select(`
-  id, name, lat, lng, image, type_id, address,
+  id,
+  name,
+  lat,
+  lng,
+  image,
+  type_id,
+  address,
+  view_count,
   location_types(name)
 `)
+
 
   if (!error && data) {
     //@ts-expect-error LocationRow
@@ -1351,8 +1359,8 @@ const goToAddPlace = async () => {
 
 const goToDetail = async (id: number) => {
 
-  const place = locations.value.find(p => p.id === id);
-  await supabase.rpc("increment_location_view", {loc_id: id});
+  const place = locations.value.find(p => p.id === id)
+  if (place) place.view_count = (place.view_count ?? 0) + 1
 
   ActivityLogService.log("explore_place_detail_open", {
     id,

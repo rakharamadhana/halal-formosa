@@ -45,11 +45,43 @@
       <!-- Row: Filters -->
       <ion-toolbar class="search-toolbar">
         <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-          <ion-text class="ion-padding-horizontal">
-            <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;"/>
-            <strong>{{ $t('search.filtersLabel') }}</strong>
-          </ion-text>
+          <ion-button
+              fill="clear"
+              size="small"
+              class="sort-button"
+          >
+            <!-- ✅ Visible label (your typography) -->
+            <ion-text class="toolbar-label ion-padding-horizontal">
+              {{ sortLabel }}
+            </ion-text>
+            <ion-icon :icon="chevronDownOutline"/>
+
+            <!-- ✅ Hidden controller -->
+            <ion-select
+                v-model="sortBy"
+                interface="popover"
+                class="hidden-select"
+                :interface-options="{ cssClass: 'sort-popover' }"
+            >
+              <ion-select-option value="recent">
+                🆕 Recently Added
+              </ion-select-option>
+              <ion-select-option value="views">
+                🔥 Highest Viewed
+              </ion-select-option>
+              <ion-select-option value="for_you">
+                ✨ For You (Pro)
+              </ion-select-option>
+            </ion-select>
+          </ion-button>
+
+
           <ion-button fill="clear" size="small" @click="toggleFilters">
+            <ion-text class="toolbar-label ion-padding-horizontal">
+              <ion-icon :icon="funnelOutline" style="vertical-align: middle; margin-right: 6px;"/>
+              <strong>{{ $t('search.filtersLabel') }}</strong>
+            </ion-text>
+
             <ion-icon :icon="showFilters ? chevronUpOutline : chevronDownOutline"/>
           </ion-button>
         </div>
@@ -143,7 +175,7 @@
       </ion-toolbar>
 
     </ion-header>
-    <ion-content>
+    <ion-content ref="contentRef">
       <ion-refresher style="margin-top: 15px;" slot="fixed" @ionRefresh="refreshList">
         <ion-refresher-content
             :pulling-icon="chevronDownCircleOutline"
@@ -171,8 +203,8 @@
         <div v-if="!scanning" class="ion-padding" style="padding-top: 5px;">
 
           <!-- Skeleton loader -->
-          <template v-if="loadingProducts && results.length === 0">
-            <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
+          <template v-if="loadingProducts && results.length === 0 && !showForYouGate">
+          <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
               <div style="display: flex; align-items: center;">
                 <!-- Skeleton Image -->
                 <ion-skeleton-text
@@ -204,7 +236,36 @@
             </ion-card>
           </template>
 
-          <!-- Empty state (no products at all after load) -->
+          <!-- 🔒 For You (Non-Pro Gate MUST COME FIRST) -->
+          <template v-if="showForYouGate">
+            <ion-card class="for-you-info">
+              <ion-card-content>
+                <div class="for-you-row">
+                  <ion-icon name="sparkles-outline" class="for-you-icon" />
+                  <div>
+                    <strong>For You</strong>
+                    <p>
+                      You’re viewing <strong>For You</strong>.
+                      This personalized feed unlocks with Halal Formosa Pro
+                      and adapts to your activity over time.
+                    </p>
+                  </div>
+                </div>
+
+                <ion-button
+                    color="carrot"
+                    size="small"
+                    expand="block"
+                    @click="presentPaywall"
+                >
+                  Upgrade to Pro
+                </ion-button>
+              </ion-card-content>
+            </ion-card>
+          </template>
+
+
+          <!-- 🧾 Empty state (ONLY for normal modes) -->
           <template v-else-if="!loadingProducts && results.length === 0">
             <ion-card>
               <ion-card-content>
@@ -215,6 +276,44 @@
 
           <!-- Actual product results -->
           <template v-else>
+            <!-- ✨ For You Explanation -->
+            <ion-card
+                v-if="showForYouInfo && !hideForYouInfo"
+                class="for-you-info"
+            >
+              <ion-card-content>
+                <div class="for-you-row">
+                  <ion-icon name="sparkles-outline" class="for-you-icon" />
+                  <div>
+                    <strong>For You</strong>
+                    <p>
+                      We recommend halal and Muslim-friendly products based on what you’ve
+                      interacted with before, while also introducing new items you haven’t seen yet.
+                    </p>
+
+                    <p
+                        v-if="forYouReason"
+                        style="margin-top:6px; font-size:12px; color:var(--ion-color-medium);"
+                    >
+                      💡 You’re seeing this because you often explore
+                      <strong>{{ forYouReason }}</strong>.
+                    </p>
+
+                    <p
+                        v-else
+                        style="margin-top:6px; font-size:12px; color:var(--ion-color-medium);"
+                    >
+                      💡 We’re learning your preferences as you explore more products.
+                    </p>
+                  </div>
+                </div>
+
+                <ion-button fill="clear" size="small" @click="dismissForYouInfo">
+                  Got it
+                </ion-button>
+              </ion-card-content>
+            </ion-card>
+
             <ion-card
                 class="product-card"
                 v-for="product in results"
@@ -274,6 +373,7 @@
 
       <!-- bind the ref so we can disable/enable it -->
       <ion-infinite-scroll
+          v-if="!showForYouGate"
           ref="infiniteScroll"
           @ionInfinite="loadMore"
           threshold="100px"
@@ -315,9 +415,10 @@ import {
   IonPage, IonHeader, IonContent, IonSearchbar, IonText, IonModal, IonToolbar, IonButton, IonIcon, IonFooter, IonChip,
   IonInfiniteScroll, IonInfiniteScrollContent, IonRefresher, IonRefresherContent,
   IonSkeletonText, IonThumbnail, IonCard, IonCardContent,
-  onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton, onIonViewWillEnter
+  onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton, onIonViewWillEnter, IonSelect, IonSelectOption,
+  toastController
 } from '@ionic/vue'
-import {ref, onMounted, nextTick, watch} from 'vue'
+import {ref, onMounted, nextTick, watch, computed} from 'vue'
 import {useRouter, useRoute} from 'vue-router'
 import {supabase} from '@/plugins/supabaseClient'
 import {
@@ -346,6 +447,8 @@ import AppHeader from '@/components/AppHeader.vue'
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
 import {ActivityLogService} from "@/services/ActivityLogService";
 import {isDonor, refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import {Purchases} from "@revenuecat/purchases-capacitor";
+import {PAYWALL_RESULT, RevenueCatUI} from "@revenuecat/purchases-capacitor-ui";
 
 
 /* ---------------- Day.js ---------------- */
@@ -402,7 +505,7 @@ const pageSize = 15
 const currentPage = ref(0)
 const ingredientDictionary = ref<Record<string, string>>({})
 const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null)
-
+const suppressSortWatcher = ref(false)
 const isNative = ref(Capacitor.isNativePlatform())
 
 const categoryIcons: Record<string, string> = {
@@ -425,12 +528,14 @@ const showFilters = ref(false)
 
 
 const statuses = [
-  { key: 'Halal', emoji: '✅' },
-  { key: 'Muslim-friendly', emoji: '🤝' },
-  { key: 'Syubhah', emoji: '⚠️' },
-  { key: 'Haram', emoji: '⛔' }
+  {key: 'Halal', emoji: '✅'},
+  {key: 'Muslim-friendly', emoji: '🤝'},
+  {key: 'Syubhah', emoji: '⚠️'},
+  {key: 'Haram', emoji: '⛔'}
 ]
 
+const sortBy = ref<'recent' | 'views' | 'for_you'>('recent')
+const forYouReason = ref<string | null>(null)
 
 
 const activeStatus = ref<string | null>(null)
@@ -439,10 +544,106 @@ function toggleFilters() {
   showFilters.value = !showFilters.value
 }
 
+type HTMLIonContentElement = HTMLElement & {
+  getScrollElement: () => Promise<HTMLElement>
+}
+
+const contentRef = ref<any>(null)
+const savedScrollTop = ref<number | null>(null)
+
+const getIonContentEl = (): HTMLIonContentElement | null => {
+  if (!contentRef.value) return null
+
+  // Vue component → underlying web component
+  const el = contentRef.value.$el ?? contentRef.value
+  return el as HTMLIonContentElement
+}
+
+async function ensureRevenueCatLoggedIn() {
+  if (!Capacitor.isNativePlatform()) return
+
+  const {data} = await supabase.auth.getUser()
+  if (!data?.user) return
+
+  await Purchases.logIn({
+    appUserID: data.user.id
+  })
+
+  console.log("🔐 RevenueCat logged in as:", data.user.id)
+}
+
+async function presentPaywall(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[RC] Paywall can only run on native (Android/iOS).");
+    return false;
+  }
+
+  try {
+    console.log("[RC] Presenting Paywall...");
+
+    const {result} = await RevenueCatUI.presentPaywall();
+
+    console.log("[RC] Paywall Result:", result);
+
+    switch (result) {
+      case PAYWALL_RESULT.PURCHASED:
+        console.log("[RC] 🎉 User purchased subscription!");
+        return true;
+
+      case PAYWALL_RESULT.RESTORED:
+        console.log("[RC] 🔄 Subscription restored!");
+        return true;
+
+      case PAYWALL_RESULT.CANCELLED:
+        console.log("[RC] User cancelled paywall.");
+        return false;
+
+      case PAYWALL_RESULT.ERROR:
+        console.log("[RC] Paywall error.");
+        return false;
+
+      case PAYWALL_RESULT.NOT_PRESENTED:
+      default:
+        console.log("[RC] Paywall not presented.");
+        return false;
+    }
+
+  } catch (e) {
+    console.error("[RC] Paywall failed:", e);
+    return false;
+  }
+}
+
+async function loadForYouReason() {
+  const user = (await supabase.auth.getUser()).data.user
+  if (!user) return
+
+  const { data } = await supabase.rpc(
+      'get_user_product_preferences',
+      { p_user_id: user.id }
+  )
+
+  if (!data || data.length === 0) {
+    forYouReason.value = null
+    return
+  }
+
+  const labels = data.map((d: any) => d.label)
+
+  if (labels.length === 1) {
+    forYouReason.value = labels[0]
+  } else if (labels.length === 2) {
+    forYouReason.value = `${labels[0]} and ${labels[1]}`
+  } else {
+    forYouReason.value = `${labels[0]}, ${labels[1]}, and ${labels[2]}`
+  }
+}
+
 
 /* ---------------- Filters ---------------- */
 
-watch([activeStore, activeCategory, activeStatus, searchQuery], () => {
+watch([activeStore, activeCategory, activeStatus, searchQuery, sortBy], () => {
+  savedScrollTop.value = null; // reset scroll restore
 
   if (activeStore.value) {
     ActivityLogService.log("search_filter_store", {
@@ -473,6 +674,83 @@ watch([activeStore, activeCategory, activeStatus, searchQuery], () => {
 watch(isDonor, (val) => {
   console.log("👀 [Watcher] isDonor changed:", val);
 });
+
+watch([sortBy, isDonor], async () => {
+  if (sortBy.value === 'for_you' && isDonor.value) {
+    await loadForYouReason()
+  }
+})
+
+watch(sortBy, async (val) => {
+  if (val !== 'for_you') {
+    forYouReason.value = null
+  }
+})
+
+
+watch(sortBy, async (val) => {
+  if (suppressSortWatcher.value) return
+  if (val !== 'for_you') return
+
+  // Non-Pro user
+  if (!isDonor.value) {
+    // ⛔ Web guard
+    if (!Capacitor.isNativePlatform()) {
+      const toast = await toastController.create({
+        message: "✨ For You is available on mobile apps only.",
+        duration: 2000,
+        color: "medium",
+        position: "bottom",
+      })
+      await toast.present()
+      return
+    }
+
+    ActivityLogService.log("search_sort_change", {
+      sort: val
+    })
+
+    ActivityLogService.log("pro_paywall_trigger", {
+      source: "search_sort_for_you"
+    })
+
+    await ensureRevenueCatLoggedIn()
+    const purchased = await presentPaywall()
+
+    if (purchased) {
+      await refreshSubscriptionStatus({ syncToServer: true })
+    }
+
+    // 🔑 IMPORTANT:
+    // Do NOT revert sortBy
+    return
+  }
+})
+
+const showForYouInfo = computed(() => {
+  return sortBy.value === 'for_you' && isDonor.value
+})
+
+const showForYouGate = computed(() => {
+  return sortBy.value === 'for_you' && !isDonor.value
+})
+
+
+const hideForYouInfo = ref(
+    localStorage.getItem('hide_for_you_info') === '1'
+)
+
+function dismissForYouInfo() {
+  hideForYouInfo.value = true
+  localStorage.setItem('hide_for_you_info', '1')
+}
+
+const sortLabel = computed(() => {
+  if (sortBy.value === 'for_you') return '✨ For You (Pro)'
+  if (sortBy.value === 'views') return '🔥 Highest Viewed'
+  return '🆕 Recently Added'
+})
+
 
 const toggleCategory = (cat: { id: number; name: string }) => {
   activeCategory.value = activeCategory.value?.id === cat.id ? null : cat
@@ -566,6 +844,13 @@ const fetchCategories = async () => {
 
 
 const fetchProducts = async (reset = false) => {
+  if (sortBy.value === 'for_you' && !isDonor.value) {
+    results.value = []
+    loadingProducts.value = false
+    allLoaded.value = true
+    return
+  }
+
   if (isFetching.value || (allLoaded.value && !reset)) return
   isFetching.value = true
 
@@ -609,7 +894,13 @@ const fetchProducts = async (reset = false) => {
       )
     }
 
-    query = query.order("created_at", {ascending: false}).range(from, to)
+    if (sortBy.value === 'views') {
+      query = query.order('view_count', {ascending: false})
+    } else {
+      query = query.order('created_at', {ascending: false})
+    }
+
+    query = query.range(from, to)
 
     const {data, error} = await query.returns<Product[]>()
 
@@ -622,7 +913,22 @@ const fetchProducts = async (reset = false) => {
 
       // Merge results
       allProducts.value = reset ? data : [...allProducts.value, ...data];
-      results.value = [...allProducts.value];
+      if (sortBy.value === 'for_you' && isDonor.value) {
+        const { data, error } = await supabase.rpc(
+            'get_for_you_products',
+            {
+              p_user_id: (await supabase.auth.getUser()).data.user?.id,
+              p_limit: pageSize,
+              p_offset: currentPage.value * pageSize,
+            }
+        )
+
+        if (!error && data) {
+          results.value = reset ? data : [...results.value, ...data]
+        }
+      } else {
+        results.value = [...allProducts.value]
+      }
 
       currentPage.value++;
 
@@ -664,10 +970,14 @@ function fromNowToTaipei(dateString?: string) {
 }
 
 const openDetails = async (product: Product) => {
-  // Increment view count
-  await supabase.rpc("increment_product_view", {
-    product_barcode: product.barcode
-  });
+  product.view_count = (product.view_count ?? 0) + 1;
+
+  // ✅ safely read scroll position
+  const ionContent = getIonContentEl()
+  if (ionContent) {
+    const scrollEl = await ionContent.getScrollElement()
+    savedScrollTop.value = scrollEl.scrollTop
+  }
 
   ActivityLogService.log("search_product_click", {
     barcode: product.barcode,
@@ -780,6 +1090,19 @@ onIonViewDidEnter(async () => {
         const product = results.value.find(p => p.barcode === updated.barcode);
         if (product) product.view_count = updated.view_count;
       }
+    }
+  }
+
+  // 🧭 RESTORE SCROLL POSITION
+  if (savedScrollTop.value !== null) {
+    await nextTick()
+    const ionContent = getIonContentEl()
+    if (ionContent) {
+      const scrollEl = await ionContent.getScrollElement()
+      scrollEl.scrollTo({
+        top: savedScrollTop.value,
+        behavior: 'auto'
+      })
     }
   }
 
@@ -930,5 +1253,77 @@ ion-card.status-haram {
 .filter-title ion-icon {
   font-size: 14px;
 }
+
+.sort-button {
+  position: relative;
+  height: 32px; /* lock height */
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  text-transform: none;
+}
+
+
+.sort-button ion-select {
+  padding: 0;
+  margin: 0;
+  font-weight: 600;
+}
+
+.sort-button::part(native) {
+  padding: 0;
+}
+
+/* Hide select but keep it clickable */
+.hidden-select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+/* Shared toolbar typography */
+.toolbar-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-button {
+  position: relative;
+  text-transform: none;
+}
+
+/* Force neutral text color in toolbar controls */
+.search-toolbar ion-button,
+.search-toolbar ion-text,
+.search-toolbar ion-icon {
+  color: var(--ion-color-dark);
+}
+
+.for-you-info {
+  border-left: 4px solid var(--ion-color-warning);
+  margin-bottom: 12px;
+}
+
+.for-you-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.for-you-icon {
+  font-size: 20px;
+  color: var(--ion-color-warning);
+  margin-top: 2px;
+}
+
+.for-you-info p {
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
 
 </style>

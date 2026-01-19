@@ -200,6 +200,11 @@
             <ion-label>{{ $t('profile.admin.scanLogs') }}</ion-label>
           </ion-item>
 
+          <ion-item button @click="goToUsersList">
+            <ion-icon :icon="peopleOutline" />&nbsp;
+            <ion-label>Users</ion-label>
+          </ion-item>
+
           <ion-item button @click="goToAnalyticsDashboard">
             <ion-icon :icon="listOutline"/>&nbsp;
             <ion-label>{{ $t('profile.admin.analytics') }}</ion-label>
@@ -833,6 +838,8 @@ const goToSettings = () => router.push("/settings");
 const goToLegal = () => router.push("/legal");
 const goToCredits = () => router.push("/credits");
 const goToPointsLogs = () => router.push("/admin/points-logs");
+const goToUsersList = () => router.push("/admin/users");
+
 const goToAnalyticsDashboard = () => router.push("/admin/analytics");
 const goToScanLogs = () => router.push("/admin/scan-logs");
 
