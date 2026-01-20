@@ -69,7 +69,11 @@
               <ion-select-option value="views">
                 🔥 Highest Viewed
               </ion-select-option>
-              <ion-select-option value="for_you">
+              <!-- ✨ For You (only if logged in) -->
+              <ion-select-option
+                  v-if="canShowForYouSort"
+                  value="for_you"
+              >
                 ✨ For You (Pro)
               </ion-select-option>
             </ion-select>
@@ -687,6 +691,11 @@ watch(sortBy, async (val) => {
   }
 })
 
+watch(isAuthenticated, (loggedIn) => {
+  if (!loggedIn && sortBy.value === 'for_you') {
+    sortBy.value = 'recent'
+  }
+})
 
 watch(sortBy, async (val) => {
   if (suppressSortWatcher.value) return
@@ -734,6 +743,11 @@ const showForYouInfo = computed(() => {
 const showForYouGate = computed(() => {
   return sortBy.value === 'for_you' && !isDonor.value
 })
+
+const canShowForYouSort = computed(() => {
+  return isAuthenticated.value
+})
+
 
 
 const hideForYouInfo = ref(
