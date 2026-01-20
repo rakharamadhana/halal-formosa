@@ -1,6 +1,7 @@
 import { ref, computed } from "vue";
 import { supabase } from "@/plugins/supabaseClient";
-import { isDonor } from "@/composables/useSubscriptionStatus";
+
+export const profileLoaded = ref(false)
 
 /* ---------------- Core donor/role ---------------- */
 export const userRole = ref<string | null>(null);
@@ -109,35 +110,32 @@ export function setUserRole(userId: string, value: string | null) {
 
 /* ---------------- Profile load/save ---------------- */
 export async function loadUserProfile(userId: string) {
+    profileLoaded.value = false // ⬅️ NEW (start)
+
     const { data, error } = await supabase
         .from("user_profiles")
         .select(`
-      donor_type,
-      public_leaderboard,
-      date_of_birth,
-      nationality,
-      gender,
-      bio,
-      user_roles (
-        role
-      )
-    `)
+          donor_type,
+          public_leaderboard,
+          date_of_birth,
+          nationality,
+          gender,
+          bio,
+          user_roles (
+            role
+          )
+        `)
         .eq("id", userId)
         .single<UserProfileRow>();
 
     console.log("🔍 loadUserProfile response:", { data, error });
 
     if (!error && data) {
-        // ✅ ALWAYS do this
         setDonorType(userId, data.donor_type || "Free")
-
         setUserRole(userId, data.user_roles?.role ?? null)
 
         isPublicLeaderboard.value = data.public_leaderboard ?? false;
-        localStorage.setItem(
-            pubKey(userId),
-            JSON.stringify(isPublicLeaderboard.value)
-        );
+        localStorage.setItem(pubKey(userId), JSON.stringify(isPublicLeaderboard.value));
 
         editDOB.value = data.date_of_birth;
         editNationality.value = data.nationality;
@@ -158,6 +156,7 @@ export async function loadUserProfile(userId: string) {
         editBio.value = null;
     }
 
+    profileLoaded.value = true // ⬅️ NEW (end)
 }
 
 export async function updateUserProfile(userId: string) {

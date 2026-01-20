@@ -2,11 +2,26 @@ import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
 
+import {
+    isAdmin,
+    isContributor,
+    isProfileComplete,
+    profileLoaded
+} from '@/composables/userProfile'
+
+
 // Preload SearchView in the background
 import SearchView from '@/views/search/SearchView.vue';
 import ExploreView from '@/views/explore/ExploreView.vue';
 import ScanIngredientsView from '@/views/scan/ScanIngredientsView.vue';
-import { isAdmin, isContributor } from '@/composables/userProfile'
+
+const ALLOWED_WHEN_PROFILE_INCOMPLETE = [
+    '/profile',
+    '/profile/edit',
+    '/logout',
+    '/legal',
+    '/credits'
+]
 
 const routes: Array<RouteRecordRaw> = [
     {
@@ -96,7 +111,6 @@ const router = createRouter({
 
 // ✅ Cleaner guard
 router.beforeEach(async (to, from, next) => {
-
     const { data: { session } } = await supabase.auth.getSession()
 
     // 🚫 Needs auth but not logged in
@@ -107,12 +121,32 @@ router.beforeEach(async (to, from, next) => {
         })
     }
 
-    // 🔐 Admin/Contributor-only routes
+    // 🔐 Admin / Contributor guard
     if (to.meta.requiresAdmin && !(isAdmin.value || isContributor.value)) {
         return next('/home')
     }
 
-    next();
-});
+    // ⏳ Wait until profile is loaded
+    if (session?.user && !profileLoaded.value) {
+        return next()
+    }
+
+    // 🚨 Enforce profile completion
+    if (
+        session?.user &&
+        !isProfileComplete.value &&
+        !ALLOWED_WHEN_PROFILE_INCOMPLETE.includes(to.path)
+    ) {
+        return next({
+            path: '/profile/edit',
+            replace: true,
+            query: { redirect: to.fullPath }
+        })
+    }
+
+    next()
+})
+
+
 
 export default router;
