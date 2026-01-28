@@ -12,7 +12,7 @@ import { createI18n } from 'vue-i18n'
 import en from './locales/en.json'
 import id from './locales/id.json'
 import zh from './locales/zh.json'
-
+import ms from '@/locales/ms.json'
 import '@ionic/vue/css/core.css'
 import '@ionic/vue/css/normalize.css'
 import '@ionic/vue/css/structure.css'
@@ -70,7 +70,12 @@ const i18n = createI18n({
     legacy: false,
     locale: localStorage.getItem('lang') || 'en',
     fallbackLocale: 'en',
-    messages: { en, id, zh }
+    messages: {
+        en,
+        id,
+        ms,
+        zh
+    }
 })
 
 /* Create app */
@@ -82,22 +87,45 @@ router.afterEach(() => scheduleBannerUpdate())
 // 1. Load from cache first → no flicker
 loadCountriesFromCache()
 
+let resumeTimeout: any = null;
 
 /* Native: refresh on resume */
-if (Capacitor.isNativePlatform()) {
-    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) {
-            scheduleBannerUpdate();
-            supabase.auth.getSession().then(async ({ data }) => {
+CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive) return;
+
+    clearTimeout(resumeTimeout);
+    resumeTimeout = setTimeout(async () => {
+        scheduleBannerUpdate();
+
+        try {
+            const result = await Promise.race([
+                supabase.auth.getSession(),
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('timeout')), 3000)
+                )
+            ]);
+
+            if (
+                typeof result === 'object' &&
+                result !== null &&
+                'data' in result
+            ) {
+                const { data } = result as {
+                    data: { session: any }
+                };
+
                 const session = data.session;
                 if (session?.user) {
                     currentUser.value = session.user;
-                    await loadUserProfile(session.user.id);
+                    loadUserProfile(session.user.id); // ✅ never await on resume
                 }
-            });
+            }
+        } catch (e) {
+            console.warn('[Resume] skipped:', e);
         }
-    });
-}
+    }, 300);
+});
+
 
 
 // ✅ Restore session once on boot

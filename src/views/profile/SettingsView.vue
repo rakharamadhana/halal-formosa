@@ -56,6 +56,7 @@
             >
               <ion-select-option value="en">🇺🇸 English</ion-select-option>
               <ion-select-option value="id">🇮🇩 Bahasa Indonesia</ion-select-option>
+              <ion-select-option value="ms">🇲🇾 Bahasa Melayu</ion-select-option>
               <ion-select-option value="zh">🇹🇼 繁體中文</ion-select-option>
             </ion-select>
           </ion-item>

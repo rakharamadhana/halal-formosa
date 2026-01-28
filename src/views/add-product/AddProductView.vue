@@ -48,6 +48,7 @@
                   pattern="[0-9]*"
                   :maxlength="14"
                   :minlength="8"
+                  clear-input
                   label-placement="floating"
                   :placeholder="$t('addProduct.barcodePlaceholder')"
               >
@@ -78,6 +79,33 @@
               {{ barcodeMessage }}
             </ion-note>
 
+            <!-- 🟣 Detected Product Preview -->
+            <ion-item
+                v-if="detectedProduct"
+                lines="none"
+                class="detected-product"
+            >
+              <ion-thumbnail slot="start">
+                <ion-img
+                    :src="detectedProduct.photo_front_url || '/placeholder-product.png'"
+                />
+              </ion-thumbnail>
+
+              <ion-label>
+                <h3>{{ detectedProduct.name }}</h3>
+                <ion-chip
+                    size="small"
+                    :class="`chip-${statusChipColor(detectedProduct.status)}`"
+                >
+                  {{ detectedProduct.status }}
+                </ion-chip>
+
+
+
+              </ion-label>
+            </ion-item>
+
+
             <div v-if="scanning && cameras.length > 1" class="ion-padding">
               <ion-item>
                 <ion-label>Camera</ion-label>
@@ -96,6 +124,7 @@
               <ion-input
                   v-model="form.name"
                   required
+                  clear-input
                   label-placement="floating"
                   :placeholder="$t('addProduct.productNamePlaceholder')"
                   @input="onProductNameInput"
@@ -461,6 +490,17 @@ const fetchStores = async () => {
   }
 }
 
+const STATUS_CHIP_CLASS: Record<string, string> = {
+  'Halal': 'success',
+  'Muslim-friendly': 'primary',
+  'Syubhah': 'warning',
+  'Haram': 'danger',
+}
+
+function statusChipColor(status?: string | null) {
+  return STATUS_CHIP_CLASS[status ?? ''] ?? 'medium'
+}
+
 // props
 const props = defineProps<{
   editProduct?: Product
@@ -499,6 +539,15 @@ const {
   }
 })
 
+
+type DetectedProduct = {
+  id: string
+  name: string
+  status: string
+  photo_front_url: string | null
+}
+
+const detectedProduct = ref<DetectedProduct | null>(null)
 
 
 // 🟢 Keep product-specific syncing into form
@@ -643,17 +692,18 @@ watch(() => form.value.status, (newStatus) => {
 async function checkBarcodeExists(barcode: string) {
   const { data } = await supabase
       .from("products")
-      .select("id")
+      .select("id, name, status, photo_front_url")
       .eq("barcode", barcode)
-      .maybeSingle();
+      .maybeSingle()
 
-  return !!data; // true if already exists
+  return data || null
 }
 
 watch(() => form.value.barcode, async (newBarcode) => {
   if (!newBarcode) {
     barcodeValid.value = null;
     barcodeMessage.value = "";
+    detectedProduct.value = null
     return;
   }
 
@@ -666,12 +716,25 @@ watch(() => form.value.barcode, async (newBarcode) => {
 
   // 🚫 Only check duplicates when creating, not editing
   if (!props.editProduct) {
-    const exists = await checkBarcodeExists(newBarcode);
-    if (exists) {
-      barcodeValid.value = false;
-      barcodeMessage.value = "❌ This barcode already exists in the database";
-      return;
+    const existingProduct = await checkBarcodeExists(newBarcode)
+
+    if (existingProduct) {
+      barcodeValid.value = false
+      barcodeMessage.value = "⚠️ Product already exists"
+
+      detectedProduct.value = {
+        id: existingProduct.id,
+        name: existingProduct.name,
+        status: existingProduct.status,
+        photo_front_url: existingProduct.photo_front_url,
+      }
+
+      return
     }
+
+    // clear preview if not exists
+    detectedProduct.value = null
+
   }
 
   barcodeValid.value = true;
@@ -1389,5 +1452,16 @@ ion-content::part(scroll) {
   flex-shrink: 0;              /* prevent buttons from shrinking */
 }
 
+.detected-product {
+  border-radius: 8px;
+  background: var(--ion-color-light);
+  padding: 6px;
+}
+
+.detected-product h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
 </style>
 

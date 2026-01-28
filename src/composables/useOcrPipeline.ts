@@ -471,14 +471,21 @@ export default function useOcrPipeline({
         const hasSyubhah = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'warning')
         const hasMuslimFriendly = ingredientHighlights.value.some(h => extractIonColor(h.color) === 'primary')
 
+        const hasIngredients =
+            !!ingredientsTextZh.value?.trim() ||
+            !!ingredientsText.value?.trim()
+
         // Prioritize detection
-                autoStatus.value = hasHaram
-                    ? 'Haram'
-                    : hasSyubhah
-                        ? 'Syubhah'
-                        : hasMuslimFriendly
-                            ? 'Muslim-friendly'
-                            : 'No ingredients detected'; // fallback if no highlight matched
+        if (!hasIngredients) {
+            autoStatus.value = 'No ingredients detected';
+        } else if (hasHaram) {
+            autoStatus.value = 'Haram';
+        } else if (hasSyubhah) {
+            autoStatus.value = 'Syubhah';
+        } else {
+            autoStatus.value = 'Muslim-friendly'; // ingredients exist but none flagged
+        }
+
 
     }
 
@@ -523,7 +530,11 @@ export default function useOcrPipeline({
 
             for (const part of parts) {
                 // 👇 normalize the ingredient part to lowercase, remove commas/spaces
-                const normalized = part.replace(/[^a-z0-9]/gi, "").toLowerCase();
+                const normalized =
+                    isEnglish
+                        ? part.replace(/[^a-z0-9]/gi, "").toLowerCase()
+                        : part.replace(/[,\s]/g, ""); // KEEP Chinese characters
+
 
                 for (const h of highlights) {
                     let variants: string[] = [];
@@ -542,7 +553,11 @@ export default function useOcrPipeline({
 
                     for (const variant of variants) {
                         // 👇 normalize the highlight keyword too
-                        const normVariant = variant.replace(/[,\s]/g, "").toLowerCase();
+                        const normVariant =
+                            isEnglish
+                                ? variant.replace(/[^a-z0-9]/gi, "").toLowerCase()
+                                : variant.replace(/[,\s]/g, "");
+
 
                         let isMatch = false;
 

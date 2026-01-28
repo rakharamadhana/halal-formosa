@@ -143,6 +143,36 @@
           </div>
         </div>
 
+        <ion-card
+            v-if="warningLevel"
+            :color="warningLevel === 'high' ? 'danger' : 'warning'"
+            class="ion-margin-top"
+            style="margin: 12px 0 16px;"
+        >
+          <ion-card-content>
+
+            <strong>
+              ⚠️ {{ warningLevel === 'high'
+                ? 'Very likely duplicate nearby'
+                : 'Similar place nearby detected'
+              }}
+            </strong>
+
+            <ul style="margin:6px 0 0 16px; padding:0; font-size:14px;">
+              <li v-for="m in nearbyMatches.slice(0, 3)" :key="m.id">
+                {{ m.name }} · {{ m.distance_meters }} m
+              </li>
+            </ul>
+
+            <small style="opacity:0.8;">
+              Verify if this is a different branch, floor, or vendor.
+            </small>
+
+          </ion-card-content>
+
+        </ion-card>
+
+
         <ion-button
             fill="outline"
             size="small"
@@ -488,6 +518,75 @@ async function resizeImageFromWebPath(
 
   return new File([outBlob], filename, {type: 'image/jpeg'})
 }
+
+type NearbyMatch = {
+  id: number
+  name: string
+  distance_meters: number
+  name_similarity: number
+}
+
+const nearbyMatches = ref<NearbyMatch[]>([])
+const checkingNearby = ref(false)
+
+let debounceTimer: number | undefined
+
+watch(
+    () => ({
+      name: form.value.name,
+      lat: form.value.lat,
+      lng: form.value.lng
+    }),
+    (v) => {
+      clearTimeout(debounceTimer)
+
+      debounceTimer = window.setTimeout(async () => {
+        const { name, lat, lng } = v
+
+        if (!name || !lat || !lng || name.trim().length < 4) {
+          nearbyMatches.value = []
+          return
+        }
+
+        checkingNearby.value = true
+
+        const { data, error } = await supabase.rpc(
+            'find_nearby_similar_locations',
+            {
+              p_lat: lat,
+              p_lng: lng,
+              p_name: name.trim(),
+              p_exclude_id: isEditing.value
+                  ? Number(route.params.id)
+                  : null
+            }
+        )
+
+        nearbyMatches.value = !error && Array.isArray(data) ? data : []
+        checkingNearby.value = false
+      }, 600)
+    },
+    { deep: false }
+)
+
+
+const warningLevel = computed(() => {
+  if (!nearbyMatches.value.length) return null
+
+  const strongest = nearbyMatches.value[0]
+
+  if (strongest.distance_meters <= 20 && strongest.name_similarity >= 0.75) {
+    return 'high'
+  }
+
+  if (strongest.distance_meters <= 50 && strongest.name_similarity >= 0.6) {
+    return 'medium'
+  }
+
+  return 'low'
+})
+
+
 
 const makeSafeBase = () => {
   const base = form.value.name?.trim()

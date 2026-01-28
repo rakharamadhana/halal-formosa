@@ -309,13 +309,12 @@
                   class="ion-margin-end ion-margin-bottom"
                   :class="['chip-' + extractIonColor(h.color)]"
               >
-                {{ detectedLanguage === 'chinese' ? h.keyword_zh || h.keyword : h.keyword }}
-
-                <template v-if="h.keyword_zh && detectedLanguage !== 'chinese'">
-                  ({{ h.keyword_zh }})
+                {{ h.keyword_zh || h.keyword }}
+                <template v-if="h.keyword && h.keyword_zh">
+                  ({{ toProperCase(h.keyword) }})
                 </template>
-
                 — {{ colorMeaning(extractIonColor(h.color)) }}
+
               </ion-chip>
             </div>
 
@@ -341,10 +340,9 @@
                     class="ion-margin-end ion-margin-bottom"
                     :class="['chip-' + extractIonColor(h.color)]"
                 >
-                  {{ detectedLanguage === 'chinese' ? h.keyword_zh || h.keyword : h.keyword }}
-
-                  <template v-if="h.keyword_zh && detectedLanguage !== 'chinese'">
-                    ({{ h.keyword_zh }})
+                  {{ h.keyword_zh || h.keyword }}
+                  <template v-if="h.keyword && h.keyword_zh">
+                    ({{ toProperCase(h.keyword) }})
                   </template>
                   — {{ colorMeaning(extractIonColor(h.color)) }}
                 </ion-chip>
@@ -789,8 +787,15 @@ async function checkDailyScanLimit() {
     return true;   // fail-open instead of blocking users
   }
 
-  return data.length < (10 + bonusScans.value);
+  return data.length < (1000 + bonusScans.value);
 }
+
+function toProperCase(str: string) {
+  return str.replace(/\w\S*/g, (txt) =>
+      txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+  )
+}
+
 
 async function watchAdForExtraScans() {
   if (dailyAdUses.value >= 2) {
