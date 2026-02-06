@@ -21,6 +21,7 @@
           <ion-button
               fill="clear"
               class="theme-btn"
+              style="border-radius: 50px"
               @click="toggleTheme"
           >
             <ion-icon
@@ -161,7 +162,14 @@ import { useI18n } from 'vue-i18n'
 import {moonOutline, sunnyOutline} from "ionicons/icons";
 
 type Theme = 'dark' | 'light'
-const theme = ref<Theme>('light')
+
+const theme = ref<Theme>(getInitialTheme())
+
+// 2️⃣ Apply immediately (before first render)
+document.documentElement.classList.toggle(
+    'ion-palette-dark',
+    theme.value === 'dark'
+)
 
 const { locale } = useI18n()
 
@@ -195,6 +203,17 @@ async function login() {
 function setLanguage(lang: 'en' | 'id' | 'ms' | 'zh') {
   locale.value = lang
   localStorage.setItem('lang', lang)
+}
+
+// 1️⃣ Determine initial theme synchronously
+function getInitialTheme(): Theme {
+  const saved = localStorage.getItem('theme') as Theme | null
+  if (saved === 'dark' || saved === 'light') return saved
+
+  // fallback to system preference
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
 }
 
 function applyTheme(t: Theme) {
@@ -238,19 +257,6 @@ async function loginWithGoogle() {
 function goHome() {
   router.push('/');
 }
-
-onMounted(() => {
-  const saved = localStorage.getItem('theme') as Theme | null
-
-  if (saved) {
-    applyTheme(saved)
-  } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    applyTheme(prefersDark ? 'dark' : 'light')
-  }
-})
-
-
 </script>
 
 
