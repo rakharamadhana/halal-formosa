@@ -1,4 +1,16 @@
 {
+  "auth": {
+    "login": "Log Masuk",
+    "loginSubtitle": "Sila log masuk untuk meneruskan penggunaan aplikasi.",
+    "email": "E-mel",
+    "password": "Kata Laluan",
+    "loggingIn": "Sedang log masuk…",
+    "continueWithGoogle": "Teruskan dengan Google"
+  },
+  "common": {
+    "or": "ATAU",
+    "backToHome": "KEMBALI KE LAMAN UTAMA"
+  },
   "main": {
     "title": "Halal Formosa",
     "scan": "Imbas Bahan",

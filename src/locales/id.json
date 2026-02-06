@@ -1,4 +1,16 @@
 {
+  "auth": {
+    "login": "Masuk",
+    "loginSubtitle": "Silakan masuk untuk melanjutkan menggunakan aplikasi.",
+    "email": "Email",
+    "password": "Kata Sandi",
+    "loggingIn": "Sedang masuk...",
+    "continueWithGoogle": "Lanjutkan dengan Google"
+  },
+  "common": {
+    "or": "ATAU",
+    "backToHome": "KEMBALI KE BERANDA"
+  },
   "main": {
     "title": "Halal Formosa",
     "scan": "Pindai Bahan",

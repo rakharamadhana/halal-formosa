@@ -1,4 +1,16 @@
 {
+  "auth": {
+    "login": "登入",
+    "loginSubtitle": "請登入以繼續使用本應用程式。",
+    "email": "電子郵件",
+    "password": "密碼",
+    "loggingIn": "登入中…",
+    "continueWithGoogle": "使用 Google 繼續"
+  },
+  "common": {
+    "or": "或",
+    "backToHome": "返回首頁"
+  },
   "main": {
     "title": "清真福爾摩沙",
     "scan": "掃描成分",

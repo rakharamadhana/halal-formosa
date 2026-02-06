@@ -19,13 +19,19 @@ export async function refreshSubscriptionStatus(options?: {
 
         const { customerInfo } = await Purchases.getCustomerInfo();
 
-        console.log("📦 [Sub] customerInfo fetched", {
-            revenuecat_user_id: customerInfo.originalAppUserId,
-            activeSubscriptions: customerInfo.activeSubscriptions,
-            activeEntitlements: Object.keys(
-                customerInfo.entitlements?.active ?? {}
+        console.log(
+            "📦 [Sub] customerInfo fetched\n",
+            JSON.stringify(
+                {
+                    revenuecat_user_id: customerInfo.originalAppUserId,
+                    activeSubscriptions: customerInfo.activeSubscriptions,
+                    activeEntitlements: Object.keys(customerInfo.entitlements?.active ?? {}),
+                },
+                null,
+                2
             )
-        });
+        );
+
 
         const hasPro = Boolean(
             customerInfo.entitlements.active["Halal Formosa Pro"]
@@ -44,16 +50,17 @@ export async function refreshSubscriptionStatus(options?: {
 
             const { data, error } = await supabase.functions.invoke(
                 "sync-subscription",
-                {
-                    body: { customerInfo }
-                }
-            );
+                { body: { customerInfo } }
+            )
 
             if (error) {
-                console.error("❌ [Sub] sync-subscription failed", error);
-            } else {
-                console.log("✅ [Sub] sync-subscription success", data);
+                console.error("❌ [Sub] sync-subscription failed", error)
+                throw error
             }
+
+            console.log("✅ [Sub] sync-subscription success", data)
+            return data   // ✅ ADD THIS
+
         } else {
             console.log("⏭️ [Sub] syncToServer disabled, skipping backend sync");
         }

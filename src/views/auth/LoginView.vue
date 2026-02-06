@@ -3,6 +3,35 @@
     <ion-content fullscreen class="auth-page">
       <div class="auth-container">
 
+        <div class="top-bar">
+          <div class="lang-wrapper">
+            <ion-select
+                interface="popover"
+                :value="locale"
+                @ionChange="setLanguage($event.detail.value)"
+                class="lang-select"
+            >
+              <ion-select-option value="en">English</ion-select-option>
+              <ion-select-option value="id">Bahasa Indonesia</ion-select-option>
+              <ion-select-option value="ms">Bahasa Melayu</ion-select-option>
+              <ion-select-option value="zh">繁體中文</ion-select-option>
+            </ion-select>
+          </div>
+
+          <ion-button
+              fill="clear"
+              class="theme-btn"
+              @click="toggleTheme"
+          >
+            <ion-icon
+                :icon="theme === 'dark' ? sunnyOutline : moonOutline"
+                slot="icon-only"
+            />
+          </ion-button>
+        </div>
+
+
+
         <!-- Logo -->
         <div class="logo-wrapper">
           <img
@@ -13,10 +42,11 @@
         </div>
 
         <!-- Title -->
-        <h1 class="auth-title">Login</h1>
+        <h1 class="auth-title">{{ $t('auth.login') }}</h1>
         <p class="auth-subtitle">
-          Please login to continue using our app.
+          {{ $t('auth.loginSubtitle') }}
         </p>
+
 
         <!-- Form -->
         <form @submit.prevent="login">
@@ -24,19 +54,20 @@
           <div class="input-card">
             <ion-input
                 fill="outline"
-                label="Email"
+                :label="$t('auth.email')"
                 label-placement="floating"
                 type="email"
                 v-model="email"
                 required
             />
+
           </div>
 
           <!-- Password -->
           <div class="input-card">
             <ion-input
                 fill="outline"
-                label="Password"
+                :label="$t('auth.password')"
                 label-placement="floating"
                 type="password"
                 v-model="password"
@@ -44,6 +75,7 @@
             >
               <ion-input-password-toggle slot="end" />
             </ion-input>
+
           </div>
 
           <!-- Error -->
@@ -59,13 +91,15 @@
               class="primary-btn"
               :disabled="loading"
           >
-            {{ loading ? 'Logging in...' : 'Login' }}
+            {{ loading ? $t('auth.loggingIn') : $t('auth.login') }}
           </ion-button>
+
 
           <!-- Divider -->
           <div class="divider">
-            <span>OR</span>
+            <span>{{ $t('common.or') }}</span>
           </div>
+
 
           <!-- Google -->
           <ion-button
@@ -74,13 +108,15 @@
               color="carrot"
               @click="loginWithGoogle"
           >
-            Continue with Google
+            {{ $t('auth.continueWithGoogle') }}
           </ion-button>
+
 
           <!-- Back -->
           <div class="back-divider" @click="goHome">
-            <span>BACK TO HOME</span>
+            <span>{{ $t('common.backToHome') }}</span>
           </div>
+
 
         </form>
 
@@ -97,7 +133,7 @@ import {
   IonButton,
   IonText,
   IonInputPasswordToggle,
-    IonContent
+  IonContent, IonSelectOption, IonSelect, IonIcon
 } from '@ionic/vue';
 import { defineComponent } from 'vue';
 
@@ -108,16 +144,26 @@ export default defineComponent({
     IonButton,
     IonText,
     IonInputPasswordToggle,
-    IonContent
+    IonContent,
+    IonSelectOption,
+    IonSelect,
+    IonIcon
   },
 });
 </script>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import {onMounted, ref} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '@/plugins/supabaseClient';
 import { Capacitor } from '@capacitor/core';
+import { useI18n } from 'vue-i18n'
+import {moonOutline, sunnyOutline} from "ionicons/icons";
+
+type Theme = 'dark' | 'light'
+const theme = ref<Theme>('light')
+
+const { locale } = useI18n()
 
 // form fields
 const email = ref('');
@@ -146,7 +192,20 @@ async function login() {
   }
 }
 
+function setLanguage(lang: 'en' | 'id' | 'ms' | 'zh') {
+  locale.value = lang
+  localStorage.setItem('lang', lang)
+}
 
+function applyTheme(t: Theme) {
+  document.documentElement.classList.toggle('ion-palette-dark', t === 'dark')
+  localStorage.setItem('theme', t)
+  theme.value = t
+}
+
+function toggleTheme() {
+  applyTheme(theme.value === 'dark' ? 'light' : 'dark')
+}
 
 async function loginWithGoogle() {
   errorMsg.value = '';
@@ -179,6 +238,19 @@ async function loginWithGoogle() {
 function goHome() {
   router.push('/');
 }
+
+onMounted(() => {
+  const saved = localStorage.getItem('theme') as Theme | null
+
+  if (saved) {
+    applyTheme(saved)
+  } else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    applyTheme(prefersDark ? 'dark' : 'light')
+  }
+})
+
+
 </script>
 
 
@@ -194,6 +266,56 @@ function goHome() {
       #181818 100%
   );
 }
+
+/* =========================
+   LIGHT THEME OVERRIDES
+========================= */
+html:not(.ion-palette-dark) .auth-page {
+  --background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f3f4f6 100%
+  );
+}
+
+html:not(.ion-palette-dark) .auth-title {
+  color: #111827;
+}
+
+html:not(.ion-palette-dark) .auth-subtitle {
+  color: #4b5563;
+}
+
+html:not(.ion-palette-dark) ion-input {
+  background: #ffffff;
+  --border-color: #d1d5db;
+  --color: #111827;
+  --placeholder-color: #6b7280;
+}
+
+html:not(.ion-palette-dark) ion-input::part(label) {
+  color: #6b7280;
+}
+
+html:not(.ion-palette-dark) ion-input.has-focus::part(label),
+html:not(.ion-palette-dark) ion-input.has-value::part(label) {
+  color: var(--ion-color-carrot);
+}
+
+html:not(.ion-palette-dark) .divider::before,
+html:not(.ion-palette-dark) .divider::after {
+  background: #e5e7eb;
+}
+
+html:not(.ion-palette-dark) .back-divider {
+  color: #6b7280;
+}
+
+html:not(.ion-palette-dark) .lang-select {
+  --border-color: #d1d5db;
+  --color: #374151;
+}
+
 
 /* =========================
    CONTAINER
@@ -233,13 +355,11 @@ function goHome() {
   font-size: 28px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: #ffffff;
 }
 
 .auth-subtitle {
   font-size: 14px;
   line-height: 1.5;
-  color: #b8b8b8;
   margin-bottom: 40px;
 }
 
@@ -367,6 +487,63 @@ ion-input.has-value::part(label) {
 
 .back-divider:hover span {
   opacity: 1;
+}
+
+.top-bar {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 18px;
+  pointer-events: auto;
+}
+
+.lang-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.lang-select {
+  min-width: 110px;
+}
+
+.theme-btn {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  --color: #b8b8b8;
+}
+
+.theme-btn:hover {
+  --color: var(--ion-color-carrot);
+}
+
+.theme-btn {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --color: #b8b8b8;
+  font-size: 18px;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.theme-btn:hover {
+  --color: var(--ion-color-carrot);
+}
+
+.theme-btn:active {
+  transform: scale(0.9);
+}
+
+.theme-btn ion-icon {
+  transition: transform 0.25s ease;
+}
+
+html.ion-palette-dark .theme-btn ion-icon {
+  transform: rotate(180deg);
 }
 
 </style>

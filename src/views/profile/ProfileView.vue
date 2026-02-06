@@ -338,9 +338,10 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {useRouter} from "vue-router";
 import {supabase} from "@/plugins/supabaseClient";
+
 // ✅ Ionic components
 import {
   IonBadge,
@@ -451,6 +452,15 @@ const expirationDate = computed(() => {
   )
 })
 
+const needsProfileCompletion = ref(false)
+
+watch(needsProfileCompletion, (v) => {
+  if (!v) return
+
+  router.replace({ name: 'EditProfile' })
+})
+
+
 let authSubscription: Subscription | null = null;
 
 const level = computed(() => {
@@ -528,7 +538,6 @@ const openManageSubscription = () => {
   }
 }
 
-
 async function fetchUserProfile(userId: string) {
   const {data, error} = await supabase
       .from("user_profiles")
@@ -544,7 +553,7 @@ async function fetchUserProfile(userId: string) {
 
     // 🚀 If missing required fields → redirect to EditProfile
     if (!data.date_of_birth || !data.nationality || !data.gender) {
-      router.replace({name: "EditProfile"});
+      needsProfileCompletion.value = true
       return;
     }
 
@@ -561,17 +570,21 @@ async function fetchUserProfile(userId: string) {
 
 // ✅ Always refresh when ProfileView becomes active
 onIonViewWillEnter(async () => {
-  const {data} = await supabase.auth.getUser();
-  if (data?.user) {
-    await fetchCurrentPoints(data.user.id);
-    await fetchUserProfile(data.user.id); // 👈 enforceProfileCompletion runs only here
+  const { data } = await supabase.auth.getUser()
+  if (!data?.user) return
+
+  await fetchCurrentPoints(data.user.id)
+  await fetchUserProfile(data.user.id)
+
+  if (isNative) {
     await refreshCustomerInfo()
-    ActivityLogService.log('profile_page_open', {
-      user_id: data.user.id
-    })
   }
 
-});
+  ActivityLogService.log('profile_page_open', {
+    user_id: data.user.id
+  })
+})
+
 
 async function logRevenueCatStatus() {
   if (!Capacitor.isNativePlatform()) return;

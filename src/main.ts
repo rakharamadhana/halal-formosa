@@ -87,46 +87,104 @@ router.afterEach(() => scheduleBannerUpdate())
 // 1. Load from cache first → no flicker
 loadCountriesFromCache()
 
-let resumeTimeout: any = null;
+/* Android hardware back button handling */
+if (Capacitor.isNativePlatform()) {
+    CapacitorApp.addListener('backButton', () => {
+        const currentPath = router.currentRoute.value.path;
 
-/* Native: refresh on resume */
-CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-    if (!isActive) return;
+        console.info('[BackButton] pressed on:', currentPath);
 
-    clearTimeout(resumeTimeout);
-    resumeTimeout = setTimeout(async () => {
+        // ✅ Only block if overlay is ACTUALLY visible
+        const activeOverlay = document.querySelector(
+            'ion-modal.overlay-visible, ion-alert.overlay-visible, ion-action-sheet.overlay-visible, ion-popover.overlay-visible'
+        );
+
+        if (activeOverlay) {
+            console.info('[BackButton] active overlay visible → Ionic will close it');
+            return;
+        }
+
+        // 🔙 Not home → go back
+        if (currentPath !== '/home') {
+            router.back();
+            return;
+        }
+
+        // 🚪 Home → exit app
+        console.info('[BackButton] exiting app');
+        CapacitorApp.exitApp();
+    });
+}
+
+
+
+/* Native: refresh on resume (LOG-ONLY VERSION) */
+if (Capacitor.isNativePlatform()) {
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) return;
+
+        const startedAt = Date.now();
+
+        console.info('[Resume] appStateChange fired');
+        console.info('[Resume] navigator.onLine =', navigator.onLine);
+
         scheduleBannerUpdate();
 
-        try {
-            const result = await Promise.race([
-                supabase.auth.getSession(),
-                new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('timeout')), 3000)
-                )
-            ]);
+        supabase.auth
+            .getSession()
+            .then(({ data, error }) => {
+                const elapsed = Date.now() - startedAt;
 
-            if (
-                typeof result === 'object' &&
-                result !== null &&
-                'data' in result
-            ) {
-                const { data } = result as {
-                    data: { session: any }
-                };
-
-                const session = data.session;
-                if (session?.user) {
-                    currentUser.value = session.user;
-                    loadUserProfile(session.user.id); // ✅ never await on resume
+                if (error) {
+                    console.warn('[Resume] getSession error after', elapsed, 'ms:', error);
+                    return;
                 }
-            }
-        } catch (e) {
-            console.warn('[Resume] skipped:', e);
-        }
-    }, 300);
-});
 
+                console.info(
+                    '[Resume] getSession resolved after',
+                    elapsed,
+                    'ms'
+                );
 
+                console.info('[Resume] raw session =', data?.session);
+
+                const session = data?.session;
+
+                if (!session) {
+                    console.info('[Resume] No session (user logged out)');
+                    return;
+                }
+
+                if (!session.user) {
+                    console.info('[Resume] Session exists but no user');
+                    return;
+                }
+
+                console.info(
+                    '[Resume] User restored:',
+                    session.user.id
+                );
+
+                currentUser.value = session.user;
+
+                // ⛔ do NOT await — just log when it finishes
+                loadUserProfile(session.user.id)
+                    .then(() => {
+                        console.info(
+                            '[Resume] loadUserProfile finished after',
+                            Date.now() - startedAt,
+                            'ms'
+                        );
+                    })
+                    .catch((e) => {
+                        console.warn('[Resume] loadUserProfile failed:', e);
+                    });
+            })
+            .catch((e) => {
+                console.error('[Resume] getSession threw:', e);
+            });
+    });
+}
 
 // ✅ Restore session once on boot
 supabase.auth.getSession().then(async ({ data }) => {
