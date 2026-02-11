@@ -388,20 +388,8 @@ async function fetchTrips() {
   loading.value = false
 }
 
-
-/**
- * Transforms "new_taipei" to "New Taipei"
- */
-const formatCity = (slug: string) => {
-  if (!slug) return '';
-  return slug
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-}
-
 const filteredTrips = computed(() => {
-  let list = trips.value.filter(trip => {
+  const list = trips.value.filter(trip => {
     const matchesSearch =
         trip.title.toLowerCase().includes(searchQuery.value.toLowerCase())
 
