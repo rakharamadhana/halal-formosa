@@ -45,14 +45,26 @@ function resolveEntity(activity: string, rawDetail: any): EntityResult {
         case 'search_product_click':
         case 'home_product_click':
         case 'product_image_open':
-        case 'related_product_click':
+        case 'related_product_click': {
+            const raw =
+                detail.barcode ??
+                detail.clicked_barcode ??
+                null
+
             return {
                 entity_type: 'product',
-                entity_id:
-                    detail.barcode ??
-                    detail.clicked_barcode ??   // for related_product_click
-                    null
+                entity_id: raw != null ? String(raw) : null
             }
+        }
+
+        case 'trip_open':
+            return {
+                entity_type: 'trip',
+                entity_id: detail.trip_id
+                    ? String(detail.trip_id)
+                    : null
+            }
+
 
         // 🟢 SEARCH FILTER interactions
         case 'search_filter_category':
@@ -186,6 +198,13 @@ function resolveActivityGroup(activity: string): string | null {
         case 'explore_detail_edit':
         case 'explore_share_place':
             return 'place'
+
+        /* -------------------------
+           TRIP
+        -------------------------- */
+        case 'trip_open':
+        case 'trip_search':
+            return 'trip'
 
         /* -------------------------
            PROFILE

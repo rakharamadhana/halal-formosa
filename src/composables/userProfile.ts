@@ -127,11 +127,6 @@ export async function loadUserProfile(userId: string) {
         .eq("id", userId)
         .single<UserProfileRow>();
 
-    console.log(
-        "🔍 loadUserProfile response:\n",
-        JSON.stringify({ data, error }, null, 2)
-    );
-
     if (!error && data) {
         setDonorType(userId, data.donor_type || "Free")
         setUserRole(userId, data.user_roles?.role ?? null)

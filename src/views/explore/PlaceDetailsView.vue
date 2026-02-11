@@ -53,6 +53,64 @@
           <h2 class="font-bold text-xl">{{ place.name }}</h2>
           <ion-chip color="carrot" class="capitalize">{{ place.type }}</ion-chip>
 
+          <!-- Certified By (Gold Partner) -->
+          <div
+              v-if="!loadingCertifications && certifications.length"
+              class="ion-margin-bottom"
+          >
+            <p>
+              <strong><small>Certified by</small></strong>
+            </p>
+
+            <div
+                v-for="c in certifications"
+                :key="c.partner.id"
+                class="gold-cert-card"
+                role="button"
+                tabindex="0"
+                @click="goToPartner(c.partner.id)"
+            >
+              <div class="gold-glow"></div>
+
+              <div class="gold-cert-content">
+                <div class="gold-cert-left">
+                  <img
+                      v-if="c.partner.logo_url"
+                      :src="c.partner.logo_url"
+                      alt="logo"
+                      class="gold-cert-logo"
+                  />
+
+                  <div class="gold-cert-text">
+                    <div class="gold-cert-name">
+                      {{ c.partner.name }}
+                    </div>
+                    <div class="gold-cert-sub">
+                      Gold Partner · Verified
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT SIDE ACTION -->
+                <ion-button
+                    v-if="c.proof_url"
+                    fill="clear"
+                    size="small"
+                    color="carrot"
+                    @click.stop
+                    :href="c.proof_url"
+                    target="_blank"
+                    aria-label="View certificate"
+                >
+                  <ion-icon slot="icon-only" :icon="documentTextOutline" />
+                </ion-button>
+
+              </div>
+
+            </div>
+          </div>
+
+
           <!-- 📝 Description -->
           <template v-if="place.description">
             <ion-item lines="none">
@@ -261,9 +319,9 @@ import {
   createOutline, documentTextOutline, logoInstagram,
   mapOutline,
   navigateOutline,
-  shareSocialOutline, textOutline,
+  shareSocialOutline
 } from 'ionicons/icons'
-import {Clipboard} from '@capacitor/clipboard';
+
 import {ActivityLogService} from "@/services/ActivityLogService";
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun"
@@ -293,16 +351,21 @@ type PlaceDetail = {
   opening_hours?: OpeningHours | null
 }
 
-const labels: Record<DayKey, string> = {
-  mon: "Mon",
-  tue: "Tue",
-  wed: "Wed",
-  thu: "Thu",
-  fri: "Fri",
-  sat: "Sat",
-  sun: "Sun",
+type LocationCertification = {
+  certified_at: string | null
+  proof_url?: string | null
+  partner: {
+    id: string
+    name: string
+    logo_url: string | null
+    partner_tier: 'gold' | 'silver' | 'bronze' | null
+    verified: boolean
+  }
 }
 
+
+const certifications = ref<LocationCertification[]>([])
+const loadingCertifications = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -407,6 +470,8 @@ const loadPlace = async () => {
       location_types: locationType ?? null
     }
 
+    await fetchLocationCertifications(data.id)
+
 
     // 🔹 Check if the current user can edit
     const {data: {user}} = await supabase.auth.getUser()
@@ -437,6 +502,49 @@ const loadPlace = async () => {
   loading.value = false
 }
 
+async function fetchLocationCertifications(locationId: number) {
+  loadingCertifications.value = true
+
+  const { data, error } = await supabase
+      .from('location_certifications')
+      .select(`
+    certified_at,
+    proof_url,
+    partners:partner_id (
+      id,
+      name,
+      logo_url,
+      partner_tier,
+      verified
+    )
+  `)
+      .eq('location_id', locationId)
+      .eq('status', 'active')
+
+
+
+  if (!error && data) {
+    certifications.value = data
+        .map(c => {
+          const body = Array.isArray(c.partners)
+              ? c.partners[0]
+              : c.partners
+
+          if (!body) return null
+
+          return {
+            certified_at: c.certified_at ?? null,
+            proof_url: c.proof_url ?? null,
+            partner: body
+          }
+        })
+        .filter(c => c !== null)
+        .filter(c => c.partner.partner_tier === 'gold')
+  }
+
+  loadingCertifications.value = false
+}
+
 // Run once and every time view re-enters
 onMounted(loadPlace)
 onIonViewWillEnter(loadPlace)
@@ -448,6 +556,15 @@ const logInstagram = () => {
     instagram: place.value.instagram
   });
 };
+
+function goToPartner(id: string) {
+  ActivityLogService.log("partner_click", {
+    partner_id: id,
+    source: "location_detail"
+  })
+
+  router.push(`/partner/${id}`)
+}
 
 
 const share = async () => {

@@ -134,6 +134,52 @@
             </ion-chip>
           </p>
 
+          <!-- Certified By (Gold Partner) -->
+          <div
+              v-if="!loadingCertifications && certifications.length"
+              class="ion-margin-top"
+          >
+            <p>
+              <strong><small>Certified by</small></strong>
+            </p>
+
+            <div
+                v-for="c in certifications"
+                :key="c.partner.id"
+                class="gold-cert-card"
+                role="button"
+                tabindex="0"
+                @click="goToPartner(c.partner.id)"
+            >
+              <!-- Glow layer -->
+              <div class="gold-glow"></div>
+
+              <!-- Content -->
+              <div class="gold-cert-content">
+                <div class="gold-cert-left">
+                  <img
+                      v-if="c.partner.logo_url"
+                      :src="c.partner.logo_url"
+                      alt="logo"
+                      class="gold-cert-logo"
+                  />
+
+                  <div class="gold-cert-text">
+                    <div class="gold-cert-name">
+                      {{ c.partner.name }}
+                    </div>
+                    <div class="gold-cert-sub">
+                      Gold Partner · Verified
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+
+
           <!-- Stores where this product is available -->
           <div v-if="item.stores?.length" class="ion-margin-top">
             <p>
@@ -330,6 +376,21 @@ type RelatedProduct = {
   created_at: string
 }
 
+type ProductCertification = {
+  certified_at: string | null
+  partner: {
+    id: string
+    name: string
+    logo_url: string | null
+    partner_tier: 'gold' | 'silver' | 'bronze' | null
+    verified: boolean
+  }
+}
+
+const certifications = ref<ProductCertification[]>([])
+const loadingCertifications = ref(false)
+
+
 const item = ref<Product | null>(null)
 const showImageModal = ref(false)
 const activeImageIndex = ref(0)
@@ -360,6 +421,36 @@ function fromNowToTaipei(dateString?: string) {
 function getColorFromHtml(html: string): string {
   const match = html.match(/var\((--ion-color-[^)]+)\)/)
   return match ? match[1] : "none"
+}
+
+async function fetchProductCertifications(productId: string) {
+  loadingCertifications.value = true
+
+  const { data, error } = await supabase
+      .from('product_certifications')
+      .select(`
+      certified_at,
+      partners (
+        id,
+        name,
+        logo_url,
+        partner_tier,
+        verified
+      )
+    `)
+      .eq('product_id', productId)
+      .eq('status', 'active')
+
+  if (!error && data) {
+    certifications.value = (data as any[])
+        .filter(c => c.partner && c.partner.partner_tier === 'gold')
+        .map(c => ({
+          certified_at: c.certified_at,
+          partner: c.partner // This is now treated as a single object
+        })) as ProductCertification[]
+  }
+
+  loadingCertifications.value = false
 }
 
 
@@ -462,6 +553,14 @@ function closeEditModal() {
   showEditModal.value = false
 }
 
+function goToPartner(id: string) {
+  ActivityLogService.log("partner_click", {
+    partner_id: id,
+    source: "product_detail"
+  })
+
+  router.push(`/partner/${id}`)
+}
 
 async function handleProductUpdated() {
   showEditModal.value = false
@@ -634,6 +733,11 @@ onMounted(async () => {
 
       // ✅ assign once
       item.value = product
+
+      if (product.id) {
+        await fetchProductCertifications(product.id)
+      }
+
 
       // ✅ TS now knows this is non-null
       await ActivityLogService.log("product_details_open", {

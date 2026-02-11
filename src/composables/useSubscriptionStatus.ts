@@ -19,20 +19,6 @@ export async function refreshSubscriptionStatus(options?: {
 
         const { customerInfo } = await Purchases.getCustomerInfo();
 
-        console.log(
-            "📦 [Sub] customerInfo fetched\n",
-            JSON.stringify(
-                {
-                    revenuecat_user_id: customerInfo.originalAppUserId,
-                    activeSubscriptions: customerInfo.activeSubscriptions,
-                    activeEntitlements: Object.keys(customerInfo.entitlements?.active ?? {}),
-                },
-                null,
-                2
-            )
-        );
-
-
         const hasPro = Boolean(
             customerInfo.entitlements.active["Halal Formosa Pro"]
         );

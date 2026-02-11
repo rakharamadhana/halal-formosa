@@ -40,12 +40,12 @@ const props = defineProps<{
   stores: Store[]
   mode?: Mode
   modelValue?: string[] | null
-  activeStore?: Store | null
+  activeStores?: Store[]
 }>()
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: string[]): void
-  (e: "update:activeStore", value: Store | null): void
+  (e: "update:activeStores", value: Store[]): void
 }>()
 
 function isSelected(store: Store): boolean {
@@ -53,7 +53,7 @@ function isSelected(store: Store): boolean {
     case "select":
       return props.modelValue?.includes(store.id) || false
     case "filter":
-      return props.activeStore?.id === store.id
+      return props.activeStores?.some(s => s.id === store.id) || false
     default:
       return false
   }
@@ -85,8 +85,20 @@ function onClick(store: Store) {
   }
 
   if (props.mode === "filter") {
-    emit("update:activeStore", props.activeStore?.id === store.id ? null : store)
+    const current = props.activeStores || []
+    const exists = current.some(s => s.id === store.id)
+
+    let updated: Store[]
+
+    if (exists) {
+      updated = current.filter(s => s.id !== store.id)
+    } else {
+      updated = [...current, store]
+    }
+
+    emit("update:activeStores", updated)
   }
+
 }
 </script>
 

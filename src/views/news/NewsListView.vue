@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-header>
-      <app-header :title="$t('news.title')" :icon="newspaperOutline" :showProfile="true" />
+      <app-header :title="$t('news.title')" show-back icon='none' back-route="/home"/>
       <ion-toolbar style="padding: 8px;">
         <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
           <ion-searchbar

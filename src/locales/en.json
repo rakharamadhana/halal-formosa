@@ -1,4 +1,11 @@
 {
+  "common": {
+    "or": "OR",
+    "backToHome": "BACK TO HOME",
+    "filters": "Filters",
+    "clearFilters": "Clear Filters",
+    "views": "Views"
+  },
   "auth": {
     "login": "Login",
     "loginSubtitle": "Please login to continue using our app.",
@@ -7,16 +14,13 @@
     "loggingIn": "Logging in...",
     "continueWithGoogle": "Continue with Google"
   },
-  "common": {
-    "or": "OR",
-    "backToHome": "BACK TO HOME"
-  },
   "main": {
     "title": "Halal Formosa",
     "scan": "Scan Ingredients",
     "home": "Home",
     "product": "Product",
     "explore": "Explore",
+    "trip": "Trip",
     "add": "Add Products",
     "news": "News",
     "congratulation": "Congratulations",
@@ -37,10 +41,11 @@
     "discoverProducts": "Discover Products",
     "discoverLocations": "Discover Locations",
     "locationCategories": "Locations Status",
+    "ourPartners": "Our Partners",
+    "latestNews": "Latest News",
     "leaderboard": "Leaderboard"
   },
-  "scanIngredients" :
-  {
+  "scanIngredients" : {
     "title": "Scan Ingredients",
     "todayScans": "Today Scans: {used} / {total}",
     "help": "How it works",
@@ -174,6 +179,23 @@
     "details": {
       "title": "Place Details"
     }
+  },
+  "trip": {
+    "title": "Muslim-Friendly Trips",
+    "searchPlaceholder": "Search trips, destinations, or themes",
+    "categories": "Trip Categories",
+    "cities": "Cities",
+    "noTripsFound": "No trips found. Try adjusting your filters or search.",
+    "providedBy": "Provided by",
+    "catCity": "City Trip",
+    "catNature": "Nature",
+    "catFamily": "Family",
+    "cityTaipei": "Taipei City",
+    "cityNewTaipei": "New Taipei City",
+    "cityYilan": "Yilan County",
+    "cityChiayi": "Chiayi City",
+    "cityTaichung": "Taichung City",
+    "cityKaohsiung": "Kaohsiung City"
   },
   "news": {
     "title": "Halal & Islam News",
@@ -376,6 +398,31 @@
       "--ion-color-warning": "Syubhah",
       "--ion-color-danger": "Haram"
     }
+  },
+  "partner": {
+    "title": "Our Partner",
+    "searchPlaceholder": "Search partner",
+    "categories": "Categories",
+
+    "actions": {
+      "clearFilters": "Clear filters"
+    },
+
+    "detailTitle": "Partner",
+    "about": "About",
+    "programs": "Programs",
+    "contact": "Contact",
+
+    "verifiedLabel": "Verified Partner",
+
+    "fields": {
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "website": "Website"
+    },
+
+    "goldPartner": "GOLD PARTNER"
   },
   "points": {
     "title": "Review Points Logs"

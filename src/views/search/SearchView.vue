@@ -5,7 +5,13 @@
       <div v-if="isNative && !isDonor" id="ad-space-search" style="height:65px;"></div>
 
       <app-header
-          :title="activeStore ? `${$t('search.title')} : ${activeStore.name}` : $t('search.title')"
+          :title="
+  activeStores.length === 1
+    ? `${$t('search.title')} : ${activeStores[0].name}`
+    : activeStores.length > 1
+      ? `${$t('search.title')} (${activeStores.length})`
+      : $t('search.title')
+"
           :icon="gridOutline"
           :showProfile="true"
       />
@@ -92,6 +98,7 @@
 
         <transition name="collapse">
           <div v-show="showFilters" class="filter-section">
+
             <!-- Stores -->
             <div style="margin: 8px 0;">
               <div class="filter-title">
@@ -111,7 +118,7 @@
                   <StoreLogoBar
                       :stores="stores"
                       mode="filter"
-                      v-model:activeStore="activeStore"
+                      v-model:activeStores="activeStores"
                   />
                 </template>
               </div>
@@ -136,7 +143,12 @@
                   <ion-chip
                       v-for="cat in categories"
                       :key="cat.id"
-                      :class="['category-chip', activeCategory?.id === cat.id ? 'chip-carrot' : 'chip-medium']"
+                      :class="[
+  'category-chip',
+  activeCategories.some(c => c.id === cat.id)
+    ? 'chip-carrot'
+    : 'chip-medium'
+]"
                       @click="toggleCategory(cat)"
                   >
                     <ion-label>{{ categoryIcons[cat.name] || '📦' }} {{ cat.name }}</ion-label>
@@ -157,7 +169,7 @@
                     :key="status.key"
                     :class="[
     'category-chip',
-    activeStatus === status.key
+    activeStatuses.includes(status.key)
       ? `chip-${STATUS_COLOR_MAP[status.key]}`
       : 'chip-medium'
   ]"
@@ -170,6 +182,17 @@
 
 
               </div>
+            </div>
+
+            <!-- 🔥 Clear Filters -->
+            <div class="filter-clear-row">
+              <ion-chip
+                  v-if="hasActiveFilters"
+                  class="clear-chip"
+                  @click="clearAllFilters"
+              >
+                ✕ Clear
+              </ion-chip>
             </div>
 
           </div>
@@ -208,7 +231,7 @@
 
           <!-- Skeleton loader -->
           <template v-if="loadingProducts && results.length === 0 && !showForYouGate">
-          <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
+            <ion-card v-for="n in 10" :key="'skeleton-' + n" class="product-card">
               <div style="display: flex; align-items: center;">
                 <!-- Skeleton Image -->
                 <ion-skeleton-text
@@ -245,7 +268,7 @@
             <ion-card class="for-you-info">
               <ion-card-content>
                 <div class="for-you-row">
-                  <ion-icon name="sparkles-outline" class="for-you-icon" />
+                  <ion-icon name="sparkles-outline" class="for-you-icon"/>
                   <div>
                     <strong>For You</strong>
                     <p>
@@ -287,7 +310,7 @@
             >
               <ion-card-content>
                 <div class="for-you-row">
-                  <ion-icon name="sparkles-outline" class="for-you-icon" />
+                  <ion-icon name="sparkles-outline" class="for-you-icon"/>
                   <div>
                     <strong>For You</strong>
                     <p>
@@ -496,7 +519,7 @@ const errorMsg = ref('')
 const scanning = ref(false)
 const searchQuery = ref('')
 const categories = ref<{ id: number; name: string }[]>([])
-const activeCategory = ref<{ id: number, name: string } | null>(null)
+const activeCategories = ref<{ id: number; name: string }[]>([])
 
 const loadingProducts = ref(true)
 const loadingCategories = ref(true)
@@ -526,7 +549,7 @@ const categoryIcons: Record<string, string> = {
 }
 
 const stores = ref<{ id: string; name: string; logo_url?: string }[]>([])
-const activeStore = ref<{ id: string; name: string } | null>(null)
+const activeStores = ref<{ id: string; name: string }[]>([])
 const loadingStores = ref(true)
 const showFilters = ref(false)
 
@@ -542,7 +565,7 @@ const sortBy = ref<'recent' | 'views' | 'for_you'>('recent')
 const forYouReason = ref<string | null>(null)
 
 
-const activeStatus = ref<string | null>(null)
+const activeStatuses = ref<string[]>([])
 
 function toggleFilters() {
   showFilters.value = !showFilters.value
@@ -622,9 +645,9 @@ async function loadForYouReason() {
   const user = (await supabase.auth.getUser()).data.user
   if (!user) return
 
-  const { data } = await supabase.rpc(
+  const {data} = await supabase.rpc(
       'get_user_product_preferences',
-      { p_user_id: user.id }
+      {p_user_id: user.id}
   )
 
   if (!data || data.length === 0) {
@@ -646,28 +669,29 @@ async function loadForYouReason() {
 
 /* ---------------- Filters ---------------- */
 
-watch([activeStore, activeCategory, activeStatus, searchQuery, sortBy], () => {
+watch([activeStores, activeCategories, activeStatuses, searchQuery, sortBy], () => {
   savedScrollTop.value = null; // reset scroll restore
 
-  if (activeStore.value) {
+  if (activeStores.value.length > 0) {
     ActivityLogService.log("search_filter_store", {
-      store_id: activeStore.value.id,
-      store_name: activeStore.value.name
+      store_ids: activeStores.value.map(s => s.id),
+      store_names: activeStores.value.map(s => s.name),
     });
   }
 
-  if (activeCategory.value) {
+  if (activeCategories.value.length > 0) {
     ActivityLogService.log("search_filter_category", {
-      category_id: activeCategory.value.id,
-      category_name: activeCategory.value.name
+      category_ids: activeCategories.value.map(c => c.id),
+      category_names: activeCategories.value.map(c => c.name),
     });
   }
 
-  if (activeStatus.value) {
+  if (activeStatuses.value.length > 0) {
     ActivityLogService.log("search_filter_status", {
-      status: activeStatus.value
-    })
+      statuses: activeStatuses.value,
+    });
   }
+
 
   allLoaded.value = false
   currentPage.value = 0
@@ -727,7 +751,7 @@ watch(sortBy, async (val) => {
     const purchased = await presentPaywall()
 
     if (purchased) {
-      await refreshSubscriptionStatus({ syncToServer: true })
+      await refreshSubscriptionStatus({syncToServer: true})
     }
 
     // 🔑 IMPORTANT:
@@ -749,6 +773,23 @@ const canShowForYouSort = computed(() => {
 })
 
 
+const hasActiveFilters = computed(() => {
+  return (
+      activeStores.value.length > 0 ||
+      activeCategories.value.length > 0 ||
+      activeStatuses.value.length > 0 ||
+      searchQuery.value.length > 0
+  )
+})
+
+function clearAllFilters() {
+  activeStores.value = []
+  activeCategories.value = []
+  activeStatuses.value = []
+  searchQuery.value = ''
+}
+
+
 
 const hideForYouInfo = ref(
     localStorage.getItem('hide_for_you_info') === '1'
@@ -765,10 +806,26 @@ const sortLabel = computed(() => {
   return '🆕 Recently Added'
 })
 
+function toggleCategory(cat: { id: number; name: string }) {
+  const index = activeCategories.value.findIndex(c => c.id === cat.id)
 
-const toggleCategory = (cat: { id: number; name: string }) => {
-  activeCategory.value = activeCategory.value?.id === cat.id ? null : cat
+  if (index > -1) {
+    activeCategories.value = activeCategories.value.filter(c => c.id !== cat.id)
+  } else {
+    activeCategories.value = [...activeCategories.value, cat]
+
+  }
 }
+
+function toggleStatus(status: string) {
+  if (activeStatuses.value.includes(status)) {
+    activeStatuses.value = activeStatuses.value.filter(s => s !== status)
+  } else {
+    activeStatuses.value = [...activeStatuses.value, status]
+  }
+}
+
+
 
 /* ---------------- Scanner ---------------- */
 function handleDismiss() {
@@ -883,24 +940,35 @@ const fetchProducts = async (reset = false) => {
     const from = currentPage.value * pageSize
     const to = from + pageSize - 1
 
-    let baseSelect = "barcode, name, status, view_count, created_at, photo_front_url, product_categories(name)";
-    if (activeStore.value) {
-      baseSelect += ", product_stores!inner(store_id)"
+    let baseSelect =
+        "barcode, name, status, view_count, created_at, photo_front_url, product_category_id, product_categories(name)";
+
+    if (activeStores.value.length > 0) {
+      baseSelect += ", product_stores!inner(store_id)";
     }
 
-    let query = supabase.from("products").select(baseSelect).eq("approved", true)
+    let query = supabase
+        .from("products")
+        .select(baseSelect)
+        .eq("approved", true);
 
-    if (activeStore.value) {
-      query = query.eq("product_stores.store_id", activeStore.value.id)
+// 🏬 Store filter (MULTIPLE)
+    if (activeStores.value.length > 0) {
+      const storeIds = activeStores.value.map(s => s.id);
+      query = query.in("product_stores.store_id", storeIds);
     }
 
-    if (activeCategory.value) {
-      query = query.eq("product_category_id", activeCategory.value.id)
+// 🏷 Category filter (MULTIPLE)
+    if (activeCategories.value.length > 0) {
+      const categoryIds = activeCategories.value.map(c => c.id);
+      query = query.in("product_category_id", categoryIds);
     }
 
-    if (activeStatus.value) {
-      query = query.eq("status", activeStatus.value)
+// 🛡 Status filter (MULTIPLE)
+    if (activeStatuses.value.length > 0) {
+      query = query.in("status", activeStatuses.value);
     }
+
 
     if (searchQuery.value) {
       query = query.or(
@@ -928,7 +996,7 @@ const fetchProducts = async (reset = false) => {
       // Merge results
       allProducts.value = reset ? data : [...allProducts.value, ...data];
       if (sortBy.value === 'for_you' && isDonor.value) {
-        const { data, error } = await supabase.rpc(
+        const {data, error} = await supabase.rpc(
             'get_for_you_products',
             {
               p_user_id: (await supabase.auth.getUser()).data.user?.id,
@@ -984,7 +1052,6 @@ function fromNowToTaipei(dateString?: string) {
 }
 
 const openDetails = async (product: Product) => {
-  product.view_count = (product.view_count ?? 0) + 1;
 
   // ✅ safely read scroll position
   const ionContent = getIonContentEl()
@@ -997,16 +1064,13 @@ const openDetails = async (product: Product) => {
     barcode: product.barcode,
     product_name: product.name,
     status: product.status,
-    store: activeStore.value?.name || null,
-    category: activeCategory.value?.name || null,
+    store: activeStores.value.map(s => s.name),
+    category: activeCategories.value.map(c => c.name),
+    status_filters: activeStatuses.value,
     query_used: searchQuery.value || null
   });
 
   router.push({path: `/item/${product.barcode}`})
-}
-
-const toggleStatus = (status: string) => {
-  activeStatus.value = activeStatus.value === status ? null : status
 }
 
 function goToAddProduct() {
@@ -1339,5 +1403,10 @@ ion-card.status-haram {
   margin: 4px 0 0;
 }
 
+.filter-clear-row {
+  display: flex;
+  justify-content: flex-start;
+  padding: 4px 12px 8px;
+}
 
 </style>

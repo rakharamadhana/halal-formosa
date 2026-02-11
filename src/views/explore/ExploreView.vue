@@ -160,7 +160,8 @@
                 :key="cat.id"
                 class="category-chip"
                 :style="{ '--cat-color': cat.color || 'var(--ion-color-medium)' } as Record<string,string>"
-                :class="{ active: activeCategoryId === cat.id }"
+                :class="{ active: activeCategoryIds.includes(cat.id) }"
+
                 @click="toggleCategory(cat)"
             >
 
@@ -179,7 +180,16 @@
               />
               <ion-label>{{ cat.name }}</ion-label>
             </ion-chip>
+
           </div>
+
+          <ion-chip
+              v-if="activeCategoryIds.length"
+              class="clear-chip"
+              @click="activeCategoryIds = []"
+          >
+            ✖ Clear
+          </ion-chip>
 
           <!-- Skeleton placeholder -->
           <div v-if="loadingCategories" class="category-skeletons">
@@ -661,7 +671,8 @@ const geocodeAddress = async (query: string) => {
 
   // Reset DB filters after successful address search
   searchQuery.value = ''
-  activeCategoryId.value = null
+  activeCategoryIds.value = []
+
   focusedPlaceId.value = null
 }
 
@@ -1036,18 +1047,28 @@ const fetchLocations = async () => {
 
 const categories = computed(() => locationTypes.value)
 
-const activeCategoryId = ref<number | null>(null)
+const activeCategoryIds = ref<number[]>([])
 
 const toggleCategory = (cat: LocationType) => {
-  ActivityLogService.log("explore_filter_category", {
-    category_id: cat.id,
-    category_name: cat.name
-  });
+  const index = activeCategoryIds.value.indexOf(cat.id)
 
-  activeCategoryId.value = activeCategoryId.value === cat.id ? null : cat.id
+  if (index > -1) {
+    // remove
+    activeCategoryIds.value.splice(index, 1)
+  } else {
+    // add
+    activeCategoryIds.value.push(cat.id)
+  }
+
+  ActivityLogService.log("explore_filter_category", {
+    category_ids: activeCategoryIds.value,
+    category_name: cat.name
+  })
+
   focusedPlaceId.value = null
   if (infoWindow) infoWindow.close()
 }
+
 
 /* ---------------- Map ---------------- */
 const initMap = async () => {
@@ -1129,7 +1150,7 @@ const initMarkers = (places: Place[] = locations.value) => {
   })
 
   // ✅ only cluster when no filter
-  if (!activeCategoryId.value) {
+  if (activeCategoryIds.value.length === 0) {
     clusterer = new MarkerClusterer({
       map: mapInstance!,
       markers: markerArray,
@@ -1141,15 +1162,6 @@ const initMarkers = (places: Place[] = locations.value) => {
     markerArray.forEach(m => (m.map = mapInstance!))
   }
 }
-
-
-watch([activeCategoryId, locations], () => {
-  let filtered = [...locations.value]
-  if (activeCategoryId.value !== null) {
-    filtered = filtered.filter(l => l.typeId === activeCategoryId.value)
-  }
-  initMarkers(filtered)
-})
 
 watch([viewMode, panelVisible], async () => {
   await nextTick()
@@ -1252,8 +1264,10 @@ const sortedLocations = computed(() => {
   let base = [...locations.value]
 
   // ✅ filter by category
-  if (activeCategoryId.value) {
-    base = base.filter(l => l.typeId === activeCategoryId.value)
+  if (activeCategoryIds.value.length > 0) {
+    base = base.filter(l =>
+        l.typeId && activeCategoryIds.value.includes(l.typeId)
+    )
   }
 
   // ✅ search (this already works for all matches)
@@ -1274,6 +1288,9 @@ const sortedLocations = computed(() => {
   return base
 })
 
+watch(sortedLocations, (filtered) => {
+  initMarkers(filtered)
+})
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
@@ -1882,5 +1899,24 @@ button.gm-ui-hover-effect > span {
 .view-mode-fab.panel-open {
   bottom: 62vh;
 }
+
+.clear-chip {
+  --background: rgba(255,255,255,0.08);
+  --color: var(--ion-color-medium);
+
+  border: 1px dashed var(--ion-color-medium);
+  border-radius: 999px;
+  font-weight: 500;
+
+  width: 30rem;
+  display: inline-flex;       /* ensure flex */
+  align-items: center;        /* vertical center */
+  justify-content: center;    /* horizontal center */
+  height: 28px;               /* control height */
+  padding: 0 10px;            /* balanced padding */
+  margin: 8px 1px 5px 1px
+}
+
+
 
 </style>

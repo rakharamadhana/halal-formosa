@@ -16,13 +16,13 @@
         </ion-tab-button>
 
         <ion-tab-button tab="explore" href="/explore">
-          <ion-icon :icon="compassOutline" />
+          <ion-icon :icon="mapOutline" />
           <ion-label>{{ $t('main.explore') }}</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="news" href="/news">
-          <ion-icon :icon="newspaperOutline" />
-          <ion-label>{{ $t('main.news') }}</ion-label>
+        <ion-tab-button tab="trip" href="/trip">
+          <ion-icon :icon="compassOutline" />
+          <ion-label>{{ $t('main.trip') }}</ion-label>
         </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
@@ -38,7 +38,7 @@ import {
   compassOutline,
   homeOutline,
   newspaperOutline,
-  gridOutline
+  gridOutline, airplaneOutline, sendOutline, globeOutline, mapSharp, mapOutline
 } from 'ionicons/icons'
 import { supabase } from '@/plugins/supabaseClient'
 
