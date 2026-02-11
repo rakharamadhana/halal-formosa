@@ -337,31 +337,30 @@ async function fetchTrips() {
   const { data, error } = await supabase
       .from('trips')
       .select(`
-  id,
-  title,
-  title_zh,
-  duration,
-  cover_url,
-  external_url,
-  created_at,
-  view_count,
-  partners (
-    id,
-    name,
-    partner_tier
-  ),
-  trip_cities (
-    city_id,
-    cities:city_id (
-      id,
-      slug,
-      name,
-      name_zh,
-      emoji
-    )
-  )
-`)
-
+        id,
+        title,
+        title_zh,
+        duration,
+        cover_url,
+        external_url,
+        created_at,
+        view_count,
+        provider:partners (
+          id,
+          name,
+          partner_tier
+        ),
+        trip_cities (
+          city_id,
+          cities:city_id (
+            id,
+            slug,
+            name,
+            name_zh,
+            emoji
+          )
+        )
+      `)
       .eq('is_active', true)
 
   if (error) {
@@ -370,20 +369,20 @@ async function fetchTrips() {
     return
   }
 
-  trips.value = (data ?? []).map(t => ({
+  // Use a type assertion to help the compiler handle the Supabase join structure
+  trips.value = (data as any[] ?? []).map(t => ({
     id: t.id,
     title: t.title,
     title_zh: t.title_zh,
     cover: t.cover_url,
     duration: t.duration,
-    categories: [],
+    categories: [], // Initialized as empty
     external_url: t.external_url,
-    provider: t.partners,
+    provider: Array.isArray(t.provider) ? t.provider[0] : t.provider,
     created_at: t.created_at,
     view_count: t.view_count,
-    trip_cities: t.trip_cities
+    trip_cities: t.trip_cities || []
   }))
-
 
   loading.value = false
 }
