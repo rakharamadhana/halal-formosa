@@ -900,10 +900,8 @@ const nextPrayer = computed(() => {
 })
 
 const scrollPrayerKey = computed(() => {
-  if (nextPrayer.value) return nextPrayer.value.key
   return currentPrayerKey.value
 })
-
 
 watch(
     () => scrollPrayerKey.value,
