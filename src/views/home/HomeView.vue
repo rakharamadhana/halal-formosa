@@ -696,8 +696,14 @@ async function getUserLocation(): Promise<{
   // 1️⃣ Cached first
   const cached = localStorage.getItem('hf_user_location')
   if (cached) {
-    userLocation.value = JSON.parse(cached)
-    return userLocation.value
+    const parsed = JSON.parse(cached) as {
+      lat: number
+      lng: number
+      city?: string
+    }
+
+    userLocation.value = parsed
+    return parsed
   }
 
   try {
