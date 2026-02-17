@@ -65,7 +65,7 @@
           size="small"
           fill="clear"
           color="medium"
-          @click="activeCategoryIds = []"
+          @click="clearFilters"
       >
         Clear filters
       </ion-button>
@@ -313,21 +313,45 @@ function handleSearchInput(ev: Event) {
 
 function toggleCategory(id: string) {
   const idx = activeCategoryIds.value.indexOf(id)
-  idx === -1
-      ? activeCategoryIds.value.push(id)
-      : activeCategoryIds.value.splice(idx, 1)
+
+  if (idx === -1) {
+    activeCategoryIds.value.push(id)
+    ActivityLogService.log('partner_filter_add', { category_id: id })
+  } else {
+    activeCategoryIds.value.splice(idx, 1)
+    ActivityLogService.log('partner_filter_remove', { category_id: id })
+  }
 }
+
 
 
 
 
 function openPartner(partner: any) {
+  ActivityLogService.log('partner_click', {
+    source: 'partners_page',
+    partner_id: partner.id,
+    partner_name: partner.name,
+    partner_tier: partner.tier,
+    active_categories: activeCategoryIds.value,
+    search_query: searchQuery.value || null
+  })
+
   router.push(`/partner/${partner.id}`)
 }
 
+function clearFilters() {
+  ActivityLogService.log('partner_filter_clear', {
+    cleared_categories: activeCategoryIds.value
+  })
+
+  activeCategoryIds.value = []
+}
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
+  ActivityLogService.log('partners_page_open')
+
   loading.value = true
   await Promise.all([
     fetchCategories(),

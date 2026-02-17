@@ -245,7 +245,7 @@
 
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import {ref, computed, onMounted, watch} from 'vue'
 import {
   IonPage, IonContent, IonSearchbar, IonToolbar,
   IonButton, IonIcon, IonText,
@@ -423,42 +423,76 @@ const filteredTrips = computed(() => {
 
 
 function clearFilters() {
+  ActivityLogService.log("trip_filter_clear", {
+    categories: activeCategoryIds.value,
+    cities: activeCityIds.value
+  })
+
   activeCategoryIds.value = []
   activeCityIds.value = []
 }
 
 
+
 function toggleCategory(id: number) {
   const i = activeCategoryIds.value.indexOf(id)
-  i === -1
-      ? activeCategoryIds.value.push(id)
-      : activeCategoryIds.value.splice(i, 1)
+
+  if (i === -1) {
+    activeCategoryIds.value.push(id)
+    ActivityLogService.log("trip_filter_category_add", { category_id: id })
+  } else {
+    activeCategoryIds.value.splice(i, 1)
+    ActivityLogService.log("trip_filter_category_remove", { category_id: id })
+  }
 }
+
 
 function toggleCity(id: string) {
   const i = activeCityIds.value.indexOf(id)
-  i === -1
-      ? activeCityIds.value.push(id)
-      : activeCityIds.value.splice(i, 1)
+
+  if (i === -1) {
+    activeCityIds.value.push(id)
+    ActivityLogService.log("trip_filter_city_add", { city_slug: id })
+  } else {
+    activeCityIds.value.splice(i, 1)
+    ActivityLogService.log("trip_filter_city_remove", { city_slug: id })
+  }
 }
 
+let searchTimeout: number | null = null
 
 function handleSearchInput(ev: Event) {
   const q = (ev.target as HTMLInputElement).value.trim()
   searchQuery.value = q
+
+  if (searchTimeout) clearTimeout(searchTimeout)
+
   if (q.length > 1) {
-    ActivityLogService.log('trip_search', { query: q })
+    searchTimeout = window.setTimeout(() => {
+      ActivityLogService.log("trip_search", { query: q })
+    }, 800)
   }
 }
 
+
 async function openTrip(trip: any) {
 
-  // Increment counter directly
+  ActivityLogService.log("trip_click", {
+    trip_id: trip.id,
+    trip_title: trip.title,
+    provider_id: trip.provider?.id,
+    provider_name: trip.provider?.name,
+    provider_tier: trip.provider?.partner_tier,
+    current_sort: sortBy.value,
+    active_categories: activeCategoryIds.value,
+    active_cities: activeCityIds.value,
+    search_query: searchQuery.value || null
+  })
+
   await supabase.rpc('increment_trip_view', {
     p_trip_id: trip.id
   })
 
-  // Then open browser
   await Browser.open({
     url: trip.external_url,
     windowName: '_self',
@@ -467,13 +501,21 @@ async function openTrip(trip: any) {
   })
 }
 
-
-
+watch(sortBy, (val) => {
+  ActivityLogService.log("trip_sort_change", {
+    sort_by: val
+  })
+})
 
 onMounted(() => {
+  ActivityLogService.log("trip_page_open", {
+    source: "main_navigation"
+  })
+
   fetchTrips()
   fetchCities()
 })
+
 
 
 </script>

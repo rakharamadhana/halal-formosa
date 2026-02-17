@@ -915,6 +915,7 @@ const fetchCategories = async () => {
 
 
 const fetchProducts = async (reset = false) => {
+  // 🔒 Non-Pro For You Gate
   if (sortBy.value === 'for_you' && !isDonor.value) {
     results.value = []
     loadingProducts.value = false
@@ -930,61 +931,115 @@ const fetchProducts = async (reset = false) => {
     allLoaded.value = false
     allProducts.value = []
     infiniteDisabled.value = false
-    results.value = [] // 👈 clear UI first
+    results.value = []
   }
 
-  // Only show skeleton if it's the *first* load
   loadingProducts.value = reset
 
   try {
     const from = currentPage.value * pageSize
-    const to = from + pageSize - 1
+
+    /* =========================================================
+       🔎 FULL TEXT SEARCH MODE (FAST + INDEXED)
+    ========================================================= */
+    if (searchQuery.value && searchQuery.value.length > 1) {
+      const { data, error } = await supabase.rpc("search_products", {
+        p_query: searchQuery.value,
+        p_limit: pageSize,
+        p_offset: from,
+        p_sort: sortBy.value
+      })
+
+      if (error) {
+        errorMsg.value = error.message
+      } else {
+        if (!data || data.length < pageSize) {
+          allLoaded.value = true
+        }
+
+        results.value = reset
+            ? data
+            : [...results.value, ...data]
+
+        currentPage.value++
+      }
+
+      return
+    }
+
+    /* =========================================================
+       ✨ FOR YOU MODE (Pro)
+    ========================================================= */
+    if (sortBy.value === 'for_you' && isDonor.value) {
+      const { data, error } = await supabase.rpc(
+          'get_for_you_products',
+          {
+            p_user_id: (await supabase.auth.getUser()).data.user?.id,
+            p_limit: pageSize,
+            p_offset: from,
+          }
+      )
+
+      if (error) {
+        errorMsg.value = error.message
+      } else {
+        if (!data || data.length < pageSize) {
+          allLoaded.value = true
+        }
+
+        results.value = reset
+            ? data
+            : [...results.value, ...data]
+
+        currentPage.value++
+      }
+
+      return
+    }
+
+    /* =========================================================
+       📦 NORMAL BROWSING MODE
+    ========================================================= */
 
     let baseSelect =
-        "barcode, name, status, view_count, created_at, photo_front_url, product_category_id, product_categories(name)";
+        "barcode, name, status, view_count, created_at, photo_front_url, product_category_id, product_categories(name)"
 
     if (activeStores.value.length > 0) {
-      baseSelect += ", product_stores!inner(store_id)";
+      baseSelect += ", product_stores!inner(store_id)"
     }
 
     let query = supabase
         .from("products")
         .select(baseSelect)
-        .eq("approved", true);
+        .eq("approved", true)
 
-// 🏬 Store filter (MULTIPLE)
+    // 🏬 Store filter
     if (activeStores.value.length > 0) {
-      const storeIds = activeStores.value.map(s => s.id);
-      query = query.in("product_stores.store_id", storeIds);
+      const storeIds = activeStores.value.map(s => s.id)
+      query = query.in("product_stores.store_id", storeIds)
     }
 
-// 🏷 Category filter (MULTIPLE)
+    // 🏷 Category filter
     if (activeCategories.value.length > 0) {
-      const categoryIds = activeCategories.value.map(c => c.id);
-      query = query.in("product_category_id", categoryIds);
+      const categoryIds = activeCategories.value.map(c => c.id)
+      query = query.in("product_category_id", categoryIds)
     }
 
-// 🛡 Status filter (MULTIPLE)
+    // 🛡 Status filter
     if (activeStatuses.value.length > 0) {
-      query = query.in("status", activeStatuses.value);
+      query = query.in("status", activeStatuses.value)
     }
 
-
-    if (searchQuery.value) {
-      query = query.or(
-          `name.ilike.%${searchQuery.value}%,barcode.ilike.%${searchQuery.value}%`
-      )
-    }
-
+    // Sorting
     if (sortBy.value === 'views') {
-      query = query.order('view_count', {ascending: false})
+      query = query.order('view_count', { ascending: false })
     } else {
-      query = query.order('created_at', {ascending: false})
+      query = query.order('created_at', { ascending: false })
     }
 
-    query = query.range(from, to)
+    query = query.range(from, from + pageSize - 1)
 
-    const {data, error} = await query.returns<Product[]>()
+    const { data, error } = await query.returns<Product[]>()
 
     if (error) {
       errorMsg.value = error.message
@@ -993,28 +1048,13 @@ const fetchProducts = async (reset = false) => {
         allLoaded.value = true
       }
 
-      // Merge results
-      allProducts.value = reset ? data : [...allProducts.value, ...data];
-      if (sortBy.value === 'for_you' && isDonor.value) {
-        const {data, error} = await supabase.rpc(
-            'get_for_you_products',
-            {
-              p_user_id: (await supabase.auth.getUser()).data.user?.id,
-              p_limit: pageSize,
-              p_offset: currentPage.value * pageSize,
-            }
-        )
+      results.value = reset
+          ? data
+          : [...results.value, ...data]
 
-        if (!error && data) {
-          results.value = reset ? data : [...results.value, ...data]
-        }
-      } else {
-        results.value = [...allProducts.value]
-      }
-
-      currentPage.value++;
-
+      currentPage.value++
     }
+
   } finally {
     isFetching.value = false
     loadingProducts.value = false
@@ -1117,8 +1157,6 @@ async function refreshList(event: CustomEvent) {
 
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
-  await ActivityLogService.log("search_page_open");
-
   // 🔹 Auth/session setup
   const {data: {session}} = await supabase.auth.getSession()
   isAuthenticated.value = !!session

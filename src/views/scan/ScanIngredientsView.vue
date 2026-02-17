@@ -351,17 +351,17 @@
 
 
             <ion-button
-                v-if="isDonor && ingredientsTextZh && !summaryUsed"
+                v-if="ingredientsTextZh && !summaryUsed"
                 expand="block"
                 color="carrot"
                 :disabled="loadingSummary"
                 @click="handleSummaryClick"
             >
-              {{ loadingSummary ? 'Analyzing…' : 'AI Summary' }}
+              {{ loadingSummary ? 'Analyzing…' : 'AI Explanation' }}
             </ion-button>
 
             <!-- AI Summary Section -->
-            <div v-if="isDonor && (loadingSummary || overallNote || errorSummary)" class="ai-summary-block">
+            <div v-if="(loadingSummary || overallNote || errorSummary)" class="ai-summary-block">
               <h3 class="ai-summary-title">AI Summary</h3>
               <div class="ai-summary-text" v-html="errorSummary || overallNote"></div>
             </div>
@@ -696,6 +696,11 @@ async function scanFromGallery() {
 const summaryUsed = ref(false)
 
 async function handleSummaryClick() {
+  if (!isDonor.value) {
+    // show upgrade modal
+    console.log("User is not Pro")
+  }
+
   if (summaryUsed.value) return
   await generateSummary(ingredientsTextZh.value, ingredientHighlights.value, autoStatus.value)
   summaryUsed.value = true

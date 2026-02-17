@@ -57,12 +57,89 @@ function resolveEntity(activity: string, rawDetail: any): EntityResult {
             }
         }
 
+        // 🟢 TRIP interactions
         case 'trip_open':
+        case 'trip_click':
             return {
                 entity_type: 'trip',
                 entity_id: detail.trip_id
                     ? String(detail.trip_id)
                     : null
+            }
+
+        case 'trip_filter_category_add':
+        case 'trip_filter_category_remove':
+            return {
+                entity_type: 'category',
+                entity_id: detail.category_id
+                    ? String(detail.category_id)
+                    : null
+            }
+
+        case 'trip_filter_city_add':
+        case 'trip_filter_city_remove':
+            return {
+                entity_type: 'city',
+                entity_id: detail.city_slug
+                    ? String(detail.city_slug)
+                    : null
+            }
+
+
+        // 🟢 NEWS interactions
+        case 'home_news_click':
+        case 'news_page_open':
+        case 'news_detail_open':
+        case 'news_share':
+            return {
+                entity_type: 'news',
+                entity_id: detail.id
+                    ? String(detail.id)
+                    : detail.news_id
+                        ? String(detail.news_id)
+                        : null
+            }
+
+        // 🟢 PARTNER interactions
+        case 'partner_click':
+        case 'partner_detail_open':
+        case 'partner_logo_preview':
+        case 'partner_website_click':
+        case 'partner_trip_click':
+        case 'partner_certified_product_click':
+        case 'partner_certified_location_click':
+            return {
+                entity_type: 'partner',
+                entity_id: detail.partner_id
+                    ? String(detail.partner_id)
+                    : null
+            }
+
+        case 'partners_page_open':
+            return {
+                entity_type: null,
+                entity_id: null
+            }
+
+        case 'partner_search':
+            return {
+                entity_type: null,
+                entity_id: null
+            }
+
+        case 'partner_filter_add':
+        case 'partner_filter_remove':
+            return {
+                entity_type: 'partner_scope',
+                entity_id: detail.category_id
+                    ? String(detail.category_id)
+                    : null
+            }
+
+        case 'partner_filter_clear':
+            return {
+                entity_type: null,
+                entity_id: null
             }
 
 
@@ -200,11 +277,48 @@ function resolveActivityGroup(activity: string): string | null {
             return 'place'
 
         /* -------------------------
-           TRIP
+           TRIP EXPERIENCE
         -------------------------- */
+        case 'trip_page_open':
         case 'trip_open':
+        case 'trip_click':
         case 'trip_search':
+        case 'trip_sort_change':
+        case 'trip_filter_category_add':
+        case 'trip_filter_category_remove':
+        case 'trip_filter_city_add':
+        case 'trip_filter_city_remove':
+        case 'trip_filter_clear':
             return 'trip'
+
+
+        /* -------------------------
+           NEWS
+        -------------------------- */
+        case 'home_news_click':
+        case 'home_viewmore_news':
+        case 'news_page_open':
+        case 'news_detail_open':
+        case 'news_share':
+            return 'news'
+
+        /* -------------------------
+           PARTNER EXPERIENCE
+        -------------------------- */
+        case 'partners_page_open':
+        case 'partner_click':
+        case 'partner_detail_open':
+        case 'partner_logo_preview':
+        case 'partner_website_click':
+        case 'partner_search':
+        case 'partner_filter_add':
+        case 'partner_filter_remove':
+        case 'partner_filter_clear':
+        case 'partner_trip_click':
+        case 'partner_certified_product_click':
+        case 'partner_certified_location_click':
+            return 'partner'
+
 
         /* -------------------------
            PROFILE

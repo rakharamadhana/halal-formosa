@@ -156,7 +156,7 @@
                   :key="p.id"
                   class="discover-item"
                   button
-                  @click="$router.push(`/item/${p.barcode}`)"
+                  @click="openCertifiedProduct(p)"
               >
                 <img
                     :src="p.photo_front_url || 'https://placehold.co/200x200'"
@@ -197,7 +197,7 @@
                   :key="loc.id"
                   class="discover-item"
                   button
-                  @click="$router.push(`/place/${loc.id}`)"
+                  @click="openCertifiedLocation(loc)"
               >
                 <img
                     :src="loc.image || 'https://placehold.co/200x200'"
@@ -287,12 +287,11 @@
 
               <a
                   v-if="body.website"
-                  :href="body.website"
-                  target="_blank"
-                  rel="noopener"
+                  href="#"
+                  @click.prevent="openWebsite"
                   class="external-link"
               >
-                🌐 {{ body.website }}
+              🌐 {{ body.website }}
               </a>
             </template>
           </ion-card-content>
@@ -364,6 +363,8 @@ import { Zoom } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/zoom'
 import {Browser} from "@capacitor/browser";
+import {ActivityLogService} from "@/services/ActivityLogService";
+import router from "@/router";
 
 const route = useRoute()
 const id = route.params.id as string
@@ -372,8 +373,15 @@ const loading = ref(true)
 const showLogoModal = ref(false)
 
 function openLogoPreview() {
+  ActivityLogService.log('partner_logo_preview', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier
+  })
+
   showLogoModal.value = true
 }
+
 
 function closeLogoPreview() {
   showLogoModal.value = false
@@ -573,9 +581,33 @@ async function fetchPartnerTrips() {
   loadingTrips.value = false
 }
 
+async function openWebsite() {
+  ActivityLogService.log('partner_website_click', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier,
+    website: body.value.website
+  })
+
+  await Browser.open({
+    url: body.value.website,
+    windowName: '_self',
+    toolbarColor: '#e67e22',
+    presentationStyle: 'fullscreen',
+  })
+}
+
+
 async function openTrip(trip: any) {
 
-  // Increment counter directly
+  ActivityLogService.log('partner_trip_click', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier,
+    trip_id: trip.id,
+    trip_title: trip.title
+  })
+
   await supabase.rpc('increment_trip_view', {
     p_trip_id: trip.id
   })
@@ -588,6 +620,33 @@ async function openTrip(trip: any) {
   })
 }
 
+
+function openCertifiedProduct(p: any) {
+  ActivityLogService.log('partner_certified_product_click', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier,
+    product_id: p.id,
+    product_barcode: p.barcode,
+    product_name: p.name
+  })
+
+  router.push(`/item/${p.barcode}`)
+}
+
+function openCertifiedLocation(loc: any) {
+  ActivityLogService.log('partner_certified_location_click', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier,
+    location_id: loc.id,
+    location_name: loc.name
+  })
+
+  router.push(`/place/${loc.id}`)
+}
+
+
 /* ---------------- Lifecycle ---------------- */
 onMounted(async () => {
   if (!id) return
@@ -596,7 +655,13 @@ onMounted(async () => {
   await fetchPartner(id)
   loading.value = false
 
-
+  // 🔥 Log partner detail open
+  ActivityLogService.log('partner_detail_open', {
+    partner_id: body.value.id,
+    partner_name: body.value.name,
+    partner_tier: body.value.partner_tier,
+    verified: body.value.verified
+  })
 
   if (body.value.partner_tier === 'gold') {
     fetchCertifiedProducts()
@@ -604,6 +669,7 @@ onMounted(async () => {
     fetchPartnerTrips()
   }
 })
+
 
 </script>
 

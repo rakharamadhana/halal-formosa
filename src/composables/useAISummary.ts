@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { GoogleGenAI } from '@google/genai'
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 export default function useAISummary() {
     const overallNote = ref<string>('') // summary text (HTML after parsing)
@@ -13,7 +14,8 @@ export default function useAISummary() {
     })
 
     async function renderMarkdown(text: string): Promise<string> {
-        return await marked.parseInline(text) as string
+        const raw = await marked.parseInline(text)
+        return DOMPurify.sanitize(raw)
     }
 
 
@@ -25,13 +27,16 @@ export default function useAISummary() {
         overallNote.value = ''
 
         try {
-            const input = ingredientsText.slice(0, 1500)
+            const input = ingredientsText
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 1500)
 
             const highlightInfo = highlights.length
                 ? highlights.map(h => `${h.keyword}: ${colorMeaning(extractIonColor(h.color))}`).join(', ')
                 : 'None'
 
-            const stream = await ai.models.generateContentStream({
+            const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-lite',
                 contents: `You are providing official but friendly explanations on behalf of Halal Formosa. 
 Do NOT include greetings, OCR results, introductions, or disclaimers. Go straight to the ingredient analysis.
@@ -43,25 +48,29 @@ Trusted ingredient status from the Halal Formosa database:
 ${highlightInfo}
 
 Strict instructions:
-1. ONLY explain ingredients flagged in the database (*Muslim-friendly*, *Haram*, *Syubhah*). Always explain WHY briefly.
-2. If multiple ingredients share the same status and reasoning (e.g., dairy-based Muslim-friendly, plant-based Muslim-friendly), group them into one sentence instead of repeating.
-   - Example: "**Whey powder, Cheese powder, and Yeast extract** are all *Muslim-friendly* because they come from dairy or yeast and are generally acceptable."
-3. For critical Syubhah or Haram ingredients, always explain them individually.
-4. Keep total explanation under 3 short sentences maximum.
-5. Always end with:  
-   "Based on our Halal Formosa database, this product is [overall status]."
-6. Use Markdown (bold ingredient names, italic statuses).`,
-                config: { thinkingConfig: { thinkingBudget: 0 } }
+1. ONLY explain ingredients flagged in the database (*Muslim-friendly*, *Haram*, *Syubhah*). 
+2. For *Muslim-friendly* items, group them into one efficient sentence (e.g., "**Sugar and Water** are *Muslim-friendly* because they are plant-based or natural").
+3. For **Haram** or **Syubhah** items, you MUST provide a detailed "Why." Do not use generic summaries. Instead, use specific reasoning like scientific origins (e.g., "extracted from animal fat") or scriptural references (e.g., "Pork is *Haram* per Quranic verse Al-Baqarah 2:173").
+4. If the database provides a specific verse or a chemical source, it is MANDATORY to include it.
+5. Total explanation must be descriptive but concise, between 4 to 8 sentences.
+Overall system status:
+${systemStatus}
+6. Always end exactly with:
+"Based on our Halal Formosa ingredients database, this product is ${systemStatus}."
+7. Use Markdown (**bold** names, *italic* statuses).`,
+                config: { thinkingConfig: { thinkingBudget: 0 } } // Set budget > 0 if you want the model to 'reason' internally first
             })
 
+            const text =
+                response.text ||
+                response.candidates?.[0]?.content?.parts?.[0]?.text ||
+                ''
 
-            let output = ''
-            for await (const chunk of stream) {
-                if (chunk.text) {
-                    output += chunk.text
-                    overallNote.value = await renderMarkdown(output)
-                }
+            if (!text) {
+                throw new Error('Empty AI response')
             }
+
+            overallNote.value = await renderMarkdown(text)
         } catch (err: any) {
             errorSummary.value = err.message || 'Failed to generate summary.'
         } finally {
