@@ -386,7 +386,7 @@
     color: var(--ion-color-medium);
   "
             >
-              Unlock detailed AI ingredient analysis with Pro ✨
+              Unlock AI ingredient analysis explanation with Pro ✨
             </p>
 
 
