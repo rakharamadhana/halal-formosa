@@ -349,16 +349,46 @@
               </div>
             </div>
 
-
             <ion-button
-                v-if="isDonor && ingredientsTextZh && !summaryUsed"
+                v-if="ingredientsTextZh && !summaryUsed"
                 expand="block"
                 color="carrot"
                 :disabled="loadingSummary"
                 @click="handleSummaryClick"
+                class="ai-button"
             >
-              {{ loadingSummary ? 'Analyzing…' : 'AI Explanation' }}
+              <ion-icon
+                  v-if="!isDonor"
+                  slot="start"
+                  :icon="lockClosedOutline"
+              />
+
+              <span class="ai-label">
+    {{ loadingSummary ? 'Analyzing…' : 'AI Explanation' }}
+  </span>
+
+              <span
+                  v-if="!isDonor"
+                  class="pro-pill"
+              >
+    PRO
+  </span>
             </ion-button>
+
+
+
+            <p
+                v-if="!isDonor && ingredientsTextZh && !summaryUsed"
+                style="
+    text-align:center;
+    font-size:13px;
+    margin-top:6px;
+    color: var(--ion-color-medium);
+  "
+            >
+              Unlock detailed AI ingredient analysis with Pro ✨
+            </p>
+
 
             <!-- AI Summary Section -->
             <div v-if="isDonor && (loadingSummary || overallNote || errorSummary)" class="ai-summary-block">
@@ -471,7 +501,7 @@ import {
 } from '@ionic/vue'
 import {
   cameraOutline,
-  cloudUploadOutline, helpCircleOutline,
+  cloudUploadOutline, helpCircleOutline, lockClosedOutline,
   refreshOutline,
   scanOutline,
   shareSocialOutline
@@ -504,6 +534,10 @@ import { supabase } from '@/plugins/supabaseClient'
 import { showRewardedAd } from '@/lib/admobReward'
 import { Capacitor } from '@capacitor/core'
 import { ActivityLogService } from "@/services/ActivityLogService";
+
+import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui'
+import { Purchases } from '@revenuecat/purchases-capacitor'
+import { refreshSubscriptionStatus } from '@/composables/useSubscriptionStatus'
 
 /** ---------- State ---------- */
 const showCopied = ref(false)
@@ -695,14 +729,79 @@ async function scanFromGallery() {
 
 const summaryUsed = ref(false)
 
-async function handleSummaryClick() {
-  if (!isDonor.value) {
-    // show upgrade modal
-    console.log("User is not Pro")
+async function presentPaywall(): Promise<boolean> {
+
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[RC] Paywall can only run on native.");
+    return false;
   }
 
+  try {
+    const { result } = await RevenueCatUI.presentPaywall();
+
+    switch (result) {
+
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+
+        // 🔄 Refresh subscription state
+        await refreshSubscriptionStatus({ syncToServer: true })
+
+        await ActivityLogService.log("pro_purchase_success", {
+          source: "ai_summary"
+        })
+
+        return true
+
+      case PAYWALL_RESULT.CANCELLED:
+        return false
+
+      case PAYWALL_RESULT.ERROR:
+      default:
+        return false
+    }
+
+  } catch (err) {
+    console.error("Paywall failed:", err)
+    return false
+  }
+}
+
+async function handleSummaryClick() {
+
+  await ActivityLogService.log("ai_summary_click", {
+    is_pro: isDonor.value
+  })
+
+  // 🚫 If not Pro → show paywall
+  if (!isDonor.value) {
+
+    await ActivityLogService.log("pro_paywall_trigger", {
+      source: "ai_summary"
+    })
+
+    const purchased = await presentPaywall()
+
+    if (!purchased) return
+
+    // 🔁 Yield small delay for subscription reactive update
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  // 🟢 Now user is Pro
   if (summaryUsed.value) return
-  await generateSummary(ingredientsTextZh.value, ingredientHighlights.value, autoStatus.value)
+
+  await ActivityLogService.log("ai_summary_used", {
+    auto_status: autoStatus.value,
+    ingredient_count: ingredientHighlights.value?.length ?? 0
+  })
+
+  await generateSummary(
+      ingredientsTextZh.value,
+      ingredientHighlights.value,
+      autoStatus.value
+  )
+
   summaryUsed.value = true
 }
 
@@ -792,7 +891,7 @@ async function checkDailyScanLimit() {
     return true;   // fail-open instead of blocking users
   }
 
-  return data.length < (1000 + bonusScans.value);
+  return data.length < (10 + bonusScans.value);
 }
 
 function toProperCase(str: string) {
@@ -1005,4 +1104,28 @@ ion-card { border-radius: 12px; }
   line-height: 1.5;          /* ✅ improves readability */
   border-radius: 8px;
 }
+
+.ai-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.ai-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pro-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ffd54f;
+  color: #000;
+}
+
 </style>
