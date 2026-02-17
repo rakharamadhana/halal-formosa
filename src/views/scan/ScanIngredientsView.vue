@@ -351,7 +351,7 @@
 
 
             <ion-button
-                v-if="ingredientsTextZh && !summaryUsed"
+                v-if="isDonor && ingredientsTextZh && !summaryUsed"
                 expand="block"
                 color="carrot"
                 :disabled="loadingSummary"
@@ -361,7 +361,7 @@
             </ion-button>
 
             <!-- AI Summary Section -->
-            <div v-if="(loadingSummary || overallNote || errorSummary)" class="ai-summary-block">
+            <div v-if="isDonor && (loadingSummary || overallNote || errorSummary)" class="ai-summary-block">
               <h3 class="ai-summary-title">AI Summary</h3>
               <div class="ai-summary-text" v-html="errorSummary || overallNote"></div>
             </div>
