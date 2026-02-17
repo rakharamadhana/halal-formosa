@@ -11,8 +11,13 @@
         <ion-card-header>
           <div class="prayer-header-row">
             <ion-card-title>
-              <template v-if="nextPrayer">
-                {{ nextPrayer.label }} Prayer in {{ upcomingCountdown }}
+              <template v-if="nextPrayer && userLocation">
+                <div class="prayer-title-main">
+                  {{ nextPrayer.label }} Prayer in {{ upcomingCountdown }}
+                </div>
+                <div class="prayer-title-location">
+                  <ion-icon :icon="locationOutline" slot="start" /> {{ userLocation.city || 'Current Location' }}
+                </div>
               </template>
               <template v-else>
                 Prayer Times
@@ -79,10 +84,9 @@
                     :key="p.key"
                     :data-key="p.key"
                     :class="[
-        'prayer-pill',
-        p.key === currentPrayerKey ? 'active' : '',
-        isCurrentPrayer(p.time) ? 'now' : ''
-      ]"
+  'prayer-pill',
+  p.key === currentPrayerKey ? 'active' : ''
+]"
                 >
                   <span class="label">{{ p.label }}</span>
                   <span class="time">{{ p.time }}</span>
@@ -530,12 +534,13 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import { barcodeOutline, scanOutline } from "ionicons/icons"
+import {barcodeOutline, locationOutline, scanOutline} from "ionicons/icons"
 import { useLeaderboard } from "@/composables/useLeaderboard";
 import {getLevelColor, getLevelLabel} from "@/composables/useLevels";
 import {ActivityLogService} from "@/services/ActivityLogService";
 import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 import {Capacitor} from "@capacitor/core";
+import { Geolocation } from '@capacitor/geolocation'
 import { PrayTime } from 'praytime'
 
 let timeInterval: number | null = null
@@ -561,6 +566,12 @@ const recentProducts = ref<any[]>([])
 const recentLocations = ref<any[]>([])
 const loadingNews = ref(true)
 const recentNews = ref<any[]>([])
+
+const userLocation = ref<{
+  lat: number
+  lng: number
+  city?: string
+} | null>(null)
 
 
 const { leaderboard, loading: loadingLeaderboard, fetchLeaderboard } = useLeaderboard();
@@ -628,16 +639,18 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 dayjs.extend(relativeTime)
 
+const userTimezone = ref(dayjs.tz.guess())
+
 function fromNowToTaipei(dateString?: string) {
   if (!dateString) return ''
-  return dayjs.utc(dateString).tz('Asia/Taipei').fromNow()
+  return dayjs.utc(dateString).tz(userTimezone.value).fromNow()
 }
 
-const nowTime = ref(dayjs().tz('Asia/Taipei'))
+const nowTime = ref(dayjs().tz(userTimezone.value))
 
 function startClock() {
   timeInterval = window.setInterval(() => {
-    nowTime.value = dayjs().tz('Asia/Taipei')
+    nowTime.value = dayjs().tz(userTimezone.value)
   }, 1000)
 }
 
@@ -675,18 +688,108 @@ const displayedPartners = computed(() => {
   })
 })
 
+async function getUserLocation(): Promise<{
+  lat: number
+  lng: number
+  city?: string
+}> {
+  // 1️⃣ Cached first
+  const cached = localStorage.getItem('hf_user_location')
+  if (cached) {
+    userLocation.value = JSON.parse(cached)
+    return userLocation.value
+  }
+
+  try {
+    let lat: number
+    let lng: number
+
+    if (Capacitor.isNativePlatform()) {
+      // 📱 Native app
+      const permission = await Geolocation.requestPermissions()
+
+      if (permission.location !== 'granted') {
+        throw new Error('Location permission denied')
+      }
+
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true
+      })
+
+      lat = position.coords.latitude
+      lng = position.coords.longitude
+
+    } else {
+      // 🌐 Web browser fallback
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject)
+      })
+
+      lat = position.coords.latitude
+      lng = position.coords.longitude
+    }
+
+    let city = 'Current Location'
+
+    try {
+      const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+          {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'HalalFormosaApp/1.0'
+            }
+          }
+      )
+
+      console.log('Reverse status:', res.status)
+
+      const data = await res.json()
+
+      city =
+          data.address?.city ||
+          data.address?.town ||
+          data.address?.municipality ||
+          data.address?.state ||
+          'Current Location'
+
+    } catch (e) {
+      console.warn('[Reverse Geocode Failed]', e)
+    }
+
+    userLocation.value = { lat, lng, city }
+
+
+    localStorage.setItem(
+        'hf_user_location',
+        JSON.stringify(userLocation.value)
+    )
+
+    return userLocation.value
+
+  } catch (error) {
+    console.warn('[GPS] Using fallback Taipei')
+
+    userLocation.value = {
+      lat: 25.0330,
+      lng: 121.5654,
+      city: 'Taipei'
+    }
+
+    return userLocation.value
+  }
+}
+
 async function fetchPrayerTimes() {
   loadingPrayerTimes.value = true
 
-  // Default to Taipei (can later be replaced with GPS)
-  const lat = 25.0330
-  const lng = 121.5654
+  const location = await getUserLocation()
 
   const praytime = new PrayTime('MWL')
 
   praytime
-      .location([lat, lng])
-      .timezone('Asia/Taipei')
+      .location([location.lat, location.lng])
+      .timezone(userTimezone.value)
       .format('24h')
       .adjust({ highLats: 'AngleBased' })
 
@@ -704,6 +807,7 @@ async function fetchPrayerTimes() {
   loadingPrayerTimes.value = false
 }
 
+
 const prayerList = computed(() => {
   if (!prayerTimes.value) return []
 
@@ -719,23 +823,38 @@ const prayerList = computed(() => {
 const currentPrayerKey = computed(() => {
   if (!prayerTimes.value) return null
 
-  const now = dayjs().tz('Asia/Taipei')
+  const now = nowTime.value
+  const today = now.format('YYYY-MM-DD')
 
-  for (const p of prayerList.value) {
-    const prayerTime = dayjs.tz(
-        `${now.format('YYYY-MM-DD')} ${p.time}`,
+  const prayers = prayerList.value.map(p => ({
+    ...p,
+    timeObj: dayjs.tz(
+        `${today} ${p.time}`,
         'YYYY-MM-DD HH:mm',
-        'Asia/Taipei'
+        userTimezone.value
     )
+  }))
 
-    if (prayerTime.isAfter(now)) {
-      return p.key
+  for (let i = 0; i < prayers.length; i++) {
+    const current = prayers[i]
+    const next = prayers[i + 1]
+
+    if (next) {
+      if (now.isAfter(current.timeObj) && now.isBefore(next.timeObj)) {
+        return current.key
+      }
+    } else {
+      // Last prayer (Isha)
+      if (now.isAfter(current.timeObj)) {
+        return current.key
+      }
     }
   }
 
-  // If all passed → Isha already done → highlight Fajr (next day)
-  return 'fajr'
+  // If before Fajr
+  return 'isha'
 })
+
 
 
 const nextPrayer = computed(() => {
@@ -747,7 +866,7 @@ const nextPrayer = computed(() => {
     const prayerTime = dayjs.tz(
         `${now.format('YYYY-MM-DD')} ${p.time}`,
         'YYYY-MM-DD HH:mm',
-        'Asia/Taipei'
+        userTimezone.value
     )
 
     if (prayerTime.isAfter(now)) {
@@ -763,7 +882,7 @@ const nextPrayer = computed(() => {
       .tz(
           `${now.add(1, 'day').format('YYYY-MM-DD')} ${prayerTimes.value.fajr}`,
           'YYYY-MM-DD HH:mm',
-          'Asia/Taipei'
+          userTimezone.value
       )
 
   return {
@@ -810,18 +929,6 @@ watch(
     },
     { immediate: true }
 )
-
-
-const isCurrentPrayer = (pTime: string) => {
-  const now = nowTime.value
-  const prayer = dayjs.tz(
-      `${now.format('YYYY-MM-DD')} ${pTime}`,
-      'YYYY-MM-DD HH:mm',
-      'Asia/Taipei'
-  )
-
-  return Math.abs(prayer.diff(now, 'minute')) <= 1
-}
 
 const upcomingCountdown = computed(() => {
   if (!nextPrayer.value) return ''
@@ -1377,6 +1484,17 @@ function openPartner(partner: any) {
   width: 100%;
   height: 32px;
   font-size: 0.8rem;
+}
+
+.prayer-title-main {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.prayer-title-location {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  margin-top: 2px;
 }
 
 </style>
