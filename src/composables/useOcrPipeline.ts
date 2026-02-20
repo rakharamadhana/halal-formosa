@@ -463,7 +463,10 @@ export default function useOcrPipeline({
         }
 
         // Deduplicate by matchedVariant or keyword
-        const unique = new Map(found.map(f => [f.matchedVariant || f.keyword, f]))
+        const unique = new Map(
+            found.map(f => [f.keyword, f]) // dedupe by ingredient identity
+        )
+
         ingredientHighlights.value = Array.from(unique.values())
 
         // Status logic (union)
