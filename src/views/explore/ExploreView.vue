@@ -140,7 +140,7 @@
 
 
           <ion-button
-              v-if="isContributor"
+              v-if="isLoggedIn"
               @click="goToAddPlace"
               color="carrot"
               size="small"
@@ -382,6 +382,7 @@ const PLACEHOLDER = 'https://placehold.co/200x100'
 /* ---------------- State ---------------- */
 const router = useRouter()
 
+const isLoggedIn = ref(false)
 const isContributor = ref(false)
 const userLocation = ref<LatLng | null>(null)
 
@@ -994,13 +995,21 @@ const scrollCardIntoView = async (id: number) => {
 
 /* ---------------- Roles ---------------- */
 const loadRole = async () => {
-  const {data: {user}} = await supabase.auth.getUser()
-  if (!user) return
-  const {data, error} = await supabase
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    isLoggedIn.value = false
+    return
+  }
+
+  isLoggedIn.value = true
+
+  const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .single()
+
   if (!error && (data?.role === 'admin' || data?.role === 'contributor')) {
     isContributor.value = true
   }
@@ -1010,19 +1019,20 @@ const loadRole = async () => {
 const fetchLocations = async () => {
   loadingPlaces.value = true
 
-  const {data, error} = await supabase
+  const { data, error } = await supabase
       .from('locations')
       .select(`
-  id,
-  name,
-  lat,
-  lng,
-  image,
-  type_id,
-  address,
-  view_count,
-  location_types(name)
-`)
+    id,
+    name,
+    lat,
+    lng,
+    image,
+    type_id,
+    address,
+    view_count,
+    location_types(name)
+  `)
+      .eq('approved', true)
 
 
   if (!error && data) {

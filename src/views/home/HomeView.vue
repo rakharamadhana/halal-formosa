@@ -1006,6 +1006,7 @@ async function fetchRecentLocations() {
   const { data, error } = await supabase
       .from('locations')
       .select('id, name, image, type_id, location_types(name), created_at')
+      .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(RECENT_DISCOVER_LIMIT)
 
@@ -1035,7 +1036,10 @@ async function fetchStats() {
     updateChartSmoothly(doughnutRef, Object.values(statusCount))
   }
 
-  const { data: locations } = await supabase.from('locations').select('id')
+  const { data: locations } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('approved', true)
   if (locations) totalLocations.value = locations.length
 
   loadingStats.value = false
@@ -1045,12 +1049,13 @@ async function fetchLocationCategoryStats() {
   const { data, error } = await supabase
       .from("locations")
       .select(`
-        id,
-        name,
-        image,
-        created_at,
-        location_types!inner ( name )
-      `)
+    id,
+    name,
+    image,
+    created_at,
+    location_types!inner ( name )
+  `)
+      .eq('approved', true)
 
   if (!error && data) {
     const counts: Record<string, number> = {}

@@ -431,26 +431,30 @@
               :stencil-props="{ aspectRatio: null }"
           />
           <!-- Full-screen loading overlay inside the cropper modal -->
-          <div
-              v-if="ocrLoading"
-              style="
-                position: absolute;
-                top: 0; left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.55);
-              backdrop-filter: blur(4px);
-                z-index: 9999;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-              "
-          >
-            <ion-spinner name="crescent" style="transform: scale(1.5);"></ion-spinner>
-              <p style="margin-top: 12px; color: var(--ion-color-medium); font-size: 16px;">
-                {{ $t('scanIngredients.scan.ocrProcessing') }}
+          <div v-if="ocrLoading" class="ocr-overlay">
+            <ion-progress-bar
+                :value="progress"
+                color="carrot"
+                class="ocr-progress"
+            />
+
+            <p class="ocr-progress-text">
+              {{ progressLabel }}
+            </p>
+
+            <div v-if="loadingReflection" class="reflection-box">
+              <p v-if="loadingReflection.text_ar" class="reflection-ar">
+                {{ loadingReflection.text_ar }}
               </p>
+
+              <p class="reflection-en">
+                "{{ loadingReflection.text_en }}"
+              </p>
+
+              <small class="reflection-ref">
+                — {{ loadingReflection.reference }}
+              </small>
+            </div>
           </div>
         </ion-content>
       </ion-modal>
@@ -559,7 +563,7 @@ const ocrStartTime = ref<number | null>(null)
 // @ts-expect-error – injected global
 const appVersion = __APP_VERSION__;
 const todayScanCount = ref(0)
-
+const loadingReflection = ref<any>(null)
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
@@ -629,16 +633,55 @@ async function logIngredientScan({
   }
 }
 
+function calculateReadingTime(text: string) {
+  const words = text.trim().split(/\s+/).length
+  const wordsPerSecond = 3.2
+  const ms = (words / wordsPerSecond) * 1000
+  return Math.min(4000, Math.max(2500, ms))
+}
+
+async function fetchRandomReflection() {
+  const { data, error } = await supabase
+      .from('loading_reflections')
+      .select('*')
+      .eq('is_active', true)
+
+  if (error || !data?.length) return
+
+  loadingReflection.value =
+      data[Math.floor(Math.random() * data.length)]
+}
 
 async function handleConfirmCrop() {
   try {
     ocrStartTime.value = Date.now()
+
+    await fetchRandomReflection()
+
+    const reflectionStart = Date.now()
+
     await confirmCrop()
+
+    // 🕊 Ensure reflection shown minimum 3 seconds
+    const reflectionElapsed = Date.now() - reflectionStart
+
+    const minReflectionTime = calculateReadingTime(
+        loadingReflection.value?.text_en || ''
+    )
+
+    if (reflectionElapsed < minReflectionTime) {
+      showTutorial.value = false
+
+      await new Promise(r =>
+          setTimeout(r, minReflectionTime - reflectionElapsed)
+      )
+    }
+
     showOk.value = true
 
     // Only log if ingredients were detected
     if (ingredientsText.value?.trim()) {
-      showTutorial.value = false
+
 
       await ActivityLogService.log("scan_ingredients_success", {
         product_name: productName.value || "Unknown",
@@ -661,6 +704,7 @@ async function handleConfirmCrop() {
     }
 
   } catch (err: any) {
+
     setError(err.message || 'OCR failed')
 
     await ActivityLogService.log("scan_ingredients_error", {
@@ -833,7 +877,9 @@ const {
   productName,
   ocrRaw,
   recheckHighlightsSmart,
-  detectedLanguage
+  detectedLanguage,
+  progress,
+  progressLabel
 } = useCropperOcr({
   allHighlights,
   blacklistPatterns,
@@ -891,7 +937,7 @@ async function checkDailyScanLimit() {
     return true;   // fail-open instead of blocking users
   }
 
-  return data.length < (10 + bonusScans.value);
+  return data.length < (100 + bonusScans.value);
 }
 
 function toProperCase(str: string) {
@@ -1128,4 +1174,68 @@ ion-card { border-radius: 12px; }
   color: #000;
 }
 
+/* 🔹 OCR Loading Overlay */
+.ocr-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  padding: 20px;
+  color: white;
+}
+
+.ocr-spinner {
+  transform: scale(1.4);
+}
+
+.reflection-box {
+  margin-top: 18px;
+  max-width: 320px;
+}
+
+.reflection-ar {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.reflection-en {
+  font-style: italic;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.reflection-ref {
+  opacity: 0.75;
+}
+
+.ocr-overlay {
+  animation: fadeInOverlay 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ocr-progress {
+  width: 240px;
+  height: 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.ocr-progress-text {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 8px;
+}
 </style>

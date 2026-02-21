@@ -12,13 +12,14 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <!-- Role guard -->
-      <ion-card v-if="checkedRole && !isAllowed">
+      <!-- Not logged in -->
+      <ion-card v-if="checkedRole && !myRole">
         <ion-card-content>
-          {{ $t('addPlace.noPermission') }}
+          Please login to submit a place.
         </ion-card-content>
       </ion-card>
 
+      <!-- Logged in: everyone can submit; approval handled by role -->
       <form v-else @submit.prevent="submitPlace" class="form">
         <ion-item>
           <ion-input
@@ -290,6 +291,14 @@
 
         </div>
 
+        <ion-card
+            v-if="checkedRole && myRole && !isPrivileged(myRole)"
+            color="light"
+        >
+          <ion-card-content style="font-size:14px;">
+            🕵️ Submissions will be reviewed before appearing publicly.
+          </ion-card-content>
+        </ion-card>
 
         <ion-button type="submit" expand="block" :disabled="submitting || !isValid">
           <ion-spinner v-if="submitting" name="lines-small" class="mr-2"/>
@@ -378,24 +387,29 @@ const openingHoursTouched = ref(false)
 const router = useRouter()
 
 /* -------------------- Role Gate -------------------- */
-const isAllowed = ref(false)
 const checkedRole = ref(false)
 const locationTypes = ref<{ id: number; name: string }[]>([])
+const isPrivileged = (r: Role | null) => r === 'admin' || r === 'contributor'
+
+type Role = 'admin' | 'contributor' | 'user'
+const myRole = ref<Role | null>(null)
 
 const loadRole = async () => {
-  const {data: {user}} = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
   if (!user) {
-    checkedRole.value = true;
+    myRole.value = null
+    checkedRole.value = true
     return
   }
-  const {data, error} = await supabase
+
+  const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .single()
-  if (!error && (data?.role === 'admin' || data?.role === 'contributor')) {
-    isAllowed.value = true
-  }
+
+  myRole.value = !error ? ((data?.role ?? 'user') as Role) : 'user'
   checkedRole.value = true
 }
 
@@ -895,30 +909,30 @@ const normalizeOpeningHours = () => {
 const submitPlace = async () => {
   if (submitting.value) return
   if (!form.value.image && !pendingFile.value) {
-    toast.value = {open: true, message: 'Please select an image.', color: 'warning'}
+    toast.value = { open: true, message: 'Please select an image.', color: 'warning' }
     return
   }
 
   submitting.value = true
   try {
-    const {data: {user}} = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('You must be logged in.')
 
-    // 🧹 1️⃣ If editing and uploading a new image → delete old one
+    // ✅ Decide approval mode (same logic as AddProduct)
+    const role = myRole.value ?? 'user'
+    const autoApprove = isPrivileged(myRole.value)
+
+    // delete old image if editing + new image selected
     if (isEditing.value && pendingFile.value && form.value.image) {
       const oldPath = form.value.image.split('/storage/v1/object/public/location-image/')[1]
-      if (oldPath) {
-        await supabase.storage.from('location-image').remove([oldPath])
-        console.log('🧹 Old image deleted:', oldPath)
-      }
+      if (oldPath) await supabase.storage.from('location-image').remove([oldPath])
     }
 
-    // 📸 2️⃣ Upload new image if selected
+    // upload new image if selected
     if (pendingFile.value) {
       form.value.image = await uploadToSupabase(pendingFile.value)
     }
 
-    // 🗺️ 3️⃣ Prepare payload
     const payload: Record<string, any> = {
       name: form.value.name.trim(),
       lat: form.value.lat,
@@ -926,74 +940,90 @@ const submitPlace = async () => {
       type_id: form.value.type_id,
       image: String(form.value.image || '').trim(),
       address: form.value.address?.trim() || null,
-      description:
-          form.value.description?.trim()
-              ? form.value.description.trim()
-              : null,
-      created_by: user.id,
-
+      description: form.value.description?.trim() || null,
       phone: form.value.phone || null,
       instagram: form.value.instagram || null,
       line_id: form.value.line_id || null,
       price_range: form.value.price_range || null,
       opening_hours: normalizeOpeningHours(),
 
+      created_by: user.id,
+
+      // ✅ approval fields
+      approved: autoApprove,
+      approved_by: autoApprove ? user.id : null,
+      approved_at: autoApprove ? new Date().toISOString() : null,
+
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
     }
 
-    // 💾 4️⃣ Update or Insert
     if (isEditing.value) {
-      const {error} = await supabase
+      // If you want: keep existing approved state unless admin/contributor
+      if (!autoApprove) {
+        delete payload.approved
+        delete payload.approved_by
+        delete payload.approved_at
+      }
+
+      const { error } = await supabase
           .from('locations')
           .update(payload)
           .eq('id', route.params.id)
 
       if (error) throw error
 
-      toast.value = {open: true, message: 'Place updated!', color: 'success'}
+      toast.value = { open: true, message: 'Place updated!', color: 'success' }
       setTimeout(() => router.replace(`/place/${route.params.id}`), 500)
-    } else {
-      const {data: newPlace, error} = await supabase
-          .from('locations')
-          .insert([payload])
-          .select('id')
-          .single()
+      return
+    }
 
-      if (error) throw error
+    // CREATE
+    const { data: newPlace, error } = await supabase
+        .from('locations')
+        .insert([payload])
+        .select('id')
+        .single()
 
-      await awardAndCelebrate('add_place', 10000)
-      toast.value = {open: true, message: 'Place added!', color: 'success'}
+    if (error) throw error
 
-      const selectedType = locationTypes.value.find(
-          t => t.id === form.value.type_id
-      )
+    // ✅ Toast differs
+    toast.value = {
+      open: true,
+      message: autoApprove ? '✅ Place published!' : '✅ Place submitted and awaiting approval.',
+      color: 'success',
+    }
 
+    // ✅ Only publish notification if approved
+    if (autoApprove) {
+      const selectedType = locationTypes.value.find(t => t.id === form.value.type_id)
       const placeTypeName = selectedType?.name || 'Halal Place'
-
 
       await notifyEvent(
           'new_place',
           `🕌 New ${placeTypeName} Added!`,
-          `${form.value.name} (${placeTypeName})
-Lat: ${form.value.lat}, Lng: ${form.value.lng}`,
+          `${form.value.name} (${placeTypeName})\nLat: ${form.value.lat}, Lng: ${form.value.lng}`,
           form.value.image ?? undefined,
-          {
-            id: newPlace.id,
-            lat: form.value.lat,
-            lng: form.value.lng,
-            isNative: true
-          }
+          { id: newPlace.id, lat: form.value.lat, lng: form.value.lng, isNative: true }
       )
-
-      setTimeout(() => router.replace(`/explore?focus=${newPlace.id}`), 500)
+    } else {
+      // Optional: send admin-only “review needed” notification
+      // await notifyEvent('review_place', '🕵️ Place Pending Review', `${form.value.name} needs approval`, form.value.image ?? undefined, { id: newPlace.id })
     }
 
-    // ✅ 5️⃣ Cleanup preview/file references
+    // ✅ Points: you can decide if users get points on submit or only on publish
+    await awardAndCelebrate('add_place', 10000)
+
+    setTimeout(() => {
+      router.replace(autoApprove ? `/explore?focus=${newPlace.id}` : `/explore`)
+    }, 500)
+
+    // cleanup
     if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
     imagePreview.value = null
     pendingFile.value = null
-
   } catch (err: any) {
-    toast.value = {open: true, message: err.message || 'Failed to save.', color: 'danger'}
+    toast.value = { open: true, message: err.message || 'Failed to save.', color: 'danger' }
   } finally {
     submitting.value = false
   }
@@ -1100,12 +1130,8 @@ onMounted(async () => {
   }
 
   // 2️⃣ Only center on user if adding a NEW place
-  if (!isEditing.value && isAllowed.value) {
-    try {
-      await centerOnUserOnce()
-    } catch {
-      console.warn('Geolocation failed, using default center.')
-    }
+  if (!isEditing.value && checkedRole.value && myRole.value) {
+    await centerOnUserOnce()
   }
 
   // 3️⃣ Initialize map in all cases

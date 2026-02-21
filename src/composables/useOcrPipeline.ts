@@ -34,6 +34,8 @@ export default function useOcrPipeline({
     const showOk = ref(false)
     const detectedLanguage = ref<'chinese' | 'english' | 'mixed' | 'unknown'>('unknown')
     const ocrRawText = ref('')
+    const progress = ref(0)
+    const progressLabel = ref('Initializing...')
 
     function normalizeIngredients(text: string): string {
         return text
@@ -65,6 +67,9 @@ export default function useOcrPipeline({
         try {
             if (incrementDisclaimerCount) incrementDisclaimerCount();
 
+            progress.value = 0.05
+            progressLabel.value = "Loading ingredient database..."
+
             // ✅ Load highlights + blacklist
             const data = await fetchHighlightsWithCache();
             if (data) {
@@ -75,6 +80,9 @@ export default function useOcrPipeline({
             }
 
             // ✅ OCR
+            progress.value = 0.15
+            progressLabel.value = "Running OCR..."
+
             let raw = await extractTextFromImage(file);
             if (!raw || !raw.trim()) {
                 return setError('OCR failed to detect any text.');
@@ -88,12 +96,18 @@ export default function useOcrPipeline({
                 return setError('OCR failed to detect any text.');
             }
 
+            progress.value = 0.30
+            progressLabel.value = "Detecting language..."
+
             detectedLanguage.value = detectLanguage(raw);
             console.log('🌐 OCR detected language:', detectedLanguage.value);
 
             let translated = '';
             let cleanedZh = raw;
             let ingredientsOnlyZh = '';  // ✅ <--- Declare here so it's visible everywhere
+
+            progress.value = 0.40
+            progressLabel.value = "Cleaning text..."
 
             if (detectedLanguage.value === 'english') {
                 // ✅ Already English → no need to clean Chinese
@@ -113,6 +127,9 @@ export default function useOcrPipeline({
                 ingredientsOnlyZh = stripToIngredientsOnly(cleanedZh);
                 console.log('🀄 Cleaned Chinese OCR (ingredients-only):', ingredientsOnlyZh);
 
+                progress.value = 0.55
+                progressLabel.value = "Translating..."
+
                 // 🧠 Translate both full and ingredients-only versions
                 const translatedFull = normalizeEnglishIngredients(await translateToEnglish(raw) || '');
                 const translatedClean = normalizeEnglishIngredients(await translateToEnglish(ingredientsOnlyZh) || '');
@@ -127,6 +144,9 @@ export default function useOcrPipeline({
                 // 🟢 Use the cleaned translation for ingredients
                 translated = translatedClean;
             }
+
+            progress.value = 0.70
+            progressLabel.value = "Extracting ingredients..."
 
             // ✅ Guard: ensure we actually got a reasonable ingredient list
             const ingKeywords = /(ingredient|成分|成份|配料|原料|內容物|内容物|材料)/i;
@@ -153,7 +173,14 @@ export default function useOcrPipeline({
             console.log("🌍 Translated Ingredients:", ingredientsText.value);
 
             await nextTick();
+
+            progress.value = 0.85
+            progressLabel.value = "Matching ingredients..."
+
             await recheckHighlightsSmart();
+
+            progress.value = 0.95
+            progressLabel.value = "Finalizing..."
 
             const count = incrementUsageCount();
             if (count >= 1) {
@@ -166,9 +193,14 @@ export default function useOcrPipeline({
                 }
             }
 
+            progress.value = 1
             showOk.value = true;
         } catch (e: any) {
+
             console.error("❌ OCR pipeline error:", e);
+
+            progress.value = 0
+            progressLabel.value = "Failed"
 
             // if the error already has a message, keep it
             const message = e?.message || 'OCR failed.';
@@ -615,5 +647,7 @@ export default function useOcrPipeline({
         detectedLanguage,
         cleanChineseOcrText,
         ocrRawText,
+        progress,
+        progressLabel
     }
 }

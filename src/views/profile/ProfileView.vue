@@ -190,6 +190,19 @@
             </ion-badge>
           </ion-item>
 
+          <ion-item button @click="goToReviewLocations">
+            <ion-icon :icon="listOutline" />&nbsp;
+            <ion-label>Locations Review</ion-label>
+
+            <ion-badge
+                v-if="pendingLocationsCount > 0"
+                color="danger"
+                slot="end"
+            >
+              {{ pendingLocationsCount }}
+            </ion-badge>
+          </ion-item>
+
           <ion-item button @click="goToPointsLogs">
             <ion-icon :icon="listOutline"/>&nbsp;
             <ion-label>{{ $t('profile.admin.pointsLogs') }}</ion-label>
@@ -399,6 +412,7 @@ import {toastController} from "@ionic/vue";
 import { ActivityLogService } from '@/services/ActivityLogService'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+const pendingLocationsCount = ref(0)
 
 interface RcProduct {
   identifier: string;
@@ -511,6 +525,17 @@ async function fetchPendingCount() {
   if (!error && count !== null) {
     pendingCount.value = count;
   }
+}
+
+async function fetchPendingLocationsCount() {
+  if (!isAdmin.value) return
+
+  const { count } = await supabase
+      .from('locations')
+      .select('*', { count: 'exact', head: true })
+      .eq('approved', false)
+
+  pendingLocationsCount.value = count || 0
 }
 
 const renewalMessage = computed(() => {
@@ -664,7 +689,8 @@ onMounted(async () => {
     await fetchCurrentPoints(u.id);
 
     if (isAdmin.value) {
-      await fetchPendingCount();
+      await fetchPendingCount()
+      await fetchPendingLocationsCount()
     }
   });
 
@@ -846,6 +872,7 @@ const handleLogout = async () => {
   }
 };
 const goToReviewSubmissions = () => router.push("/admin/review-products");
+const goToReviewLocations = () => router.push('/admin/review-locations')
 const goToLogin = () => router.push("/login");
 const goToSettings = () => router.push("/settings");
 const goToLegal = () => router.push("/legal");

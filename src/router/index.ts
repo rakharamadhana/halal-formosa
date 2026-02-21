@@ -95,6 +95,11 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+        path: '/admin/review-locations',
+        name: 'ReviewLocations',
+        component: () => import('@/views/admin/ReviewLocationsView.vue')
+    },
+    {
         path: '/admin/points-logs',
         component: () => import('@/views/admin/PointsLogsView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true }
