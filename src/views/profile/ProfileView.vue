@@ -235,6 +235,10 @@
 
       <!-- Menu -->
       <ion-list class="profile-menu" style="border-radius: 10px; margin-top: 20px">
+        <ion-item button @click="goToSavedItems">
+          <ion-icon :icon="bookmarkOutline" />&nbsp;
+          <ion-label>Saved Items</ion-label>
+        </ion-item>
         <ion-item button @click="goToSettings">
           <ion-icon :icon="settingsOutline"/>&nbsp;
           <ion-label>{{ $t('profile.settings') }}</ion-label>
@@ -377,10 +381,10 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
-  onIonViewWillEnter
+  onIonViewWillEnter,
+  onIonViewDidEnter
 } from "@ionic/vue";
 
-// ✅ Icons
 import {
   constructOutline,
   createOutline,
@@ -389,20 +393,25 @@ import {
   logoInstagram,
   peopleOutline,
   personCircleOutline,
-  settingsOutline,
+  settingsOutline, bookmarkOutline
 } from "ionicons/icons";
 
 // ✅ Composables
-import {donorBadge, isAdmin} from "@/composables/userProfile";
+import {
+  donorBadge, 
+  isAdmin, 
+  loadUserProfile, 
+  resetUserProfileState, 
+  loadDonorFromCache, 
+  editBio, 
+  editDOB, 
+  editGender, 
+  editNationality
+} from "@/composables/userProfile";
 import {Subscription} from "@supabase/supabase-js";
 import {usePoints} from "@/composables/usePoints";
 import {xpForLevel} from "@/utils/xp"
 import {Capacitor} from "@capacitor/core";
-import {
-  loadUserProfile,
-  resetUserProfileState,
-  loadDonorFromCache
-} from "@/composables/userProfile";
 
 // Services
 import {CustomerInfo, Purchases} from "@revenuecat/purchases-capacitor";
@@ -438,10 +447,10 @@ const loadingAdmin = ref(false)      // admin-only data
 const user = ref<any | null>(null);
 const router = useRouter();
 
-const userDOB = ref<string | null>(null);
-const userNationality = ref<string | null>(null);
-const userGender = ref<string | null>(null);
-const userBio = ref<string | null>(null);
+const userBio = editBio;
+const userDOB = editDOB;
+const userNationality = editNationality;
+const userGender = editGender;
 const donationProduct = ref<RcProduct | null>(null);
 const paywallOpening = ref(false);
 
@@ -481,8 +490,8 @@ const level = computed(() => {
   const points = currentPoints.value || 0
   let lvl = 1
 
-  // keep leveling up until next requirement is higher than points
-  while (points >= xpForLevel(lvl + 1)) {
+  // ✅ Safety cap to prevent infinite loop if points data is corrupted
+  while (points >= xpForLevel(lvl + 1) && lvl < 2000) {
     lvl++
   }
   return lvl
@@ -506,9 +515,26 @@ const refreshCustomerInfo = async () => {
 }
 
 async function fetchCountries() {
-  const response = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags");
-  countriesList.value = await response.json();
+  if (countriesList.value.length > 0) return; // ✅ Cache check
+  try {
+    const response = await fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags");
+    if (!response.ok) throw new Error("Failed to fetch countries");
+    countriesList.value = await response.json();
+  } catch (err) {
+    console.error("fetchCountries failed:", err);
+  }
 }
+
+// ✅ Resolve flag when countries list arrives
+watch(countriesList, () => {
+  if (userNationality.value && countriesList.value.length > 0) {
+    const match = countriesList.value.find(c => c.cca2 === userNationality.value);
+    if (match) {
+      resolvedNationality.value = match.name.common;
+      resolvedFlag.value = match.flags.png;
+    }
+  }
+}, { immediate: true });
 
 
 async function fetchPendingCount() {
@@ -563,33 +589,25 @@ const openManageSubscription = () => {
   }
 }
 
-async function fetchUserProfile(userId: string) {
-  const {data, error} = await supabase
-      .from("user_profiles")
-      .select("date_of_birth, nationality, gender, bio")
-      .eq("id", userId)
-      .single();
+const isSyncing = ref(false);
 
-  if (!error && data) {
-    userDOB.value = data.date_of_birth;
-    userNationality.value = data.nationality;
-    userGender.value = data.gender;
-    userBio.value = data.bio;
+async function refreshAllData(userId: string) {
+  if (isSyncing.value) return;
+  isSyncing.value = true;
+  try {
+    // Authorized profile and points fetch in parallel
+    await Promise.all([
+      loadUserProfile(userId),
+      fetchCurrentPoints(userId)
+    ]);
 
-    // 🚀 If missing required fields → redirect to EditProfile
-    if (!data.date_of_birth || !data.nationality || !data.gender) {
-      needsProfileCompletion.value = true
-      return;
+    // Check for profile completion
+    if (!editDOB.value || !editNationality.value || !editGender.value) {
+      needsProfileCompletion.value = true;
     }
-
-    // ✅ resolve nationality flag if available
-    if (countriesList.value.length > 0 && data.nationality) {
-      const match = countriesList.value.find(c => c.cca2 === data.nationality);
-      if (match) {
-        resolvedNationality.value = match.name.common;
-        resolvedFlag.value = match.flags.png;
-      }
-    }
+  } finally {
+    isSyncing.value = false;
+    loadingProfile.value = false;
   }
 }
 
@@ -597,17 +615,21 @@ async function fetchUserProfile(userId: string) {
 onIonViewWillEnter(async () => {
   const { data } = await supabase.auth.getUser()
   if (!data?.user) return
+  
+  refreshAllData(data.user.id);
+})
 
-  await fetchCurrentPoints(data.user.id)
-  await fetchUserProfile(data.user.id)
+onIonViewDidEnter(async () => {
+  const { data } = await supabase.auth.getUser()
+  if (!data?.user) return
 
   if (isNative) {
-    await refreshCustomerInfo()
+    refreshCustomerInfo().catch(() => {});
   }
 
   ActivityLogService.log('profile_page_open', {
     user_id: data.user.id
-  })
+  }).catch(() => {});
 })
 
 
@@ -617,11 +639,6 @@ async function logRevenueCatStatus() {
   try {
     console.log("[RC] Fetching customer info...");
     const {customerInfo} = await Purchases.getCustomerInfo();
-
-    // console.log(
-    //     "🧾 [RC] customerInfo =",
-    //     JSON.stringify(customerInfo, null, 2)
-    // );
 
     const entitlement = customerInfo.entitlements.active["Halal Formosa Pro"];
 
@@ -637,71 +654,55 @@ async function logRevenueCatStatus() {
 
 
 onMounted(async () => {
-  await fetchCountries();
-  const {data} = await supabase.auth.getUser();
+  try {
+    fetchCountries();
 
-  if (data?.user) {
-    user.value = data.user;
+    const {data} = await supabase.auth.getUser();
+    if (data?.user) {
+      user.value = data.user;
+      userEmail.value = user.value.email || "";
+      userDisplayName.value = user.value.user_metadata?.full_name || user.value.user_metadata?.display_name || "";
+      userAvatar.value = user.value.user_metadata?.avatar_url || "";
+      
+      refreshAllData(user.value.id);
+    }
 
-    userEmail.value = user.value.email || "";
-    userDisplayName.value = user.value.user_metadata?.full_name || user.value.user_metadata?.display_name || "";
-    userAvatar.value = user.value.user_metadata?.avatar_url || "";
+    const {
+      data: {subscription: authSub},
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!session?.user) {
+        resetUserProfileState();
+        userEmail.value = "";
+        userDisplayName.value = "";
+        userAvatar.value = "";
+        currentPoints.value = null;
+        return;
+      }
 
-    await fetchCurrentPoints(user.value.id);
-  } else {
-    userEmail.value = "";
-    userDisplayName.value = "";
-    userAvatar.value = "";
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const u = session.user;
+        userEmail.value = u.email || "";
+        userDisplayName.value = u.user_metadata?.full_name || u.user_metadata?.display_name || "";
+        userAvatar.value = u.user_metadata?.avatar_url || "";
+
+        loadDonorFromCache(u.id);
+        refreshAllData(u.id);
+
+        if (isAdmin.value) {
+          fetchPendingCount();
+          fetchPendingLocationsCount();
+        }
+      }
+    });
+
+    authSubscription = authSub;
+    logRevenueCatStatus();
+  } catch (err) {
+    console.error("Error in onMounted:", err);
+  } finally {
+    loadingProfile.value = false;
+    loadingAdmin.value = false;
   }
-
-  if (isAdmin.value) await fetchPendingCount();
-
-  const {
-    data: {subscription: authSub},
-  } = supabase.auth.onAuthStateChange(async (_event, session) => {
-
-    // 🔴 USER LOGGED OUT
-    if (!session?.user) {
-      resetUserProfileState();
-
-      userEmail.value = "";
-      userDisplayName.value = "";
-      userAvatar.value = "";
-      currentPoints.value = null;
-
-      return;
-    }
-
-    // 🟢 USER LOGGED IN / CHANGED
-    const u = session.user;
-
-    userEmail.value = u.email || "";
-    userDisplayName.value =
-        u.user_metadata?.full_name ||
-        u.user_metadata?.display_name ||
-        "";
-    userAvatar.value = u.user_metadata?.avatar_url || "";
-
-    // 🔑 THIS IS WHAT YOU WERE MISSING
-    loadDonorFromCache(u.id);     // instant UI update
-    await loadUserProfile(u.id);  // authoritative DB state
-
-    await fetchCurrentPoints(u.id);
-
-    if (isAdmin.value) {
-      await fetchPendingCount()
-      await fetchPendingLocationsCount()
-    }
-  });
-
-
-  authSubscription = authSub;
-
-  loadingProfile.value = false
-  loadingAdmin.value = false
-
-  // 👉 RevenueCat Logging (native only)
-  await logRevenueCatStatus();
 });
 
 async function donate() {
@@ -797,6 +798,10 @@ function logAndOpen(platform: string, url: string) {
   }).catch(() => {
     /* silent */
   })
+}
+
+function goToSavedItems() {
+  router.push('/profile/saved-items')
 }
 
 async function openProPaywall() {

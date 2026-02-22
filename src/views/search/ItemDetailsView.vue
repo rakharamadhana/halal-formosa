@@ -3,6 +3,11 @@
     <ion-header>
       <app-header :title="$t('search.details.title')" show-back back-route="/search" :icon="bagOutline">
         <template #actions>
+          <ion-item v-if="userId" button @click="openSaveModal" lines="none">
+            <ion-icon :icon="isItemSaved ? bookmark : bookmarkOutline" slot="start" />
+            <ion-label>Save</ion-label>
+          </ion-item>
+
           <ion-item v-if="canEdit" button @click="editItem" lines="none">
             <ion-icon :icon="createOutline" slot="start" />
             <ion-label>Edit</ion-label>
@@ -320,6 +325,61 @@
         </Swiper>
       </ion-content>
     </ion-modal>
+
+    <!-- Save to Folder Modal -->
+    <ion-modal :is-open="showSaveModal" @didDismiss="showSaveModal = false" :initial-breakpoint="0.5" :breakpoints="[0, 0.5, 0.75]">
+      <ion-content class="ion-padding">
+        <h3>Save to Folder</h3>
+        
+        <ion-item lines="full">
+          <ion-input 
+            v-model="newFolderName" 
+            placeholder="New collection name..." 
+            @keyup.enter="createNewFolder"
+          ></ion-input>
+          <ion-button fill="clear" slot="end" @click="createNewFolder">
+            <ion-icon :icon="addOutline"></ion-icon>
+          </ion-button>
+        </ion-item>
+
+        <ion-list class="ion-margin-top">
+          <ion-list-header>Your Collections</ion-list-header>
+          
+          <ion-item v-for="folder in folders" :key="folder.id" button @click="saveToFolder(folder.id)">
+            <ion-icon :icon="folderOutline" slot="start"></ion-icon>
+            <ion-label>{{ folder.name }}</ion-label>
+          </ion-item>
+          
+          <p v-if="folders.length === 0" class="ion-text-center ion-padding">You haven't created any folders yet.</p>
+        </ion-list>
+      </ion-content>
+    </ion-modal>
+
+    <!-- Toasts for save actions -->
+    <ion-toast
+      :is-open="showSuccessToast"
+      :message="toastMessage"
+      :duration="2000"
+      color="success"
+      position="bottom"
+      @didDismiss="showSuccessToast = false"
+    />
+    <ion-toast
+      :is-open="showWarningToast"
+      :message="toastMessage"
+      :duration="2000"
+      color="warning"
+      position="bottom"
+      @didDismiss="showWarningToast = false"
+    />
+    <ion-toast
+      :is-open="showErrorToast"
+      :message="toastMessage"
+      :duration="2000"
+      color="danger"
+      position="bottom"
+      @didDismiss="showErrorToast = false"
+    />
   </ion-page>
 </template>
 
@@ -327,7 +387,7 @@
 import {
   IonPage,
   IonContent, IonSkeletonText, IonChip, IonButton, IonHeader, IonModal,
-    IonIcon, IonItem, IonLabel, IonCard
+    IonIcon, IonItem, IonLabel, IonCard, IonInput, IonList, IonListHeader, IonToast, alertController
 } from '@ionic/vue'
 import {onMounted, ref, nextTick, computed} from 'vue'
 import { useRoute } from 'vue-router'
@@ -339,10 +399,12 @@ import 'swiper/css'
 import 'swiper/css/pagination'
 import 'swiper/css/zoom'
 import AppHeader from "@/components/AppHeader.vue";
-import {alertCircleOutline, bagOutline, barcodeOutline, createOutline} from "ionicons/icons";
+import {alertCircleOutline, bagOutline, barcodeOutline, createOutline, bookmarkOutline, bookmark, addOutline, folderOutline} from "ionicons/icons";
 import AddProductView from "@/views/add-product/AddProductView.vue";
 import { userRole } from '@/composables/userProfile'
+import { isDonor, refreshSubscriptionStatus } from '@/composables/useSubscriptionStatus'
 import { ActivityLogService } from "@/services/ActivityLogService";
+import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui'
 
 const showEditModal = ref(false)
 const route = useRoute()
@@ -356,6 +418,17 @@ const showAllIngredients = ref(false)
 const maxVisible = 5
 
 const ingredientDictionary = ref<Record<string, string>>({});
+
+const showSaveModal = ref(false);
+const folders = ref<{ id: string, name: string }[]>([]);
+const isItemSaved = ref(false); 
+const newFolderName = ref('');
+const totalSavedItems = ref(0);
+
+const showSuccessToast = ref(false);
+const showWarningToast = ref(false);
+const showErrorToast = ref(false);
+const toastMessage = ref('');
 
 import type { Product } from '@/types/Product'
 import router from "@/router";
@@ -453,6 +526,153 @@ async function fetchProductCertifications(productId: string) {
   loadingCertifications.value = false
 }
 
+async function loadFoldersAndSavedState() {
+  if (!userId.value || !item.value) return;
+
+  // 1. Fetch user's folders
+  const { data: folderData } = await supabase
+    .from('saved_item_folders')
+    .select('id, name')
+    .eq('user_id', userId.value)
+    .order('created_at', { ascending: false });
+    
+  if (folderData) folders.value = folderData;
+
+  // 2. Check if this product is originally already saved by this user
+  const { data: savedData } = await supabase
+    .from('saved_items')
+    .select('id')
+    .eq('user_id', userId.value)
+    .eq('product_id', item.value.id);
+    
+  isItemSaved.value = !!(savedData && savedData.length > 0);
+
+  // 3. Get total saved items count
+  const { count } = await supabase
+    .from('saved_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId.value);
+    
+  totalSavedItems.value = count || 0;
+}
+
+async function presentPaywall(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[RC] Paywall can only run on native.");
+    return false;
+  }
+
+  try {
+    const { result } = await RevenueCatUI.presentPaywall();
+
+    switch (result) {
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+        // 🔄 Refresh subscription state
+        await refreshSubscriptionStatus({ syncToServer: true })
+
+        await ActivityLogService.log("pro_purchase_success", {
+          source: "save_item_limit"
+        })
+
+        return true
+
+      case PAYWALL_RESULT.CANCELLED:
+        return false
+
+      case PAYWALL_RESULT.ERROR:
+      default:
+        return false
+    }
+
+  } catch (err) {
+    console.error("Paywall failed:", err)
+    return false
+  }
+}
+
+async function openSaveModal() {
+  if (!isItemSaved.value && !isDonor.value && totalSavedItems.value >= 10) {
+    await ActivityLogService.log("pro_paywall_trigger", {
+      source: "save_item_limit"
+    });
+
+    const purchased = await presentPaywall();
+
+    if (!purchased) return;
+
+    // 🔁 Yield small delay for subscription reactive update
+    await new Promise(r => setTimeout(r, 300));
+  }
+  
+  showSaveModal.value = true;
+}
+
+async function createNewFolder() {
+  if (!newFolderName.value.trim() || !userId.value) return;
+  
+  const { data, error } = await supabase
+    .from('saved_item_folders')
+    .insert({ user_id: userId.value, name: newFolderName.value.trim() })
+    .select()
+    .single();
+
+  if (data && !error) {
+    folders.value.unshift(data);
+    newFolderName.value = ''; // Reset input
+    
+    // Auto-save to newly created folder
+    await saveToFolder(data.id);
+  }
+}
+
+async function saveToFolder(folderId: string) {
+  if (!userId.value || !item.value) return;
+
+  // 1. Check if the item is already in this specific folder first 
+  // to avoid triggering the Postgres `23505` constraint network error.
+  const { data: existing } = await supabase
+    .from('saved_items')
+    .select('id')
+    .eq('user_id', userId.value)
+    .eq('folder_id', folderId)
+    .eq('product_id', item.value.id)
+    .maybeSingle();
+
+  if (existing) {
+    isItemSaved.value = true;
+    showSaveModal.value = false;
+    toastMessage.value = 'This item is already saved in this folder.';
+    showWarningToast.value = true;
+    return;
+  }
+
+  // 2. If it does not exist, do the insert
+  const { error } = await supabase
+    .from('saved_items')
+    .insert({
+      user_id: userId.value,
+      folder_id: folderId,
+      product_id: item.value.id
+    });
+
+  if (!error || error.code === '23505') {
+    isItemSaved.value = true;
+    showSaveModal.value = false;
+    
+    if (error?.code === '23505') {
+      toastMessage.value = 'This item is already saved in this folder.';
+      showWarningToast.value = true;
+    } else {
+      toastMessage.value = 'Item saved successfully!';
+      showSuccessToast.value = true;
+    }
+  } else {
+    console.error("Failed to save", error);
+    toastMessage.value = 'Failed to save item. Please try again.';
+    showErrorToast.value = true;
+  }
+}
 
 async function fetchRelatedProducts() {
   if (!item.value?.product_category_id) return
@@ -748,6 +968,7 @@ onMounted(async () => {
       })
 
       await fetchRelatedProducts()
+      await loadFoldersAndSavedState()
     }
 
     // ✅ ingredient highlights

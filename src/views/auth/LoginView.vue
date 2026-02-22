@@ -330,7 +330,7 @@ html:not(.ion-palette-dark) .lang-select {
   min-height: 100%;
   max-width: 420px;
   margin: auto;
-  padding: 36px 22px 32px;
+  padding: calc(36px + var(--safe-area-inset-top, env(safe-area-inset-top))) 22px 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -497,7 +497,7 @@ ion-input.has-value::part(label) {
 
 .top-bar {
   position: absolute;
-  top: 12px;
+  top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top)));
   left: 0;
   right: 0;
 
