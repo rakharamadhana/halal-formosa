@@ -77,9 +77,9 @@
 
           <ion-text v-if="userDisplayName" class="profile-name">
             <h2>{{ userDisplayName }}</h2>
-            <ion-badge v-if="isSubscribed" color="warning">⭐ Pro Member</ion-badge>
+            <ion-badge v-if="isSubscribed" color="warning">{{ $t('profile.proMember') }}</ion-badge>
             <ion-badge v-else :color="donorBadge.color">
-              {{ donorBadge.emoji }} {{ donorBadge.label }}
+              {{ donorBadge.emoji }} {{ $t('profile.donors.' + donorBadge.label) }}
             </ion-badge>
           </ion-text>
 
@@ -140,7 +140,7 @@
             <ion-list lines="none">
               <ion-item>
                 <ion-label>{{ $t('profile.bio') }}</ion-label>
-                <ion-note slot="end">{{ userBio || 'No bio added yet' }}</ion-note>
+                <ion-note slot="end">{{ userBio || $t('profile.noBio') }}</ion-note>
               </ion-item>
             </ion-list>
           </ion-card-content>
@@ -155,7 +155,7 @@
             <h2 style="font-size: 2rem; margin: 0; color: var(--ion-color-primary);">
               {{ currentPoints }}
             </h2>
-            <p>Level {{ level }}</p>
+            <p>{{ $t('profile.level', { level: level }) }}</p>
             <ion-progress-bar
                 :value="progressPercent / 100"
                 color="success"
@@ -192,7 +192,7 @@
 
           <ion-item button @click="goToReviewLocations">
             <ion-icon :icon="listOutline" />&nbsp;
-            <ion-label>Locations Review</ion-label>
+            <ion-label>{{ $t('profile.admin.locationsReview') }}</ion-label>
 
             <ion-badge
                 v-if="pendingLocationsCount > 0"
@@ -215,7 +215,7 @@
 
           <ion-item button @click="goToUsersList">
             <ion-icon :icon="peopleOutline" />&nbsp;
-            <ion-label>Users</ion-label>
+            <ion-label>{{ $t('profile.admin.users') }}</ion-label>
           </ion-item>
 
           <ion-item button @click="goToAnalyticsDashboard">
@@ -237,7 +237,7 @@
       <ion-list class="profile-menu" style="border-radius: 10px; margin-top: 20px">
         <ion-item button @click="goToSavedItems">
           <ion-icon :icon="bookmarkOutline" />&nbsp;
-          <ion-label>Saved Items</ion-label>
+          <ion-label>{{ $t('profile.savedItems') }}</ion-label>
         </ion-item>
         <ion-item button @click="goToSettings">
           <ion-icon :icon="settingsOutline"/>&nbsp;
@@ -256,7 +256,7 @@
       <!-- Support -->
       <ion-card v-if="donationProduct" class="profile-card ion-text-center">
         <ion-card-header>
-          <ion-card-title>Support Halal Formosa ❤️</ion-card-title>
+          <ion-card-title>{{ $t('profile.support') }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
@@ -575,7 +575,7 @@ const renewalMessage = computed(() => {
 const formattedExpirationDate = computed(() => {
   if (!expirationDate.value) return '—'
 
-  return new Date(expirationDate.value).toLocaleDateString(undefined, {
+  return new Date(expirationDate.value).toLocaleDateString(useI18n().locale.value, {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -722,7 +722,7 @@ async function donate() {
 
   try {
     await Purchases.purchasePackage({aPackage: pkg});
-    alert("Thank you for supporting Halal Formosa ❤️");
+    alert(t('profile.supportSuccess'));
 
     ActivityLogService.log('donation_success', {
       product: donationProduct.value?.identifier ?? null
@@ -810,7 +810,7 @@ async function openProPaywall() {
   // ⛔ Web / PWA guard
   if (!Capacitor.isNativePlatform()) {
     const toast = await toastController.create({
-      message: "Subscriptions are available on mobile apps only.",
+      message: t('profile.pro.nativeOnly'),
       duration: 2000,
       color: "medium",
       position: "bottom",
@@ -841,7 +841,7 @@ async function openProPaywall() {
 
     // ✅ Success feedback
     const toast = await toastController.create({
-      message: "🎉 You are now a Halal Formosa Pro subscriber!",
+      message: t('profile.pro.purchaseSuccess'),
       duration: 2500,
       color: "success",
       position: "bottom",

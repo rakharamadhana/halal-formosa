@@ -3,7 +3,37 @@
     "or": "或",
     "backToHome": "返回首頁",
     "filters": "篩選",
-    "clearFilters": "清除篩選"
+    "clearFilters": "清除篩選",
+    "views": "瀏覽次數",
+    "ok": "確認",
+    "cancel": "取消",
+    "close": "關閉"
+  },
+  "dailyMissions": {
+    "title": "每日任務",
+    "viewAll": "查看全部",
+    "allCompletedMsg": "您已完成今天所有任務，明天再來！",
+    "bonusClaimed": "獎勵已領取",
+    "claimBonus": "領取獎勵！",
+    "completed": "已完成",
+    "dailyBonus": "每日獎勵",
+    "dailyBonusDesc": "完成所有任務可額外獲得 50 積分！",
+    "bonusPoints": "+50 {label}",
+    "xp": "經驗值",
+    "alreadyClaimed": "已領取",
+    "claimXpBonus": "領取 50 經驗值獎勵！",
+    "notCompleteYet": "尚未完成",
+    "masteryAchieved": "✨ 達成精通！✨",
+    "comeBackTomorrow": "明天再來挑戰全新任務。",
+    "close": "關閉",
+    "missions": {
+      "open_app": "開啟應用程式",
+      "scan_ingredients": "掃描成分",
+      "scan_barcode": "掃描條碼",
+      "find_muslim_friendly": "尋找穆斯林友善產品",
+      "view_place_details": "查看地點詳情",
+      "add_product": "新增產品"
+    }
   },
   "auth": {
     "login": "登入",
@@ -42,7 +72,30 @@
     "locationCategories": "地點狀態",
     "ourPartners": "合作夥伴",
     "latestNews": "最新消息",
-    "leaderboard": "排行榜"
+    "leaderboard": "排行榜",
+    "prayerNotification": "{label} 禮拜時間在 {time}",
+    "currentLocation": "目前位置",
+    "prayerTimes": "禮拜時間",
+    "qibla": "朝拜方向",
+    "partnerTier": "{tier} 合作夥伴",
+    "altProduct": "產品",
+    "altLocation": "地點",
+    "altNews": "新聞",
+    "altAvatar": "頭像",
+    "unknownAvatar": "?",
+    "anonymousWithIndex": "匿名 #{index}",
+    "anonymous": "匿名",
+    "pointsCount": "{points} 積分",
+    "added": "已新增",
+    "unknown": "未知",
+    "taipei": "台北",
+    "prayers": {
+      "fajr": "晨禮",
+      "dhuhr": "晌禮",
+      "asr": "晡禮",
+      "maghrib": "昏禮",
+      "isha": "宵禮"
+    }
   },
   "scanIngredients": {
     "title": "掃描成分",
@@ -108,9 +161,22 @@
       "disclaimerNote": "結果僅供參考。食用前請務必向可靠來源確認。",
       "gotIt": "了解"
     },
+    "autoScan": {
+      "title": "自動掃描",
+      "hint": "請將成分對準在框內",
+      "status": {
+        "init": "正在初始化高畫質相機...",
+        "connecting": "正在連接高畫質相機...",
+        "searching": "正在尋找成分...",
+        "scanning": "AI 掃描中...",
+        "found": "找到成分！對焦中...",
+        "notFound": "未找到成分，請繼續保持..."
+      }
+    },
     "scan": {
       "camera": "相機",
       "gallery": "相簿",
+      "auto": "自動掃描 (測試版)",
       "reCrop": "重新裁剪",
       "productName": "偵測到的產品名稱",
       "ingredientsZh": "偵測到的成分 (中文)",
@@ -168,7 +234,26 @@
       "Syubhah": "疑似",
       "Haram": "非清真",
       "Unknown": "未知"
-    }
+    },
+    "sortNearest": "📍 距離最近",
+    "sortRecent": "🆕 最新新增",
+    "sortViews": "🔥 瀏覽最多",
+    "sortForYou": "✨ 為你推薦 (Pro)",
+    "clear": "✕ 清除",
+    "forYou": {
+      "title": "為你推薦",
+      "gateDesc": "您正在瀏覽「為你推薦」。此個人化動態消息需開通 Halal Formosa Pro 才能使用，並會隨您的活動逐步調整。",
+      "upgrade": "升級至 Pro",
+      "infoDesc": "我們根據您過去的互動記錄，推薦清真及穆斯林友善產品，同時也會介紹您尚未看過的新品。",
+      "reasonMsg": "💡 因為您經常探索 {reason}，所以向您推薦這些內容。",
+      "learningMsg": "💡 我們正在根據您探索更多產品的過程中學習您的偏好。",
+      "nativeOnly": "✨ 「為你推薦」僅在行動裝置應用程式上提供。"
+    },
+    "gotIt": "了解",
+    "viewedCount": "👁️ 已瀏覽 {count} 次",
+    "addedDate": "新增於 {date}",
+    "endOfList": "🙏 抱歉，您已到達列表底部",
+    "scanInstructions": "將條碼對準框架內"
   },
   "explore": {
     "title": "探索",
@@ -184,7 +269,19 @@
     "searchPlaceholder": "搜尋行程、目的地或主題",
     "categories": "行程類別",
     "noTripsFound": "找不到行程。請調整篩選或搜尋條件。",
-    "cities": "城市"
+    "cities": "城市",
+    "providedBy": "由...提供",
+    "catCity": "城市旅遊",
+    "catNature": "自然風光",
+    "catFamily": "親子旅遊",
+    "cityTaipei": "台北市",
+    "cityNewTaipei": "新北市",
+    "cityYilan": "宜蘭縣",
+    "cityChiayi": "嘉義市",
+    "cityTaichung": "台中市",
+    "cityKaohsiung": "高雄市",
+    "sortRecent": "🆕 最新新增",
+    "sortViews": "🔥 瀏覽最多"
   },
   "news": {
     "title": "清真與伊斯蘭新聞",
@@ -204,11 +301,25 @@
     "logout": "登出",
     "donor": "贊助者狀態",
     "noUserLogged": "未登入用戶",
+    "proMember": "⭐ 專業會員",
+    "noBio": "尚未新增簡介",
+    "level": "等級 {level}",
+    "savedItems": "已儲存項目",
+    "supportSuccess": "感謝您支持 Halal Formosa ❤️",
+    "donors": {
+      "Free": "免費",
+      "Founding Supporter": "創始支持者",
+      "Supporter": "支持者",
+      "Developer": "開發者",
+      "Contributor": "貢獻者"
+    },
     "admin": {
       "pointsLogs": "查看積分紀錄",
       "scanLogs": "成分掃描紀錄",
       "analytics": "數據分析儀表板",
-      "masterData": "主數據管理"
+      "masterData": "主數據管理",
+      "locationsReview": "地點審核",
+      "users": "用戶"
     },
     "pro": {
       "title": "Halal Formosa Pro ⭐",
@@ -217,7 +328,9 @@
       "renew": "🔁 訂閱將自動續訂",
       "noRenew": "⚠️ 訂閱將不會續訂",
       "accessUntil": "⏳ 存取權限至",
-      "manage": "管理訂閱"
+      "manage": "管理訂閱",
+      "nativeOnly": "訂閱服務僅在行動裝置應用程式上提供。",
+      "purchaseSuccess": "🎉 您現在已成為 Halal Formosa Pro 訂閱者！"
     },
     "aboutMe": "關於我",
     "edit": "編輯",
@@ -240,16 +353,25 @@
     "appVersion": "版本",
     "editProfile": {
       "title": "編輯個人資料",
+      "mustCompleteTitle": "⚠️ 請完成個人資料",
+      "mustCompleteDesc": "繼續之前，請先完成您的個人資料，以便我們更好地了解您並支持您的旅程。",
       "dob": "出生日期",
       "nationality": "國籍",
       "selectCountry": "選擇國家",
       "selectNationality": "選擇國籍",
       "gender": "性別",
+      "searchCountry": "搜尋國家",
+      "selectGender": "選擇性別",
+      "genderMale": "男性",
+      "genderFemale": "女性",
+      "genderOther": "其他",
       "bio": "簡介",
+      "bioPlaceholder": "寫一段簡短的自我介紹...",
       "consentTitle": "我明白：",
       "consentContent1": "出生日期、國籍和性別僅用於匿名統計，絕不公開分享。",
       "consentContent2": "如果在設定中開啟「在排行榜上顯示我的名稱」，我的簡介可能會被公開。",
-      "save": "儲存"
+      "save": "儲存",
+      "completeToContinue": "完成個人資料以繼續"
     }
   },
   "credits": {
@@ -392,7 +514,8 @@
       "phone": "電話",
       "email": "電子郵件",
       "website": "網站"
-    }
+    },
+    "goldPartner": "黃金合作夥伴"
   },
   "points": {
     "title": "審核積分紀錄"

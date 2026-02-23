@@ -5,6 +5,9 @@
     </ion-header>
 
     <ion-content class="ion-padding">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
 
       <!-- === Prayer Times Horizontal === -->
       <ion-card class="prayer-card">
@@ -13,14 +16,14 @@
             <ion-card-title>
               <template v-if="nextPrayer && userLocation">
                 <div class="prayer-title-main">
-                  {{ nextPrayer.label }} Prayer in {{ upcomingCountdown }}
+                  {{ $t('home.prayerNotification', { label: nextPrayer.label, time: upcomingCountdown }) }}
                 </div>
                 <div class="prayer-title-location">
-                  <ion-icon :icon="locationOutline" slot="start" /> {{ userLocation.city || 'Current Location' }}
+                  <ion-icon :icon="locationOutline" slot="start" /> {{ userLocation.city || $t('home.currentLocation') }}
                 </div>
               </template>
               <template v-else>
-                Prayer Times
+                {{ $t('home.prayerTimes') }}
               </template>
             </ion-card-title>
 
@@ -32,7 +35,7 @@
                 class="qibla-header-btn"
                 @click="goQibla"
             >
-              🧭 Qibla
+              🧭 {{ $t('home.qibla') }}
             </ion-button>
           </div>
         </ion-card-header>
@@ -108,6 +111,7 @@
         </ion-card-header>
 
         <ion-card-content>
+
           <!-- Scan Buttons -->
           <div class="scan-row">
             <ion-button expand="block" color="carrot" @click="goScan">
@@ -196,7 +200,7 @@
                   v-if="partner.partner_tier"
                   :class="['tier-badge', partner.partner_tier]"
               >
-                {{ partner.partner_tier.toUpperCase() }} PARTNER
+                {{ $t('home.partnerTier', { tier: partner.partner_tier.toUpperCase() }) }}
               </ion-badge>
 
 
@@ -218,7 +222,8 @@
 
       </ion-card>
 
-
+      <!-- === Daily Missions === -->
+      <DailyMissions v-if="isAuthenticated" />
 
 
       <!-- === Discover Products === -->
@@ -256,7 +261,7 @@
                 button
                 @click="openProduct(p)"
             >
-              <img :src="p.image || 'https://placehold.co/200x200'" alt="product" class="discover-img" />
+              <img :src="p.image || 'https://placehold.co/200x200'" :alt="$t('home.altProduct')" class="discover-img" />
               <ion-label class="discover-label">
                 <ion-chip
                     :class="p.status === 'Halal' ? 'chip-success'
@@ -268,7 +273,7 @@
                 >
                   {{ p.status }}
                 </ion-chip>
-                <p>Added {{ fromNowToTaipei(p.created_at) }}</p>
+                <p>{{ $t('home.added') }} {{ fromNowToTaipei(p.created_at) }}</p>
               </ion-label>
             </ion-card>
           </div>
@@ -311,12 +316,12 @@
             >
               <img
                   :src="loc.image || 'https://placehold.co/200x200'"
-                  alt="location"
+                  :alt="$t('home.altLocation')"
                   class="discover-img"
               />
               <ion-label class="discover-label">
                 <h3>{{ loc.name }}</h3>
-                <p>Added {{ fromNowToTaipei(loc.created_at) }}</p>
+                <p>{{ $t('home.added') }} {{ fromNowToTaipei(loc.created_at) }}</p>
               </ion-label>
             </ion-card>
           </div>
@@ -369,7 +374,7 @@
               <img
                   :src="news.cover || 'https://placehold.co/400x250?text=News'"
                   class="discover-img"
-                  alt="news"
+                  :alt="$t('home.altNews')"
               />
 
               <ion-label class="discover-label">
@@ -435,14 +440,14 @@
                 <!-- Avatar -->
                 <ion-avatar style="width: 40px; height: 40px; margin: 0 10px;">
                   <img
-                      :src="user.public_leaderboard ? (user.avatar_url || 'https://placehold.co/64x64') : 'https://placehold.co/64x64?text=?'"
-                      alt="Avatar"/>
+                      :src="user.public_leaderboard ? (user.avatar_url || 'https://placehold.co/64x64') : `https://placehold.co/64x64?text=${$t('home.unknownAvatar')}`"
+                       :alt="$t('home.altAvatar')"/>
                 </ion-avatar>
 
                 <!-- Info -->
                 <ion-label style="flex: 1; min-width: 0;">
                   <h2 style="margin: 0; font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    {{ user.public_leaderboard ? user.display_name : `Anonymous #${index + 1}` }}
+                    {{ user.public_leaderboard ? user.display_name : $t('home.anonymousWithIndex', { index: index + 1 }) }}
                   </h2>
                   <p style="margin: 0; font-size: 0.8rem; color: var(--ion-color-medium);">
                     {{ getLevelLabel(user.points) }}
@@ -454,7 +459,7 @@
                     :color="getLevelColor(user.points)"
                     style="white-space: nowrap; font-size: 0.75rem; min-width: 70px; text-align: center;"
                 >
-                  {{ user.points }} pts
+                  {{ $t('home.pointsCount', { points: user.points }) }}
                 </ion-badge>
 
               </div>
@@ -483,7 +488,7 @@
           <!-- ✅ Public profile shown -->
           <template v-if="selectedUser.public_leaderboard">
             <ion-avatar style="width:60px;height:60px;margin:auto;">
-              <img :src="selectedUser.avatar_url || 'https://placehold.co/60x60?text=?'"  alt="Avatar"/>
+              <img :src="selectedUser.avatar_url || 'https://placehold.co/60x60?text=?'"  :alt="$t('home.altAvatar')"/>
             </ion-avatar>
 
             <h3 style="margin-top:6px; font-size:1rem;">
@@ -491,7 +496,7 @@
             </h3>
 
             <p style="margin:4px 0; font-size:0.85rem; color:var(--ion-color-medium);">
-              {{ getLevelLabel(selectedUser.points) }} ({{ selectedUser.points }} pts)
+              {{ getLevelLabel(selectedUser.points) }} ({{ $t('home.pointsCount', { points: selectedUser.points }) }})
             </p>
 
             <p v-if="selectedUser.bio" style="margin-top:6px; font-size:0.8rem; color:var(--ion-color-dark)">
@@ -502,10 +507,10 @@
           <!-- ❌ No public profile: only show XP -->
           <template v-else>
             <p style="margin:4px 0; font-size:0.9rem; font-weight:600;">
-              Anonymous
+              {{ $t('home.anonymous') }}
             </p>
             <p style="margin:4px 0; font-size:0.85rem; color:var(--ion-color-medium);">
-              {{ getLevelLabel(selectedUser.points) }} ({{ selectedUser.points }} pts)
+              {{ getLevelLabel(selectedUser.points) }} ({{ $t('home.pointsCount', { points: selectedUser.points }) }})
             </p>
           </template>
 
@@ -518,11 +523,12 @@
 
 <script setup lang="ts">
 /* ---------------- Imports ---------------- */
-import {ref, nextTick, computed, onBeforeUnmount, watch} from 'vue'
+import {ref, nextTick, computed, onBeforeUnmount, watch, onMounted} from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonPage, IonContent, IonCard, IonCardHeader, IonCardTitle,
   IonCardContent, IonButton, IonIcon, IonHeader, onIonViewWillEnter, IonLabel, IonChip, IonSkeletonText,
-    IonList, IonBadge, IonAvatar, IonItem, IonPopover
+    IonList, IonBadge, IonAvatar, IonItem, IonPopover, IonRefresher, IonRefresherContent
 } from '@ionic/vue'
 import { useRouter } from 'vue-router'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, BarElement, CategoryScale, LinearScale } from 'chart.js'
@@ -542,6 +548,8 @@ import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
 import {Capacitor} from "@capacitor/core";
 import { Geolocation } from '@capacitor/geolocation'
 import { PrayTime } from 'praytime'
+import DailyMissions from "@/components/DailyMissions.vue"
+import { useDailyMissions } from '@/composables/useDailyMissions'
 
 let timeInterval: number | null = null
 
@@ -554,6 +562,8 @@ const DoughnutChart = Doughnut
 
 /* ---------------- State ---------------- */
 const router = useRouter()
+const { t } = useI18n()
+const { fetchProgress } = useDailyMissions()
 const doughnutRef = ref<any>(null)
 const locationChartRef = ref<any>(null)
 const RECENT_DISCOVER_LIMIT = 15
@@ -575,6 +585,7 @@ const userLocation = ref<{
 
 
 const { leaderboard, loading: loadingLeaderboard, fetchLeaderboard } = useLeaderboard();
+const isAuthenticated = ref(false)
 
 const ionColorDark = getComputedStyle(document.documentElement)
     .getPropertyValue('--ion-color-dark')
@@ -735,7 +746,7 @@ async function getUserLocation(): Promise<{
       lng = position.coords.longitude
     }
 
-    let city = 'Current Location'
+    let city = t('home.currentLocation')
 
     try {
       const res = await fetch(
@@ -757,7 +768,7 @@ async function getUserLocation(): Promise<{
           data.address?.town ||
           data.address?.municipality ||
           data.address?.state ||
-          'Current Location'
+          t('home.currentLocation')
 
     } catch (e) {
       console.warn('[Reverse Geocode Failed]', e)
@@ -779,7 +790,7 @@ async function getUserLocation(): Promise<{
     userLocation.value = {
       lat: 25.0330,
       lng: 121.5654,
-      city: 'Taipei'
+      city: t('home.taipei')
     }
 
     return userLocation.value
@@ -818,11 +829,11 @@ const prayerList = computed(() => {
   if (!prayerTimes.value) return []
 
   return [
-    { key: 'fajr', label: 'Fajr', time: prayerTimes.value.fajr },
-    { key: 'dhuhr', label: 'Dhuhr', time: prayerTimes.value.dhuhr },
-    { key: 'asr', label: 'Asr', time: prayerTimes.value.asr },
-    { key: 'maghrib', label: 'Maghrib', time: prayerTimes.value.maghrib },
-    { key: 'isha', label: 'Isha', time: prayerTimes.value.isha }
+    { key: 'fajr', label: t('home.prayers.fajr'), time: prayerTimes.value.fajr },
+    { key: 'dhuhr', label: t('home.prayers.dhuhr'), time: prayerTimes.value.dhuhr },
+    { key: 'asr', label: t('home.prayers.asr'), time: prayerTimes.value.asr },
+    { key: 'maghrib', label: t('home.prayers.maghrib'), time: prayerTimes.value.maghrib },
+    { key: 'isha', label: t('home.prayers.isha'), time: prayerTimes.value.isha }
   ]
 })
 
@@ -893,7 +904,7 @@ const nextPrayer = computed(() => {
 
   return {
     key: 'fajr',
-    label: 'Fajr',
+    label: t('home.prayers.fajr'),
     time: prayerTimes.value.fajr,
     timeObj: fajrTime
   }
@@ -1062,7 +1073,7 @@ async function fetchLocationCategoryStats() {
 
     data?.forEach(loc => {
       //@ts-expect-error always name
-      const typeName = loc.location_types?.name || 'Unknown'
+      const typeName = loc.location_types?.name || t('home.unknown')
       counts[typeName] = (counts[typeName] || 0) + 1
     })
 
@@ -1119,21 +1130,48 @@ async function fetchHomePartners() {
 
 /* ---------------- Lifecycle ---------------- */
 
+async function refreshAllData() {
+  console.log('🏠 [Home] Refreshing all data...')
+  
+  // Run these in parallel for speed
+  const tasks: Promise<any>[] = [
+    fetchStats(),
+    fetchLocationCategoryStats(),
+    fetchRecentProducts(),
+    fetchRecentLocations(),
+    fetchRecentNews(),
+    fetchLeaderboard(),
+    fetchHomePartners(),
+  ]
+
+  if (isAuthenticated.value) {
+    tasks.push(fetchProgress()) // Also refresh missions if logged in
+  }
+
+  await Promise.allSettled(tasks)
+  
+  if (Capacitor.isNativePlatform()) refreshSubscriptionStatus();
+}
+
+async function handleRefresh(event: any) {
+  await refreshAllData()
+  event.target.complete()
+}
+
 onIonViewWillEnter(async () => {
   ActivityLogService.log("home_page_open");
+  
+  const { data } = await supabase.auth.getSession()
+  isAuthenticated.value = !!data.session
 
+  refreshAllData()
   fetchPrayerTimes()
   startClock()
+})
 
-  fetchStats()
-  fetchLocationCategoryStats()
-  fetchRecentProducts()
-  fetchRecentLocations()
-  fetchRecentNews()
-  fetchLeaderboard()
-  fetchHomePartners()
-
-  if (Capacitor.isNativePlatform()) refreshSubscriptionStatus();
+onMounted(() => {
+  // Fallback for initial load if needed
+  refreshAllData()
 })
 
 onBeforeUnmount(() => {
@@ -1309,40 +1347,6 @@ function openPartner(partner: any) {
   text-transform: none;
   font-size: 1.2rem;
   font-weight: 500;
-}
-
-/* === Discover Section === */
-.card-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-/* ===============================
-   Partner Tier Cards
-   =============================== */
-
-.discover-item--compact {
-  flex: 0 0 140px;
-  position: relative;
-}
-
-/* Gold */
-.discover-item--compact.gold {
-  flex: 0 0 260px;
-  border: 2px solid var(--ion-color-carrot);
-  box-shadow: 0 4px 14px rgba(230, 126, 34, 0.25);
-}
-
-/* Silver */
-.discover-item--compact.silver {
-  flex: 0 0 180px;
-}
-
-/* Bronze */
-.discover-item--compact.bronze {
-  flex: 0 0 160px;
 }
 
 /* ===============================

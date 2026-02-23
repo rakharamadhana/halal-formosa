@@ -42,10 +42,10 @@
                 :interface-options="{ cssClass: 'sort-popover' }"
             >
               <ion-select-option value="recent">
-                🆕 Recently Added
+                {{ $t('trip.sortRecent') }}
               </ion-select-option>
               <ion-select-option value="views">
-                🔥 Highest Viewed
+                {{ $t('trip.sortViews') }}
               </ion-select-option>
             </ion-select>
           </ion-button>
@@ -246,6 +246,7 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, watch} from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IonPage, IonContent, IonSearchbar, IonToolbar,
   IonButton, IonIcon, IonText,
@@ -268,9 +269,11 @@ const showFilters = ref(false)
 const activeCategoryIds = ref<number[]>([])
 const sortBy = ref<'recent' | 'views'>('recent')
 
+const { t } = useI18n()
+
 const sortLabel = computed(() => {
-  if (sortBy.value === 'views') return '🔥 Highest Viewed'
-  return '🆕 Recently Added'
+  if (sortBy.value === 'views') return t('trip.sortViews')
+  return t('trip.sortRecent')
 })
 
 /* Categories using i18n keys */

@@ -70,17 +70,17 @@
                 :interface-options="{ cssClass: 'sort-popover' }"
             >
               <ion-select-option value="recent">
-                🆕 Recently Added
+                {{ $t('search.sortRecent') }}
               </ion-select-option>
               <ion-select-option value="views">
-                🔥 Highest Viewed
+                {{ $t('search.sortViews') }}
               </ion-select-option>
               <!-- ✨ For You (only if logged in) -->
               <ion-select-option
                   v-if="canShowForYouSort"
                   value="for_you"
               >
-                ✨ For You (Pro)
+                {{ $t('search.sortForYou') }}
               </ion-select-option>
             </ion-select>
           </ion-button>
@@ -191,7 +191,7 @@
                   class="clear-chip"
                   @click="clearAllFilters"
               >
-                ✕ Clear
+                {{ $t('search.clear') }}
               </ion-chip>
             </div>
 
@@ -270,11 +270,9 @@
                 <div class="for-you-row">
                   <ion-icon name="sparkles-outline" class="for-you-icon"/>
                   <div>
-                    <strong>For You</strong>
+                    <strong>{{ $t('search.forYou.title') }}</strong>
                     <p>
-                      You’re viewing <strong>For You</strong>.
-                      This personalized feed unlocks with Halal Formosa Pro
-                      and adapts to your activity over time.
+                      {{ $t('search.forYou.gateDesc') }}
                     </p>
                   </div>
                 </div>
@@ -285,7 +283,7 @@
                     expand="block"
                     @click="presentPaywall"
                 >
-                  Upgrade to Pro
+                  {{ $t('search.forYou.upgrade') }}
                 </ion-button>
               </ion-card-content>
             </ion-card>
@@ -312,31 +310,29 @@
                 <div class="for-you-row">
                   <ion-icon name="sparkles-outline" class="for-you-icon"/>
                   <div>
-                    <strong>For You</strong>
+                    <strong>{{ $t('search.forYou.title') }}</strong>
                     <p>
-                      We recommend halal and Muslim-friendly products based on what you’ve
-                      interacted with before, while also introducing new items you haven’t seen yet.
+                      {{ $t('search.forYou.infoDesc') }}
                     </p>
 
                     <p
                         v-if="forYouReason"
                         style="margin-top:6px; font-size:12px; color:var(--ion-color-medium);"
                     >
-                      💡 You’re seeing this because you often explore
-                      <strong>{{ forYouReason }}</strong>.
+                      {{ $t('search.forYou.reasonMsg', { reason: forYouReason }) }}
                     </p>
 
                     <p
                         v-else
                         style="margin-top:6px; font-size:12px; color:var(--ion-color-medium);"
                     >
-                      💡 We’re learning your preferences as you explore more products.
+                      {{ $t('search.forYou.learningMsg') }}
                     </p>
                   </div>
                 </div>
 
                 <ion-button fill="clear" size="small" @click="dismissForYouInfo">
-                  Got it
+                  {{ $t('search.gotIt') }}
                 </ion-button>
               </ion-card-content>
             </ion-card>
@@ -366,11 +362,11 @@
                     <h5 style="margin: 0;">{{ product.name }}</h5>
 
                     <p style="margin: 4px 0; font-size: 12px; color: var(--ion-color-medium);">
-                      👁️ Viewed {{ product.view_count || 0 }} times
+                      {{ $t('search.viewedCount', { count: product.view_count || 0 }) }}
                     </p>
 
                     <p style="margin: 0 0 8px 0; font-size: 13px;">
-                      Added {{ fromNowToTaipei(product.created_at) }}
+                      {{ $t('search.addedDate', { date: fromNowToTaipei(product.created_at) }) }}
                     </p>
 
                   </div>
@@ -384,7 +380,7 @@
     : 'chip-medium'"
                       style="align-self: flex-start; font-size: 14px;"
                   >
-                    {{ product.status }}
+                    {{ $t('search.status.' + product.status) }}
                   </ion-chip>
                 </div>
               </div>
@@ -395,7 +391,7 @@
 
       <!-- When there are results but we’ve loaded them all -->
       <ion-text v-if="allLoaded && results.length > 0" class="end-of-list">
-        🙏 Sorry, you have reached the end
+        {{ $t('search.endOfList') }}
       </ion-text>
 
       <!-- bind the ref so we can disable/enable it -->
@@ -445,8 +441,9 @@ import {
   onIonViewDidEnter, modalController, IonLabel, IonFab, IonFabButton, onIonViewWillEnter, IonSelect, IonSelectOption,
   toastController
 } from '@ionic/vue'
-import {ref, onMounted, nextTick, watch, computed} from 'vue'
-import {useRouter, useRoute} from 'vue-router'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter, useRoute } from 'vue-router'
 import {supabase} from '@/plugins/supabaseClient'
 import {
   barcodeOutline,
@@ -730,7 +727,7 @@ watch(sortBy, async (val) => {
     // ⛔ Web guard
     if (!Capacitor.isNativePlatform()) {
       const toast = await toastController.create({
-        message: "✨ For You is available on mobile apps only.",
+        message: t('search.forYou.nativeOnly'),
         duration: 2000,
         color: "medium",
         position: "bottom",
@@ -800,10 +797,12 @@ function dismissForYouInfo() {
   localStorage.setItem('hide_for_you_info', '1')
 }
 
+const { t } = useI18n()
+
 const sortLabel = computed(() => {
-  if (sortBy.value === 'for_you') return '✨ For You (Pro)'
-  if (sortBy.value === 'views') return '🔥 Highest Viewed'
-  return '🆕 Recently Added'
+  if (sortBy.value === 'for_you') return t('search.sortForYou')
+  if (sortBy.value === 'views') return t('search.sortViews')
+  return t('search.sortRecent')
 })
 
 function toggleCategory(cat: { id: number; name: string }) {
@@ -850,7 +849,7 @@ async function startScan() {
   try {
     const result = await CapacitorBarcodeScanner.scanBarcode({
       hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
-      scanInstructions: 'Align the barcode within the frame',
+      scanInstructions: t('search.scanInstructions'),
       cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
       scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
       android: {scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT},
@@ -859,20 +858,17 @@ async function startScan() {
 
     if (result?.ScanResult) {
       await Haptics.impact({style: ImpactStyle.Medium})
+      
+      // ✅ Clear filters before setting query to ensure product is found
+      activeStores.value = []
+      activeCategories.value = []
+      activeStatuses.value = []
+      
       searchQuery.value = result.ScanResult
-
-      const {data, error} = await supabase
-          .from('products')
-          .select('*')
-          .or(`name.ilike.%${result.ScanResult}%,barcode.ilike.%${result.ScanResult}%`)
-          .order('created_at', {ascending: false})
-
-      results.value = error ? [] : (data || [])
-      if (error) errorMsg.value = 'Failed to search products'
     }
 
     await ActivityLogService.log("barcode_scan_success", {
-      barcode: result.ScanResult
+      barcode: result?.ScanResult
     });
   } catch (err) {
     console.error('❌ Barcode scan failed:', err)
@@ -939,12 +935,38 @@ const fetchProducts = async (reset = false) => {
   try {
     const from = currentPage.value * pageSize
 
+    let baseSelect = "barcode, name, status, view_count, created_at, photo_front_url, product_category_id, product_categories(name)"
+    if (activeStores.value.length > 0) {
+      baseSelect += ", product_stores!inner(store_id)"
+    }
+
     /* =========================================================
-       🔎 FULL TEXT SEARCH MODE (FAST + INDEXED)
+       🔎 SEARCH MODE
     ========================================================= */
     if (searchQuery.value && searchQuery.value.length > 1) {
+      const q = searchQuery.value.trim()
+      const isNumeric = /^\d+$/.test(q);
+
+      // 1️⃣ PRIORITIZE EXACT BARCODE MATCH (FAST)
+      if (isNumeric && q.length >= 8) {
+        const { data: barcodeMatch } = await supabase
+          .from("products")
+          .select(baseSelect)
+          .eq("barcode", q) // exact match
+          .single() as { data: Product | null }
+
+        if (barcodeMatch) {
+          results.value = [barcodeMatch]
+          allLoaded.value = true
+          isFetching.value = false
+          loadingProducts.value = false
+          return
+        }
+      }
+
+      // 2️⃣ FALLBACK TO RPC FUZZY SEARCH
       const { data, error } = await supabase.rpc("search_products", {
-        p_query: searchQuery.value,
+        p_query: q,
         p_limit: pageSize,
         p_offset: from,
         p_sort: sortBy.value
@@ -1000,13 +1022,6 @@ const fetchProducts = async (reset = false) => {
     /* =========================================================
        📦 NORMAL BROWSING MODE
     ========================================================= */
-
-    let baseSelect =
-        "barcode, name, status, view_count, created_at, photo_front_url, product_category_id, product_categories(name)"
-
-    if (activeStores.value.length > 0) {
-      baseSelect += ", product_stores!inner(store_id)"
-    }
 
     let query = supabase
         .from("products")

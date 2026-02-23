@@ -3,7 +3,7 @@
     <ion-card-header>
       <div class="card-header-row">
         <ion-card-title>
-          Daily Missions
+          {{ $t('dailyMissions.title') }}
         </ion-card-title>
 
         <ion-button
@@ -13,7 +13,7 @@
           @click="showModal = true"
           class="view-all-btn"
         >
-          View All
+          {{ $t('dailyMissions.viewAll') }}
           <div v-if="!claimedBonus" class="red-dot"></div>
         </ion-button>
       </div>
@@ -34,7 +34,7 @@
       <!-- Completion Message (Dashboard) -->
       <div v-else-if="allCompleted && claimedBonus" class="completion-message fade-in" style="margin-top: 0;">
         <ion-icon :icon="checkmarkCircle" color="success"></ion-icon>
-        <p>You have completed all today's missions, come back again tomorrow!</p>
+        <p>{{ $t('dailyMissions.allCompletedMsg') }}</p>
       </div>
 
       <div v-else class="discover-grid compact-grid">
@@ -56,9 +56,9 @@
           </div>
           <ion-label class="discover-label discover-label--compact">
             <p class="discover-name" style="margin-top: 3px; font-weight: 800;">
-              {{ claimedBonus ? 'Bonus Claimed' : 'Claim Bonus!' }}
+              {{ claimedBonus ? $t('dailyMissions.bonusClaimed') : $t('dailyMissions.claimBonus') }}
             </p>
-            <p class="discover-points">+50 XP</p>
+            <p class="discover-points">{{ $t('dailyMissions.bonusPoints', { label: $t('dailyMissions.xp') }) }}</p>
           </ion-label>
         </ion-card>
 
@@ -84,8 +84,8 @@
             </div>
           </div>
           <ion-label class="discover-label discover-label--compact">
-            <p class="discover-name" style="margin-top: 3px;">{{ mission.label.split('(')[0] }}</p>
-            <p class="discover-points">{{ mission.current }}/{{ mission.required }} • +{{ mission.points }} XP</p>
+            <p class="discover-name" style="margin-top: 3px;">{{ $t('dailyMissions.missions.' + mission.id) }}</p>
+            <p class="discover-points">{{ mission.current }}/{{ mission.required }} • +{{ mission.points }} {{ $t('dailyMissions.xp') }}</p>
           </ion-label>
         </ion-card>
       </div>
@@ -95,9 +95,9 @@
     <ion-modal :is-open="showModal" @didDismiss="showModal = false" :initial-breakpoint="0.75" :breakpoints="[0, 0.75, 1]">
       <ion-header>
         <ion-toolbar>
-          <ion-title>Daily Missions</ion-title>
+          <ion-title>{{ $t('dailyMissions.title') }}</ion-title>
           <ion-buttons slot="end">
-            <ion-button @click="showModal = false">Close</ion-button>
+            <ion-button @click="showModal = false">{{ $t('dailyMissions.close') }}</ion-button>
           </ion-buttons>
         </ion-toolbar>
       </ion-header>
@@ -116,36 +116,47 @@
                 <ion-icon :icon="getIcon(mission.icon)" :color="mission.completed ? 'success' : 'medium'"></ion-icon>
               </div>
               <div class="v-text-wrap">
-                <div class="v-label">{{ mission.label }}</div>
-                <div class="v-progress-text">{{ mission.current }} / {{ mission.required }} completed</div>
+                <div class="v-label">{{ $t('dailyMissions.missions.' + mission.id) }}</div>
+                <div class="v-progress-text">{{ mission.current }} / {{ mission.required }} {{ $t('dailyMissions.completed') }}</div>
               </div>
-              <div class="v-points">+{{ mission.points }} XP</div>
+              <div class="v-points">+{{ mission.points }} {{ $t('dailyMissions.xp') }}</div>
             </div>
             <ion-progress-bar :value="mission.current / mission.required" :color="mission.completed ? 'success' : 'carrot'"></ion-progress-bar>
           </div>
 
-          <div class="v-bonus-card" :class="{ 'can-claim': allCompleted && !claimedBonus, 'is-claimed': claimedBonus }">
-            <div class="card-body">
-              <div class="bonus-text">
-                <h3>Daily Bonus</h3>
-                <p>Complete all missions for 50 extra points!</p>
+          <div 
+            class="v-mission-item bonus-item" 
+            :class="{ 
+              'completed': claimedBonus, 
+              'can-claim': allCompleted && !claimedBonus 
+            }"
+            @click="handleClaimBonus"
+            style="cursor: pointer;"
+          >
+            <div class="v-mission-info">
+              <div class="v-icon-wrap" :class="{ 'pulse-bg': allCompleted && !claimedBonus }">
+                <ion-icon :icon="giftOutline" :color="claimedBonus ? 'success' : (allCompleted ? 'carrot' : 'medium')"></ion-icon>
               </div>
-              <div class="bonus-xp">+50 XP</div>
+              <div class="v-text-wrap">
+                <div class="v-label">{{ $t('dailyMissions.dailyBonus') }}</div>
+                <div class="v-progress-text">
+                  <span v-if="claimedBonus">{{ $t('dailyMissions.alreadyClaimed') }}</span>
+                  <span v-else-if="allCompleted">{{ $t('dailyMissions.claimXpBonus') }}</span>
+                  <span v-else>{{ $t('dailyMissions.dailyBonusDesc') }}</span>
+                </div>
+              </div>
+              <div class="v-points">+50 {{ $t('dailyMissions.xp') }}</div>
             </div>
-            <ion-button 
-              expand="block" 
-              :color="claimedBonus ? 'medium' : (allCompleted ? 'success' : 'light')"
-              :disabled="!allCompleted || claimedBonus"
-              @click="handleClaimBonus"
-            >
-              {{ claimedBonus ? 'Already Claimed' : (allCompleted ? 'Claim 50 XP Bonus!' : 'Not Complete Yet') }}
-            </ion-button>
+            <ion-progress-bar 
+              :value="claimedBonus ? 1 : (allCompleted ? 1 : missions.filter(m => m.completed).length / missions.length)" 
+              :color="claimedBonus ? 'success' : (allCompleted ? 'success' : 'carrot')"
+            ></ion-progress-bar>
           </div>
 
           <!-- Completion Message (Modal) -->
           <div v-if="allCompleted && claimedBonus" class="modal-completion-info">
-             <p>✨ Mastery Achieved! ✨</p>
-             <small>Come back tomorrow for fresh new challenges.</small>
+             <p>{{ $t('dailyMissions.masteryAchieved') }}</p>
+             <small>{{ $t('dailyMissions.comeBackTomorrow') }}</small>
           </div>
         </div>
       </ion-content>
@@ -155,6 +166,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { 
   IonIcon, IonBadge, IonSpinner, IonButton, IonModal,
@@ -163,11 +175,13 @@ import {
 } from '@ionic/vue'
 import { 
   rocketOutline, scanOutline, heartOutline, locationOutline, 
-  barcodeOutline, addCircleOutline, mapOutline, checkmarkCircle, homeOutline
+  barcodeOutline, addCircleOutline, mapOutline, checkmarkCircle, homeOutline,
+  giftOutline
 } from 'ionicons/icons'
 import { useDailyMissions } from '@/composables/useDailyMissions'
 
 const showModal = ref(false)
+const { t } = useI18n()
 const { missions, loading, claimedBonus, allCompleted, fetchProgress, checkAndAwardBonus } = useDailyMissions()
 const router = useRouter()
 
@@ -340,45 +354,33 @@ onIonViewWillEnter(() => {
   color: var(--ion-color-carrot);
 }
 
-.v-bonus-card {
-  margin-top: 8px;
-  background: var(--ion-color-carrot);
-  color: var(--ion-color-shade);
-  padding: 20px;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* Bonus Item Styling (Modal) */
+.bonus-item.can-claim {
+  border: 1.5px solid var(--ion-color-carrot);
+  animation: gentlePulse 2s infinite;
 }
 
-.v-bonus-card.is-claimed {
-  background: var(--ion-color-success);
+.bonus-item.completed {
+  opacity: 0.8;
 }
 
-.card-body {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.pulse-bg {
+  animation: pulseBg 2s infinite;
 }
 
-.bonus-text h3 {
-  margin: 0;
-  font-weight: 800;
+@keyframes gentlePulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--ion-color-carrot-rgb), 0.2); }
+  70% { box-shadow: 0 0 0 8px rgba(var(--ion-color-carrot-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--ion-color-carrot-rgb), 0); }
 }
 
-.bonus-text p {
-  margin: 4px 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
+@keyframes pulseBg {
+  0% { transform: scale(1); background: var(--ion-background-color); }
+  50% { transform: scale(1.05); background: rgba(var(--ion-color-carrot-rgb), 0.1); }
+  100% { transform: scale(1); background: var(--ion-background-color); }
 }
 
-.bonus-xp {
-  font-size: 1.2rem;
-  font-weight: 900;
-  background: rgba(255,255,255,0.2);
-  padding: 4px 12px;
-  border-radius: 12px;
-}
+
 
 .loading-state {
   width: 100%;
@@ -473,7 +475,7 @@ onIonViewWillEnter(() => {
 
 .modal-completion-info {
   text-align: center;
-  padding: 20px;
+  padding: 5px;
   color: var(--ion-color-medium);
 }
 

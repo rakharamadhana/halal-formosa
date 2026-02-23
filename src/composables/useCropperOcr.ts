@@ -1,5 +1,5 @@
 // composables/useCropperOcr.ts
-import { ref } from "vue"
+import { ref, nextTick } from "vue"
 import { useOcrService } from "@/composables/useOcrService"
 import { useImageResizer } from "@/composables/useImageResizer"
 
@@ -30,11 +30,37 @@ export function useCropperOcr(options: any) {
         progressLabel
     } = useOcrService(options)
 
-    function openCropper(file: File) {
+    const pendingRoi = ref<any>(null)
+
+    function openCropper(file: File, roi: any = null) {
         if (cropperSrc.value) URL.revokeObjectURL(cropperSrc.value)
         originalFile.value = file
         cropperSrc.value = URL.createObjectURL(file)
         showCropper.value = true
+        pendingRoi.value = roi
+    }
+
+    function onCropperReady() {
+        if (!pendingRoi.value || !cropperRef.value) return
+
+        const roi = pendingRoi.value
+        // Small timeout to ensure the cropper has finished internal calculations
+        setTimeout(() => {
+            if (cropperRef.value) {
+                cropperRef.value.setCoordinates((coordinates: any, imageSize: any) => {
+                    console.log('📐 [Cropper] Applying ROI to image size:', imageSize);
+
+                    // Convert percentages to absolute pixels
+                    const width = (roi.width * imageSize.width) / 100;
+                    const height = (roi.height * imageSize.height) / 100;
+                    const left = (roi.left * imageSize.width) / 100;
+                    const top = (roi.top * imageSize.height) / 100;
+
+                    return { width, height, left, top };
+                });
+                pendingRoi.value = null;
+            }
+        }, 100);
     }
 
     async function confirmCrop() {
@@ -110,6 +136,75 @@ export function useCropperOcr(options: any) {
         showCropper.value = true
     }
 
+    async function autoProcess(file: File, roi: any = null) {
+        originalFile.value = file
+        ocrLoading.value = true
+
+        try {
+            console.log('🤖 [AutoScan] Starting autoProcess...', JSON.stringify({ hasRoi: !!roi, roi }))
+            let fileToProcess = file
+
+            if (roi) {
+                console.log('📐 [AutoScan] Applying ROI:', roi)
+                const img = new Image()
+                img.src = URL.createObjectURL(file)
+                await new Promise((resolve) => (img.onload = resolve))
+
+                const canvas = document.createElement('canvas')
+                const scaleX = img.width / 100
+                const scaleY = img.height / 100
+
+                canvas.width = (roi.width * scaleX)
+                canvas.height = (roi.height * scaleY)
+
+                const ctx = canvas.getContext('2d')
+                if (ctx) {
+                    ctx.drawImage(
+                        img,
+                        roi.left * scaleX,
+                        roi.top * scaleY,
+                        roi.width * scaleX,
+                        roi.height * scaleY,
+                        0,
+                        0,
+                        canvas.width,
+                        canvas.height
+                    )
+
+                    const blob = await new Promise<Blob | null>((resolve) =>
+                        canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95)
+                    )
+                    if (blob) {
+                        fileToProcess = new File([blob], `auto-${file.name}`, { type: 'image/jpeg' })
+                        if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
+                        croppedPreviewUrl.value = URL.createObjectURL(blob)
+                        console.log('✅ [AutoScan] Programmatic crop successful')
+                    }
+                }
+                URL.revokeObjectURL(img.src)
+            } else {
+                console.warn('⚠️ [AutoScan] No ROI provided, using full image')
+                if (croppedPreviewUrl.value) URL.revokeObjectURL(croppedPreviewUrl.value)
+                croppedPreviewUrl.value = URL.createObjectURL(file)
+            }
+
+            // Run OCR pipeline
+            const resized = await resizeImage(fileToProcess)
+            const result = await processFile(resized)
+
+            // Prepare compressed original for back image
+            const resizedBack = await resizeImage(file)
+            options?.setBackFile?.(resizedBack)
+
+            return result
+        } catch (err) {
+            console.error('❌ [AutoScan] Auto OCR failed:', err)
+            throw err
+        } finally {
+            ocrLoading.value = false
+        }
+    }
+
     return {
         cropperRef,
         cropperSrc,
@@ -117,6 +212,8 @@ export function useCropperOcr(options: any) {
         croppedPreviewUrl,
         ocrLoading,
         openCropper,
+        onCropperReady,
+        autoProcess, // ✅ Exported
         confirmCrop,
         closeCropper,
         recrop,
@@ -128,7 +225,7 @@ export function useCropperOcr(options: any) {
         autoStatus,
         productName,
         recheckHighlightsSmart,
-        ocrRaw, // ✅ exported correctly
+        ocrRaw,
         detectedLanguage,
         progress,
         progressLabel

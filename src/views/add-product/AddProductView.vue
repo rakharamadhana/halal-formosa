@@ -418,7 +418,7 @@ import {
   IonToast,
   IonToolbar,
   IonAccordion,
-  IonAccordionGroup, IonNote
+  IonAccordionGroup, IonNote, IonImg, IonThumbnail
 } from '@ionic/vue';
 import {
   addOutline,
@@ -460,6 +460,7 @@ import type { Product } from '@/types/Product'
 import router from "@/router";
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
 import { BarcodeValidator } from "@/utils/barcodeValidator";
+import { ActivityLogService } from "@/services/ActivityLogService";
 
 const { notifyEvent } = useNotifier();
 const { awardAndCelebrate } = usePoints();
@@ -1363,6 +1364,12 @@ async function handleSubmit() {
       frontPreview.value = null; backPreview.value = null
       ingredientHighlights.value = []; barcodeValid.value = null; barcodeMessage.value = ''
       await awardAndCelebrate("add_product", 10000)
+      
+      await ActivityLogService.log("add_product_success", {
+        barcode: barcode,
+        name: form.value.name,
+        status: form.value.status
+      })
     }
 
     showToast.value = true

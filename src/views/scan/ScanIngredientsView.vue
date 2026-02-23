@@ -194,24 +194,35 @@
           </div>
 
 
-          <!-- Big Buttons Row -->
-          <div style="display: flex; gap: 12px; margin-bottom: 16px;" v-if="!ingredientsText">
-            <!-- Camera Button -->
-            <div
-                @click="scanFromCamera"
-                style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
-            >
-              <ion-icon :icon="cameraOutline" style="font-size: 48px; color: var(--ion-color-light);" />
-              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">{{ $t('scanIngredients.scan.camera') }}</span>
+          <!-- Main Action Buttons -->
+          <div v-if="!ingredientsText" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px;">
+              <!-- Camera Button -->
+              <div
+                  @click="scanFromCamera"
+                  style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+              >
+                <ion-icon :icon="cameraOutline" style="font-size: 32px; color: var(--ion-color-light);" />
+                <span style="color: var(--ion-color-light); margin-top: 4px; font-size: 14px; font-weight: 500;">{{ $t('scanIngredients.scan.camera') }}</span>
+              </div>
+
+              <!-- Gallery Button -->
+              <div
+                  @click="scanFromGallery"
+                  style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+              >
+                <ion-icon :icon="cloudUploadOutline" style="font-size: 32px; color: var(--ion-color-light);" />
+                <span style="color: var(--ion-color-light); margin-top: 4px; font-size: 14px; font-weight: 500;">{{ $t('scanIngredients.scan.gallery') }}</span>
+              </div>
             </div>
 
-            <!-- Gallery Button -->
+            <!-- Auto Scan Button -->
             <div
-                @click="scanFromGallery"
+                @click="router.push('/scan/auto')"
                 style="flex: 1; background: var(--ion-color-carrot); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
             >
-              <ion-icon :icon="cloudUploadOutline" style="font-size: 48px; color: var(--ion-color-light);" />
-              <span style="color: var(--ion-color-light); margin-top: 8px; font-size: 16px; font-weight: 500;">{{ $t('scanIngredients.scan.gallery') }}</span>
+              <ion-icon :icon="eyeOutline" style="font-size: 32px; color: var(--ion-color-light);" />
+              <span style="color: var(--ion-color-light); margin-top: 4px; font-size: 14px; font-weight: 500;">{{ $t('scanIngredients.scan.auto', 'Auto Scan (BETA)') }}</span>
             </div>
           </div>
 
@@ -411,6 +422,33 @@
         </ion-card-content>
       </ion-card>
 
+      <!-- Global OCR Loading Overlay (for Auto Scan) -->
+      <div v-if="ocrLoading && !showCropper" class="ocr-overlay" style="position: fixed; z-index: 3000;">
+        <ion-progress-bar
+            :value="progress"
+            color="carrot"
+            class="ocr-progress"
+        />
+
+        <p class="ocr-progress-text">
+          {{ progressLabel }}
+        </p>
+
+        <div v-if="loadingReflection" class="reflection-box">
+          <p v-if="loadingReflection.text_ar" class="reflection-ar">
+            {{ loadingReflection.text_ar }}
+          </p>
+
+          <p class="reflection-en">
+            "{{ loadingReflection.text_en }}"
+          </p>
+
+          <small class="reflection-ref">
+            — {{ loadingReflection.reference }}
+          </small>
+        </div>
+      </div>
+
       <!-- Cropper Modal -->
       <ion-modal :is-open="showCropper" @didDismiss="closeCropper">
         <ion-header>
@@ -429,6 +467,7 @@
               class="cropper"
               :src="cropperSrc"
               :stencil-props="{ aspectRatio: null }"
+              @ready="onCropperReady"
           />
           <!-- Full-screen loading overlay inside the cropper modal -->
           <div v-if="ocrLoading" class="ocr-overlay">
@@ -534,6 +573,7 @@ import { isDonor } from "@/composables/useSubscriptionStatus";
 import { useCropperOcr } from "@/composables/useCropperOcr"
 import { Device } from '@capacitor/device'
 import { supabase } from '@/plugins/supabaseClient'
+import { watch } from 'vue'
 
 import { showRewardedAd } from '@/lib/admobReward'
 import { Capacitor } from '@capacitor/core'
@@ -542,6 +582,9 @@ import { ActivityLogService } from "@/services/ActivityLogService";
 import { RevenueCatUI, PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui'
 import { Purchases } from '@revenuecat/purchases-capacitor'
 import { refreshSubscriptionStatus } from '@/composables/useSubscriptionStatus'
+import { useRouter } from 'vue-router'
+import { useAutoScanStore } from '@/composables/useAutoScanStore'
+import { eyeOutline, createOutline } from 'ionicons/icons'
 
 /** ---------- State ---------- */
 const showCopied = ref(false)
@@ -564,6 +607,23 @@ const ocrStartTime = ref<number | null>(null)
 const appVersion = __APP_VERSION__;
 const todayScanCount = ref(0)
 const loadingReflection = ref<any>(null)
+const scanMode = ref<'manual' | 'auto'>('manual')
+
+const router = useRouter()
+const { autoScanResult, clearResult } = useAutoScanStore()
+
+// Watch for Auto Scan results returned via the store
+watch(autoScanResult, (newResult) => {
+  if (newResult) {
+    handleAutoDetected(newResult)
+    clearResult()
+  }
+})
+
+// Clear results when switching modes so the camera/buttons show up
+watch(scanMode, () => {
+  clearAll()
+})
 
 /** ---------- Show the Disclaimer of Usage ---------- */
 
@@ -586,6 +646,39 @@ const {
   fetchHighlightsWithCache,
   incrementUsageCount
 } = useHighlightCache()
+
+/** ---------- Cropper OCR pipeline ---------- */
+const {
+  reset,
+  cropperRef,
+  cropperSrc,
+  showCropper,
+  croppedPreviewUrl,
+  ocrLoading,
+  openCropper,
+  onCropperReady,
+  autoProcess,
+  confirmCrop,
+  closeCropper,
+  recrop,
+  showOk,
+  ingredientHighlights,
+  ingredientsText,
+  ingredientsTextZh,
+  autoStatus,
+  productName,
+  ocrRaw,
+  recheckHighlightsSmart,
+  detectedLanguage,
+  progress,
+  progressLabel
+} = useCropperOcr({
+  allHighlights,
+  blacklistPatterns,
+  fetchHighlightsWithCache,
+  incrementUsageCount,
+  setError,
+})
 
 /** ---------- Log Scan ------------ */
 async function logIngredientScan({
@@ -633,11 +726,206 @@ async function logIngredientScan({
   }
 }
 
+/** ---------- Daily scan ------------*/
+async function loadTodayScanCount() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    todayScanCount.value = 0;
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+      .from('ingredient_scan_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('success', true)       // 👈 ONLY count successful scans
+      .gte('created_at', today.toISOString());
+
+  if (error) {
+    console.error("Failed to load daily scan count:", error);
+    todayScanCount.value = 0;
+    return;
+  }
+
+  todayScanCount.value = data.length;
+}
+
+async function checkDailyScanLimit() {
+  // Donors → unlimited scans
+  if (isDonor.value) return true;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return true;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+      .from('ingredient_scan_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('success', true)
+      .gte('created_at', today.toISOString());
+
+  if (error) {
+    console.error("Daily scan check error:", error);
+    return true;   // fail-open instead of blocking users
+  }
+
+  return data.length < (10 + bonusScans.value);
+}
+// Gallery
+async function scanFromGallery() {
+  await ActivityLogService.log("scan_ingredients_start", {source: "gallery"});
+
+  const allowed = await checkDailyScanLimit();
+  if (!allowed) {
+    showLimitToast.value = true;
+    return;
+  }
+
+  currentSource.value = 'gallery'
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = (e: Event) => {
+    const target = e.target as HTMLInputElement
+    if (target.files && target.files[0]) {
+      originalFile.value = target.files[0]
+      openCropper(target.files[0])
+    }
+  }
+  input.click()
+}
+
 function calculateReadingTime(text: string) {
   const words = text.trim().split(/\s+/).length
   const wordsPerSecond = 3.2
   const ms = (words / wordsPerSecond) * 1000
   return Math.min(4000, Math.max(2500, ms))
+}
+
+const summaryUsed = ref(false)
+
+/** ---------- AI Summary ---------- */
+const {
+  overallNote,
+  loadingSummary,
+  errorSummary,
+  generateSummary
+} = useAISummary()
+
+async function presentPaywall(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    console.warn("[RC] Paywall can only run on native.");
+    return false;
+  }
+  try {
+    const resultParams = await RevenueCatUI.presentPaywall()
+    const paywallResult = resultParams.result || (resultParams as any)
+    switch (paywallResult) {
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+        await refreshSubscriptionStatus()
+        await ActivityLogService.log("pro_purchase_success", { source: "ai_summary" })
+        return true
+      case PAYWALL_RESULT.CANCELLED:
+        return false
+      case PAYWALL_RESULT.ERROR:
+      default:
+        return false
+    }
+  } catch (err) {
+    console.error("Paywall failed:", err)
+    return false
+  }
+}
+
+async function handleSummaryClick() {
+  await ActivityLogService.log("ai_summary_click", {
+    is_pro: isDonor.value
+  })
+
+  // 🚫 If not Pro → show paywall
+  if (!isDonor.value) {
+    await ActivityLogService.log("pro_paywall_trigger", {
+      source: "ai_summary"
+    })
+    const purchased = await presentPaywall()
+    if (!purchased) return
+    // 🔁 Yield small delay for subscription reactive update
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  // 🟢 Now user is Pro
+  if (summaryUsed.value) return
+
+  await ActivityLogService.log("ai_summary_used", {
+    auto_status: autoStatus.value,
+    ingredient_count: ingredientHighlights.value?.length ?? 0
+  })
+
+  await generateSummary(
+      ingredientsTextZh.value,
+      ingredientHighlights.value,
+      autoStatus.value
+  )
+
+  summaryUsed.value = true
+}
+
+function toProperCase(str: string) {
+  return str.replace(/\w\S*/g, (txt) =>
+      txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+  )
+}
+
+function clearAll() {
+  reset()
+  originalFile.value = null
+  croppedFile.value = null
+  overallNote.value = ''
+  summaryUsed.value = false
+  showTutorial.value = true
+}
+
+async function watchAdForExtraScans() {
+  if (dailyAdUses.value >= 2) {
+    showErr.value = true;
+    errorMsg.value = "You can only watch 2 ads per day.";
+    return;
+  }
+
+  await showRewardedAd("ca-app-pub-9588373061537955/8695189722", async () => {
+    bonusScans.value += 5;
+    dailyAdUses.value += 1;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+          .from("user_scan_bonus")
+          .upsert({
+            user_id: user.id,
+            bonus_scans: bonusScans.value,
+            daily_ad_uses: dailyAdUses.value,
+            last_updated: new Date().toISOString().split("T")[0]
+          });
+    }
+    await loadTodayScanCount();
+  });
+}
+/** ---------- Share card ------------*/
+const { shareResult } = useShareCard(
+    productName,
+    ingredientsText,
+    autoStatus,
+    ingredientHighlights, ingredientsTextZh
+)
+
+function onShareClick() {
+  shareResult(originalFile)
 }
 
 async function fetchRandomReflection() {
@@ -747,247 +1035,81 @@ async function scanFromCamera() {
   openCropper(file)
 }
 
-// Gallery
-async function scanFromGallery() {
-  await ActivityLogService.log("scan_ingredients_start", {source: "gallery"});
-
-  const allowed = await checkDailyScanLimit();
+/** ---------- Auto Scan Handler ---------- */
+async function handleAutoDetected(result: any) {
+  console.log('⚡ [ScanIngredients] handleAutoDetected received:', { 
+    hasBlob: !!result.blob, 
+    hasRoi: !!result.roi,
+    roi: result.roi 
+  })
+  
+  const { blob, roi } = result
+  scanMode.value = 'manual' // Close the full-screen scanner UI
+  
+  const allowed = await checkDailyScanLimit()
   if (!allowed) {
-    showLimitToast.value = true;
-    return;
+    showLimitToast.value = true
+    return
   }
 
-  currentSource.value = 'gallery'
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-  input.onchange = (e: Event) => {
-    const target = e.target as HTMLInputElement
-    if (target.files && target.files[0]) {
-      originalFile.value = target.files[0]
-      openCropper(target.files[0])
-    }
-  }
-  input.click()
-}
-
-const summaryUsed = ref(false)
-
-async function presentPaywall(): Promise<boolean> {
-
-  if (!Capacitor.isNativePlatform()) {
-    console.warn("[RC] Paywall can only run on native.");
-    return false;
-  }
+  currentSource.value = 'camera'
+  const file = new File([blob], `auto-ingredients-${Date.now()}.jpg`, { type: 'image/jpeg' })
+  originalFile.value = file
+  
+  // Set the preview URL for the main view
+  if (originalPreviewUrl.value) URL.revokeObjectURL(originalPreviewUrl.value)
+  originalPreviewUrl.value = URL.createObjectURL(file)
+  
+  showTutorial.value = false
+  
+  // ⚡ Skip the manual cropper modal and process immediately
+  ocrStartTime.value = Date.now()
+  await fetchRandomReflection()
+  const reflectionStart = Date.now()
+  
+  await ActivityLogService.log("scan_ingredients_start", {source: "auto_scan"});
 
   try {
-    const { result } = await RevenueCatUI.presentPaywall();
-
-    switch (result) {
-
-      case PAYWALL_RESULT.PURCHASED:
-      case PAYWALL_RESULT.RESTORED:
-
-        // 🔄 Refresh subscription state
-        await refreshSubscriptionStatus({ syncToServer: true })
-
-        await ActivityLogService.log("pro_purchase_success", {
-          source: "ai_summary"
-        })
-
-        return true
-
-      case PAYWALL_RESULT.CANCELLED:
-        return false
-
-      case PAYWALL_RESULT.ERROR:
-      default:
-        return false
-    }
-
-  } catch (err) {
-    console.error("Paywall failed:", err)
-    return false
-  }
-}
-
-async function handleSummaryClick() {
-
-  await ActivityLogService.log("ai_summary_click", {
-    is_pro: isDonor.value
-  })
-
-  // 🚫 If not Pro → show paywall
-  if (!isDonor.value) {
-
-    await ActivityLogService.log("pro_paywall_trigger", {
-      source: "ai_summary"
-    })
-
-    const purchased = await presentPaywall()
-
-    if (!purchased) return
-
-    // 🔁 Yield small delay for subscription reactive update
-    await new Promise(r => setTimeout(r, 300))
-  }
-
-  // 🟢 Now user is Pro
-  if (summaryUsed.value) return
-
-  await ActivityLogService.log("ai_summary_used", {
-    auto_status: autoStatus.value,
-    ingredient_count: ingredientHighlights.value?.length ?? 0
-  })
-
-  await generateSummary(
-      ingredientsTextZh.value,
-      ingredientHighlights.value,
-      autoStatus.value
-  )
-
-  summaryUsed.value = true
-}
-
-/** ---------- AI Summary ---------- */
-const {
-  overallNote,
-  loadingSummary,
-  errorSummary,
-  generateSummary
-} = useAISummary()
-
-/** ---------- Cropper OCR pipeline ---------- */
-const {
-  reset,
-  cropperRef,
-  cropperSrc,
-  showCropper,
-  croppedPreviewUrl,
-  ocrLoading,
-  openCropper,
-  confirmCrop,
-  closeCropper,   // ✅ available now
-  recrop,         // ✅ available now
-  showOk,
-  ingredientHighlights,
-  ingredientsText,
-  ingredientsTextZh,
-  autoStatus,
-  productName,
-  ocrRaw,
-  recheckHighlightsSmart,
-  detectedLanguage,
-  progress,
-  progressLabel
-} = useCropperOcr({
-  allHighlights,
-  blacklistPatterns,
-  fetchHighlightsWithCache,
-  incrementUsageCount,
-  setError,
-})
-
-/** ---------- Daily scan ------------*/
-async function loadTodayScanCount() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    todayScanCount.value = 0;
-    return;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const { data, error } = await supabase
-      .from('ingredient_scan_logs')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('success', true)       // 👈 ONLY count successful scans
-      .gte('created_at', today.toISOString());
-
-  if (error) {
-    console.error("Failed to load daily scan count:", error);
-    todayScanCount.value = 0;
-    return;
-  }
-
-  todayScanCount.value = data.length;
-}
-
-async function checkDailyScanLimit() {
-  // Donors → unlimited scans
-  if (isDonor.value) return true;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return true;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const { data, error } = await supabase
-      .from('ingredient_scan_logs')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('success', true)
-      .gte('created_at', today.toISOString());
-
-  if (error) {
-    console.error("Daily scan check error:", error);
-    return true;   // fail-open instead of blocking users
-  }
-
-  return data.length < (100 + bonusScans.value);
-}
-
-function toProperCase(str: string) {
-  return str.replace(/\w\S*/g, (txt) =>
-      txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
-  )
-}
-
-
-async function watchAdForExtraScans() {
-  if (dailyAdUses.value >= 2) {
-    showErr.value = true;
-    errorMsg.value = "You can only watch 2 ads per day.";
-    return;
-  }
-
-  await showRewardedAd("ca-app-pub-9588373061537955/8695189722", async () => {
-
-    // Update local reactive values
-    bonusScans.value += 5;
-    dailyAdUses.value += 1;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-          .from("user_scan_bonus")
-          .upsert({
-            user_id: user.id,
-            bonus_scans: bonusScans.value,
-            daily_ad_uses: dailyAdUses.value,
-            last_updated: new Date().toISOString().split("T")[0]
+      await autoProcess(file, roi)
+      
+      const reflectionElapsed = Date.now() - reflectionStart
+      const minReflectionTime = calculateReadingTime(loadingReflection.value?.text_en || '')
+      if (reflectionElapsed < minReflectionTime) {
+         showTutorial.value = false
+         await new Promise(r => setTimeout(r, minReflectionTime - reflectionElapsed))
+      }
+      
+      if (ingredientsText.value?.trim() || ingredientsTextZh.value?.trim()) {
+          await ActivityLogService.log("scan_ingredients_success", {
+            product_name: productName.value || "Unknown",
+            auto_status: autoStatus.value,
+            ingredient_count: ingredientHighlights.value?.length ?? 0,
+            source: "auto_scan"
           });
-    }
 
-    await loadTodayScanCount();
-  });
-}
+          await logIngredientScan({
+            source: "camera",
+            startTime: ocrStartTime.value
+          })
 
+          await loadTodayScanCount()
+      }
+  } catch (err: any) {
+      setError(err.message || 'Auto OCR failed')
 
-/** ---------- Share card ------------*/
+      await ActivityLogService.log("scan_ingredients_error", {
+        error: err.message || "Auto OCR failed",
+        source: "auto_scan"
+      });
 
-const { shareResult } = useShareCard(
-    productName,
-    ingredientsText,
-    autoStatus,
-    ingredientHighlights, ingredientsTextZh
-)
+      await logIngredientScan({
+        source: "camera",
+        errorMessage: err.message || 'Auto OCR failed',
+        startTime: ocrStartTime.value
+      })
 
-function onShareClick() {
-  shareResult(originalFile)
+      await loadTodayScanCount()
+  }
 }
 
 /** ---------- Lifecycle  ---------- */
@@ -1067,14 +1189,7 @@ onUnmounted(() => {
 
 /** ---------- Utility actions ---------- */
 
-function clearAll() {
-  reset()
-  originalFile.value = null
-  croppedFile.value = null
-  overallNote.value = ''
-  summaryUsed.value = false
-  showTutorial.value = true
-}
+
 </script>
 
 <style scoped>

@@ -46,9 +46,9 @@
 
     /* ✅ Carrot */
     --ion-color-carrot: #e67e22;
-    --ion-color-carrot-rgb: 230,126,34;
+    --ion-color-carrot-rgb: 230, 126, 34;
     --ion-color-carrot-contrast: #000000;
-    --ion-color-carrot-contrast-rgb: 0,0,0;
+    --ion-color-carrot-contrast-rgb: 0, 0, 0;
     --ion-color-carrot-shade: #ca6f1e;
     --ion-color-carrot-tint: #e98b38;
 
@@ -105,7 +105,8 @@ ion-title.title-large {
     font-size: 20px;
     font-weight: 1000;
     display: flex;
-    align-items: center;   /* ✅ vertical centering */
+    align-items: center;
+    /* ✅ vertical centering */
 }
 
 ion-title.title-large img,
@@ -194,7 +195,8 @@ ion-chip.chip-carrot {
 }
 
 ion-chip.chip-medium {
-    --background: var(--ion-color-medium, #7f8c8d); /* fallback gray */
+    --background: var(--ion-color-medium, #7f8c8d);
+    /* fallback gray */
     --color: var(--ion-color-medium-contrast, #fff);
 }
 
@@ -260,6 +262,13 @@ ion-card {
     cursor: pointer;
 }
 
+.card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
 .discover-grid {
     display: flex;
     overflow-x: auto;
@@ -268,14 +277,29 @@ ion-card {
     -ms-overflow-style: none;
 }
 
-.discover-grid::-webkit-scrollbar { display: none; }
+.discover-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.compact-grid {
+    margin: 0;
+    padding: 4px 16px;
+}
+
+.compact-section {
+    margin: 16px;
+    --padding-start: 0;
+    --padding-end: 0;
+}
+
 .discover-item {
     flex: 0 0 210px;
     border-radius: 12px;
     overflow: hidden;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
+
 .discover-img {
     width: 100%;
     height: 140px;
@@ -287,6 +311,7 @@ ion-card {
     padding-bottom: 0;
     margin: 0;
 }
+
 .discover-label h3 {
     font-size: 14px;
 }
@@ -303,14 +328,32 @@ ion-card {
    =============================== */
 
 .discover-item--compact {
-    flex: 0 0 140px;           /* ⬅ narrower than normal */
+    flex: 0 0 140px;
+    /* ⬅ narrower than normal */
     padding: 8px;
+    position: relative;
+}
+
+/* Partner Tiers */
+.discover-item--compact.gold {
+    flex: 0 0 260px;
+    border: 2px solid var(--ion-color-carrot);
+    box-shadow: 0 4px 14px rgba(230, 126, 34, 0.25);
+}
+
+.discover-item--compact.silver {
+    flex: 0 0 180px;
+}
+
+.discover-item--compact.bronze {
+    flex: 0 0 160px;
 }
 
 .discover-img--compact {
-    height: 70px;              /* ⬅ controlled logo size */
+    height: 70px;
+    /* ⬅ controlled logo size */
     object-fit: contain;
-    background: white;
+    background: var(--ion-color-step-50, #fff);
     padding: 6px;
     border-radius: 10px;
 }
@@ -329,6 +372,7 @@ ion-card {
     /* prevent overflow */
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -340,10 +384,13 @@ ion-card {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6); /* dim background */
+    background: rgba(0, 0, 0, 0.6);
+    /* dim background */
     display: flex;
-    align-items: center;   /* vertical center */
-    justify-content: center; /* horizontal center */
+    align-items: center;
+    /* vertical center */
+    justify-content: center;
+    /* horizontal center */
     z-index: 999;
 }
 
@@ -393,19 +440,26 @@ ion-card {
     padding: 6px 8px;
     flex-wrap: nowrap;
     width: 100%;
-    scrollbar-width: none;   /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
 }
+
 .store-scroll::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    display: none;
+    /* Chrome/Safari */
 }
 
 .store-scroll.readonly .store-option {
     cursor: default;
 }
+
 .store-scroll.readonly .store-option::after {
-    display: none; /* hide ✓ checkmark */
+    display: none;
+    /* hide ✓ checkmark */
 }
+
 .store-scroll.readonly .store-option.selected .store-logo {
     border: none;
     box-shadow: none;
@@ -419,7 +473,8 @@ ion-card {
     text-align: center;
     cursor: pointer;
     transition: transform 0.2s, border 0.2s;
-    position: relative; /* needed for checkmark */
+    position: relative;
+    /* needed for checkmark */
     border-radius: 10px;
 }
 
@@ -439,7 +494,8 @@ ion-card {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: white;   /* keeps transparent logos visible */
+    background: white;
+    /* keeps transparent logos visible */
     padding: 4px;
     border-radius: 50%;
     display: block;
@@ -469,10 +525,13 @@ ion-card {
 /* Read-only stores (e.g. ItemDetailsView) */
 .store-option.readonly {
     cursor: default;
-    pointer-events: none; /* disable clicks */
+    pointer-events: none;
+    /* disable clicks */
 }
+
 .store-option.readonly::after {
-    display: none; /* hide checkmark */
+    display: none;
+    /* hide checkmark */
 }
 
 /* Disable all pointer events on the card */
@@ -500,11 +559,9 @@ ion-card {
     cursor: pointer;
     overflow: hidden;
 
-    background: linear-gradient(
-            135deg,
+    background: linear-gradient(135deg,
             #fff7cc,
-            #fff
-    );
+            #fff);
 
     border: 1px solid rgba(255, 193, 7, 0.6);
 
@@ -524,11 +581,9 @@ ion-card {
     position: absolute;
     inset: -2px;
     border-radius: 16px;
-    background: radial-gradient(
-            circle at top left,
+    background: radial-gradient(circle at top left,
             rgba(255, 215, 0, 0.35),
-            transparent 60%
-    );
+            transparent 60%);
     pointer-events: none;
     z-index: 0;
 }
@@ -552,7 +607,7 @@ ion-card {
     border-radius: 8px;
     padding: 6px;
 
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 /* Text */

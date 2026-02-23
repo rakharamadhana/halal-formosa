@@ -355,6 +355,7 @@ import {usePoints} from "@/composables/usePoints";
 import {useNotifier} from "@/composables/useNotifier"
 import {watch} from 'vue'
 import {useRoute} from 'vue-router'
+import {ActivityLogService} from "@/services/ActivityLogService";
 
 const route = useRoute()
 const isEditing = computed(() => !!route.params.id)
@@ -1013,6 +1014,13 @@ const submitPlace = async () => {
 
     // ✅ Points: you can decide if users get points on submit or only on publish
     await awardAndCelebrate('add_place', 10000)
+
+    await ActivityLogService.log("add_place_success", {
+      name: form.value.name,
+      address: form.value.address,
+      lat: form.value.lat,
+      lng: form.value.lng
+    })
 
     setTimeout(() => {
       router.replace(autoApprove ? `/explore?focus=${newPlace.id}` : `/explore`)

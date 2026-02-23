@@ -80,6 +80,7 @@ const routes: Array<RouteRecordRaw> = [
     },
 
     { path: '/scan', component: ScanIngredientsView, meta: { requiresAuth: true, noAds: true } },
+    { path: '/scan/auto', component: () => import('@/views/scan/AutoScanView.vue'), meta: { requiresAuth: true, noAds: true, noTabs: true } },
 
     { path: '/news', component: () => import('@/views/news/NewsListView.vue') },
     { path: '/news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), props: true, meta: { adSpaceId: 'ad-space-news-detail', adId: import.meta.env.VITE_ADMOB_NEWS_BANNER_ID } },

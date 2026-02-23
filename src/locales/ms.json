@@ -3,7 +3,37 @@
     "or": "ATAU",
     "backToHome": "KEMBALI KE LAMAN UTAMA",
     "filters": "Penapis",
-    "clearFilters": "Padam Penapis"
+    "clearFilters": "Padam Penapis",
+    "views": "Tontonan",
+    "ok": "OK",
+    "cancel": "Batal",
+    "close": "Tutup"
+  },
+  "dailyMissions": {
+    "title": "Misi Harian",
+    "viewAll": "Lihat Semua",
+    "allCompletedMsg": "Anda telah menyempurnakan semua misi hari ini, kembali lagi esok!",
+    "bonusClaimed": "Bonus Telah Dituntut",
+    "claimBonus": "Tuntut Bonus!",
+    "completed": "selesai",
+    "dailyBonus": "Bonus Harian",
+    "dailyBonusDesc": "Selesaikan semua misi untuk 50 mata tambahan!",
+    "bonusPoints": "+50 {label}",
+    "xp": "XP",
+    "alreadyClaimed": "Sudah Dituntut",
+    "claimXpBonus": "Tuntut Bonus 50 XP!",
+    "notCompleteYet": "Belum Selesai",
+    "masteryAchieved": "✨ Penguasaan Dicapai! ✨",
+    "comeBackTomorrow": "Kembali esok untuk cabaran baharu.",
+    "close": "Tutup",
+    "missions": {
+      "open_app": "Buka Aplikasi",
+      "scan_ingredients": "Imbas Bahan",
+      "scan_barcode": "Imbas Barkod",
+      "find_muslim_friendly": "Cari produk mesra Muslim",
+      "view_place_details": "Semak butiran lokasi",
+      "add_product": "Tambah Produk Baharu"
+    }
   },
   "auth": {
     "login": "Log Masuk",
@@ -42,7 +72,30 @@
     "locationCategories": "Status Lokasi",
     "ourPartners": "Rakan Kongsi Kami",
     "latestNews": "Berita Terkini",
-    "leaderboard": "Papan Pendahulu"
+    "leaderboard": "Papan Pendahulu",
+    "prayerNotification": "Solat {label} dalam {time}",
+    "currentLocation": "Lokasi Semasa",
+    "prayerTimes": "Waktu Solat",
+    "qibla": "Kiblat",
+    "partnerTier": "RAKAN KONGSI {tier}",
+    "altProduct": "produk",
+    "altLocation": "lokasi",
+    "altNews": "berita",
+    "altAvatar": "Avatar",
+    "unknownAvatar": "?",
+    "anonymousWithIndex": "Tanpa Nama #{index}",
+    "anonymous": "Tanpa Nama",
+    "pointsCount": "{points} mata",
+    "added": "Ditambah",
+    "unknown": "Tidak Diketahui",
+    "taipei": "Taipei",
+    "prayers": {
+      "fajr": "Subuh",
+      "dhuhr": "Zohor",
+      "asr": "Asar",
+      "maghrib": "Maghrib",
+      "isha": "Isyak"
+    }
   },
   "scanIngredients": {
     "title": "Imbas Bahan",
@@ -108,9 +161,22 @@
       "disclaimerNote": "Keputusan adalah untuk rujukan sahaja. Sentiasa sahkan dengan sumber dipercayai sebelum makan.",
       "gotIt": "Faham"
     },
+    "autoScan": {
+      "title": "Pengimbas Auto",
+      "hint": "Letakkan bahan di dalam bingkai",
+      "status": {
+        "init": "Menginisialisasi Kamera HD...",
+        "connecting": "Menyambungkan Kamera HD...",
+        "searching": "Mencari bahan...",
+        "scanning": "Imbasan AI...",
+        "found": "Bahan Dijumpai! Memfokus...",
+        "notFound": "Bahan tidak dijumpai, teruskan pegang..."
+      }
+    },
     "scan": {
       "camera": "Kamera",
       "gallery": "Galeri",
+      "auto": "Imbas Auto (BETA)",
       "reCrop": "Potong Semula",
       "productName": "Nama Produk Dikesan",
       "ingredientsZh": "Bahan Dikesan (Cina)",
@@ -168,7 +234,26 @@
       "Syubhah": "Syubhah",
       "Haram": "Haram",
       "Unknown": "Tidak Diketahui"
-    }
+    },
+    "sortNearest": "📍 Terdekat",
+    "sortRecent": "🆕 Baru Ditambah",
+    "sortViews": "🔥 Paling Banyak Dilihat",
+    "sortForYou": "✨ Untuk Anda (Pro)",
+    "clear": "✕ Padam",
+    "forYou": {
+      "title": "Untuk Anda",
+      "gateDesc": "Anda sedang melihat Untuk Anda. Suapan yang diperibadikan ini terbuka dengan Halal Formosa Pro dan menyesuaikan diri mengikut aktiviti anda dari semasa ke semasa.",
+      "upgrade": "Naik Taraf ke Pro",
+      "infoDesc": "Kami mengesyorkan produk halal dan mesra Muslim berdasarkan interaksi anda sebelum ini, sambil memperkenalkan item baharu yang belum anda lihat.",
+      "reasonMsg": "💡 Anda melihat ini kerana anda sering meneroka {reason}.",
+      "learningMsg": "💡 Kami sedang mempelajari pilihan anda semasa anda meneroka lebih banyak produk.",
+      "nativeOnly": "✨ Untuk Anda hanya tersedia di aplikasi mudah alih."
+    },
+    "gotIt": "Faham",
+    "viewedCount": "👁️ Dilihat {count} kali",
+    "addedDate": "Ditambah {date}",
+    "endOfList": "🙏 Maaf, anda telah sampai ke penghujung",
+    "scanInstructions": "Selaraskan barkod dalam bingkai"
   },
   "explore": {
     "title": "Teroka",
@@ -184,7 +269,19 @@
     "searchPlaceholder": "Cari trip, destinasi, atau tema",
     "categories": "Kategori Trip",
     "noTripsFound": "Tiada trip dijumpai. Cuba selaraskan penapis atau carian.",
-    "cities": "Bandar"
+    "cities": "Bandar",
+    "providedBy": "Disediakan oleh",
+    "catCity": "Lawatan Bandar",
+    "catNature": "Alam Semula Jadi",
+    "catFamily": "Keluarga",
+    "cityTaipei": "Bandar Taipei",
+    "cityNewTaipei": "Taipei Baharu",
+    "cityYilan": "Daerah Yilan",
+    "cityChiayi": "Bandar Chiayi",
+    "cityTaichung": "Bandar Taichung",
+    "cityKaohsiung": "Bandar Kaohsiung",
+    "sortRecent": "🆕 Baru Ditambah",
+    "sortViews": "🔥 Paling Banyak Dilihat"
   },
   "news": {
     "title": "Berita Halal & Islam",
@@ -204,20 +301,36 @@
     "logout": "Log Keluar",
     "donor": "Status Penderma",
     "noUserLogged": "Tiada pengguna log masuk",
+    "proMember": "⭐ Ahli Pro",
+    "noBio": "Belum ada bio",
+    "level": "Tahap {level}",
+    "savedItems": "Item Tersimpan",
+    "supportSuccess": "Terima kasih kerana menyokong Halal Formosa ❤️",
+    "donors": {
+      "Free": "Percuma",
+      "Founding Supporter": "Penyokong Pengasas",
+      "Supporter": "Penyokong",
+      "Developer": "Pembangun",
+      "Contributor": "Penyumbang"
+    },
     "admin": {
       "pointsLogs": "Lihat Log Mata",
       "scanLogs": "Log Imbasan Bahan",
       "analytics": "Papan Pemuka Analitik",
-      "masterData": "Data Induk"
+      "masterData": "Data Induk",
+      "locationsReview": "Semakan Lokasi",
+      "users": "Pengguna"
     },
     "pro": {
       "title": "Halal Formosa Pro ⭐",
-      "upgrade": "Naik taraf ke Pro ⭐",
+      "upgrade": "Naik Taraf ke Pro ⭐",
       "active": "✅ Pro aktif",
       "renew": "🔁 Langganan akan diperbaharui secara automatik",
       "noRenew": "⚠️ Langganan TIDAK akan diperbaharui",
       "accessUntil": "⏳ Akses sehingga",
-      "manage": "Urus Langganan"
+      "manage": "Urus Langganan",
+      "nativeOnly": "Langganan hanya tersedia di aplikasi mudah alih.",
+      "purchaseSuccess": "🎉 Anda kini pelanggan Halal Formosa Pro!"
     },
     "aboutMe": "Tentang Saya",
     "edit": "Edit",
@@ -240,16 +353,25 @@
     "appVersion": "Versi",
     "editProfile": {
       "title": "Edit Profil",
+      "mustCompleteTitle": "⚠️ Lengkapkan Profil Anda",
+      "mustCompleteDesc": "Sebelum meneruskan, sila lengkapkan profil anda agar kami dapat memahami anda dengan lebih baik dan menyokong perjalanan anda.",
       "dob": "Tarikh Lahir",
       "nationality": "Kewarganegaraan",
       "selectCountry": "Pilih Negara",
       "selectNationality": "Pilih Kewarganegaraan",
       "gender": "Jantina",
+      "searchCountry": "Cari negara",
+      "selectGender": "Pilih jantina",
+      "genderMale": "Lelaki",
+      "genderFemale": "Perempuan",
+      "genderOther": "Lain-lain",
       "bio": "Bio",
+      "bioPlaceholder": "Tulis bio ringkas...",
       "consentTitle": "Saya faham bahawa:",
       "consentContent1": "Tarikh lahir, kewarganegaraan, dan jantina hanya digunakan untuk statistik tanpa nama dan tidak pernah dikongsi secara terbuka.",
       "consentContent2": "Bio saya mungkin kelihatan secara terbuka jika saya mendayakan \"Papar nama saya di papan pendahulu\".",
-      "save": "Simpan"
+      "save": "Simpan",
+      "completeToContinue": "Lengkapkan Profil untuk Teruskan"
     }
   },
   "credits": {
@@ -392,7 +514,8 @@
       "phone": "Telefon",
       "email": "Emel",
       "website": "Laman Web"
-    }
+    },
+    "goldPartner": "RAKAN KONGSI EMAS"
   },
   "points": {
     "title": "Semak Log Mata"

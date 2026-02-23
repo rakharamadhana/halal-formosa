@@ -20,9 +20,9 @@
           class="ion-margin-bottom"
       >
         <ion-card-content>
-          <strong>⚠️ Complete Your Profile</strong>
+          <strong>{{ $t('profile.editProfile.mustCompleteTitle') }}</strong>
           <p style="margin-top: 6px;">
-            Before continuing, please complete your profile so we can better understand you and support your journey.
+            {{ $t('profile.editProfile.mustCompleteDesc') }}
           </p>
         </ion-card-content>
       </ion-card>
@@ -45,8 +45,8 @@
                 v-model="editDOB"
                 presentation="date"
                 :show-default-buttons="true"
-                done-text="OK"
-                cancel-text="Cancel"
+                :done-text="$t('common.ok')"
+                :cancel-text="$t('common.cancel')"
             ></ion-datetime>
           </ion-modal>
         </ion-item>
@@ -73,11 +73,11 @@
             <ion-toolbar>
               <ion-title>{{ $t('profile.editProfile.selectNationality') }}</ion-title>
               <ion-buttons slot="end">
-                <ion-button @click="showCountryModal = false">Close</ion-button>
+                <ion-button @click="showCountryModal = false">{{ $t('common.close') }}</ion-button>
               </ion-buttons>
             </ion-toolbar>
             <ion-toolbar>
-              <ion-searchbar v-model="searchQuery" placeholder="Search country"></ion-searchbar>
+              <ion-searchbar v-model="searchQuery" :placeholder="$t('profile.editProfile.searchCountry')"></ion-searchbar>
             </ion-toolbar>
           </ion-header>
 
@@ -98,10 +98,10 @@
 
         <ion-item>
           <ion-label>{{ $t('profile.editProfile.gender') }}</ion-label>
-          <ion-select v-model="editGender" interface="popover" slot="end" placeholder="Select gender">
-            <ion-select-option value="Male">Male</ion-select-option>
-            <ion-select-option value="Female">Female</ion-select-option>
-            <ion-select-option value="Other">Other</ion-select-option>
+          <ion-select v-model="editGender" interface="popover" slot="end" :placeholder="$t('profile.editProfile.selectGender')">
+            <ion-select-option value="Male">{{ $t('profile.editProfile.genderMale') }}</ion-select-option>
+            <ion-select-option value="Female">{{ $t('profile.editProfile.genderFemale') }}</ion-select-option>
+            <ion-select-option value="Other">{{ $t('profile.editProfile.genderOther') }}</ion-select-option>
           </ion-select>
         </ion-item>
 
@@ -111,7 +111,7 @@
           <ion-textarea
               v-model="editBio"
               auto-grow
-              placeholder="Write a short bio..."
+              :placeholder="$t('profile.editProfile.bioPlaceholder')"
           ></ion-textarea>
         </ion-item>
       </ion-list>
@@ -137,7 +137,7 @@
           @click="saveProfile"
           :disabled="!isProfileComplete"
       >
-        {{ mustCompleteProfile ? 'Complete Profile to Continue' : $t('profile.editProfile.save') }}
+        {{ mustCompleteProfile ? $t('profile.editProfile.completeToContinue') : $t('profile.editProfile.save') }}
       </ion-button>
 
 

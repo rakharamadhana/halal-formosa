@@ -4,7 +4,36 @@
     "backToHome": "BACK TO HOME",
     "filters": "Filters",
     "clearFilters": "Clear Filters",
-    "views": "Views"
+    "views": "Views",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "dailyMissions": {
+    "title": "Daily Missions",
+    "viewAll": "View All",
+    "allCompletedMsg": "You have completed all today's missions, come back again tomorrow!",
+    "bonusClaimed": "Bonus Claimed",
+    "claimBonus": "Claim Bonus!",
+    "completed": "completed",
+    "dailyBonus": "Daily Bonus",
+    "dailyBonusDesc": "Complete all missions for 50 extra points!",
+    "bonusPoints": "+50 {label}",
+    "xp": "XP",
+    "alreadyClaimed": "Already Claimed",
+    "claimXpBonus": "Claim 50 XP Bonus!",
+    "notCompleteYet": "Not Complete Yet",
+    "masteryAchieved": "✨ Mastery Achieved! ✨",
+    "comeBackTomorrow": "Come back tomorrow for fresh new challenges.",
+    "close": "Close",
+    "missions": {
+      "open_app": "Opening App",
+      "scan_ingredients": "Scan Ingredients",
+      "scan_barcode": "Scan Barcode",
+      "find_muslim_friendly": "Find Muslim-friendly product",
+      "view_place_details": "Check location details",
+      "add_product": "Add A New Product"
+    }
   },
   "auth": {
     "login": "Login",
@@ -43,9 +72,32 @@
     "locationCategories": "Locations Status",
     "ourPartners": "Our Partners",
     "latestNews": "Latest News",
-    "leaderboard": "Leaderboard"
+    "leaderboard": "Leaderboard",
+    "prayerNotification": "{label} Prayer in {time}",
+    "currentLocation": "Current Location",
+    "prayerTimes": "Prayer Times",
+    "qibla": "Qibla",
+    "partnerTier": "{tier} PARTNER",
+    "altProduct": "product",
+    "altLocation": "location",
+    "altNews": "news",
+    "altAvatar": "Avatar",
+    "unknownAvatar": "?",
+    "anonymousWithIndex": "Anonymous #{index}",
+    "anonymous": "Anonymous",
+    "pointsCount": "{points} pts",
+    "added": "Added",
+    "unknown": "Unknown",
+    "taipei": "Taipei",
+    "prayers": {
+      "fajr": "Fajr",
+      "dhuhr": "Dhuhr",
+      "asr": "Asr",
+      "maghrib": "Maghrib",
+      "isha": "Isha"
+    }
   },
-  "scanIngredients" : {
+  "scanIngredients": {
     "title": "Scan Ingredients",
     "todayScans": "Today Scans: {used} / {total}",
     "help": "How it works",
@@ -109,9 +161,22 @@
       "disclaimerNote": "Results are for reference only. Always verify with trusted sources before consuming.",
       "gotIt": "Got It"
     },
+    "autoScan": {
+      "title": "Auto Scanner",
+      "hint": "Position ingredients inside the frame",
+      "status": {
+        "init": "Initializing HD Camera...",
+        "connecting": "Connecting HD Camera...",
+        "searching": "Searching for ingredients...",
+        "scanning": "AI Scanning...",
+        "found": "Ingredients Found! Focusing...",
+        "notFound": "Ingredients not found, keep holding..."
+      }
+    },
     "scan": {
       "camera": "Camera",
       "gallery": "Gallery",
+      "auto": "Auto Scan (BETA)",
       "reCrop": "Re-crop",
       "productName": "Detected Product Name",
       "ingredientsZh": "Detected Ingredients (Chinese)",
@@ -169,7 +234,26 @@
       "Syubhah": "Syubhah",
       "Haram": "Haram",
       "Unknown": "Unknown"
-    }
+    },
+    "sortNearest": "📍 Nearest",
+    "sortRecent": "🆕 Recently Added",
+    "sortViews": "🔥 Highest Viewed",
+    "sortForYou": "✨ For You (Pro)",
+    "clear": "✕ Clear",
+    "forYou": {
+      "title": "For You",
+      "gateDesc": "You’re viewing For You. This personalized feed unlocks with Halal Formosa Pro and adapts to your activity over time.",
+      "upgrade": "Upgrade to Pro",
+      "infoDesc": "We recommend halal and Muslim-friendly products based on what you’ve interacted with before, while also introducing new items you haven’t seen yet.",
+      "reasonMsg": "💡 You’re seeing this because you often explore {reason}.",
+      "learningMsg": "💡 We’re learning your preferences as you explore more products.",
+      "nativeOnly": "✨ For You is available on mobile apps only."
+    },
+    "gotIt": "Got it",
+    "viewedCount": "👁️ Viewed {count} times",
+    "addedDate": "Added {date}",
+    "endOfList": "🙏 Sorry, you have reached the end",
+    "scanInstructions": "Align the barcode within the frame"
   },
   "explore": {
     "title": "Explore",
@@ -195,7 +279,9 @@
     "cityYilan": "Yilan County",
     "cityChiayi": "Chiayi City",
     "cityTaichung": "Taichung City",
-    "cityKaohsiung": "Kaohsiung City"
+    "cityKaohsiung": "Kaohsiung City",
+    "sortRecent": "🆕 Recently Added",
+    "sortViews": "🔥 Highest Viewed"
   },
   "news": {
     "title": "Halal & Islam News",
@@ -215,11 +301,25 @@
     "logout": "Logout",
     "donor": "Donor Status",
     "noUserLogged": "No user logged in",
+    "proMember": "⭐ Pro Member",
+    "noBio": "No bio added yet",
+    "level": "Level {level}",
+    "savedItems": "Saved Items",
+    "supportSuccess": "Thank you for supporting Halal Formosa ❤️",
+    "donors": {
+      "Free": "Free",
+      "Founding Supporter": "Founding Supporter",
+      "Supporter": "Supporter",
+      "Developer": "Developer",
+      "Contributor": "Contributor"
+    },
     "admin": {
       "pointsLogs": "View Points Logs",
       "scanLogs": "Ingredient Scan Logs",
       "analytics": "Analytics Dashboard",
-      "masterData": "Master Data"
+      "masterData": "Master Data",
+      "locationsReview": "Locations Review",
+      "users": "Users"
     },
     "pro": {
       "title": "Halal Formosa Pro ⭐",
@@ -228,7 +328,9 @@
       "renew": "🔁 Subscription will renew automatically",
       "noRenew": "⚠️ Subscription will NOT renew",
       "accessUntil": "⏳ Access until",
-      "manage": "Manage Subscription"
+      "manage": "Manage Subscription",
+      "nativeOnly": "Subscriptions are available on mobile apps only.",
+      "purchaseSuccess": "🎉 You are now a Halal Formosa Pro subscriber!"
     },
     "aboutMe": "About Me",
     "edit": "Edit",
@@ -251,16 +353,25 @@
     "appVersion": "Version",
     "editProfile": {
       "title": "Edit Profile",
+      "mustCompleteTitle": "⚠️ Complete Your Profile",
+      "mustCompleteDesc": "Before continuing, please complete your profile so we can better understand you and support your journey.",
       "dob": "Date of Birth",
       "nationality": "Nationality",
       "selectCountry": "Select Country",
       "selectNationality": "Select Nationality",
       "gender": "Gender",
+      "searchCountry": "Search country",
+      "selectGender": "Select gender",
+      "genderMale": "Male",
+      "genderFemale": "Female",
+      "genderOther": "Other",
       "bio": "Bio",
+      "bioPlaceholder": "Write a short bio...",
       "consentTitle": "I understand that:",
       "consentContent1": "Date of birth, nationality, and gender are used only for anonymous statistics and never shared publicly.",
       "consentContent2": "My Bio may be visible publicly if I enable \"Show my name on leaderboard\" in Settings.",
-      "save": "Save"
+      "save": "Save",
+      "completeToContinue": "Complete Profile to Continue"
     }
   },
   "credits": {
@@ -279,59 +390,47 @@
     "cropIngredients": "Crop Ingredients",
     "done": "Done",
     "processingOcr": "Processing OCR...",
-
     "barcode": "Barcode",
     "barcodePlaceholder": "Enter digits only",
     "barcodeValid": "✅ Valid barcode",
     "barcodeInvalid": "❌ Invalid barcode",
     "barcodeExists": "❌ This barcode already exists in the database",
-
     "productName": "Product Name",
     "productNamePlaceholder": "Enter text",
-
     "status": "Status",
     "statusRequired": "Status",
     "halal": "Halal",
     "muslimFriendly": "Muslim-friendly",
     "syubhah": "Syubhah",
     "haram": "Haram",
-
     "ingredients": "Ingredients",
     "ingredientsPlaceholder": "Enter text or use camera / gallery",
     "detectedText": "🔎 Detected Text",
-
     "category": "Category",
     "stores": "Store",
-
     "description": "Description",
     "descriptionPlaceholder": "Enter text",
-
     "frontImage": "Front Image",
     "backImage": "Back Image",
-
     "showMuslimFriendly": "Show Muslim-friendly ingredients",
     "hideMuslimFriendly": "Hide Muslim-friendly ingredients",
-
     "quickDescription": {
       "halal": "Halal certified by ",
       "muslimFriendly": "Muslim-friendly ingredients, OK.",
       "syubhah": "Syubhah ingredients found.",
       "haram": "Haram ingredients found."
     },
-
     "statusDescription": {
       "Halal": "Halal certified.",
       "Muslim-friendly": "Muslim-friendly ingredients, OK.",
       "Syubhah": "Syubhah ingredients found.",
       "Haram": "Haram ingredients found."
     },
-
     "submit": "Submit",
     "update": "Update",
     "submitting": "Submitting product...",
     "submitSuccess": "Product submitted successfully!",
     "ocrSuccess": "✅ Ingredients successfully extracted!",
-
     "errors": {
       "loginRequired": "You must be logged in to submit a product.",
       "nameRequired": "Product name is required.",
@@ -343,7 +442,6 @@
       "backImageRequired": "Back image is required."
     }
   },
-
   "addPlace": {
     "title": "Add New Place",
     "editTitle": "Edit Place",
@@ -403,25 +501,20 @@
     "title": "Our Partner",
     "searchPlaceholder": "Search partner",
     "categories": "Categories",
-
     "actions": {
       "clearFilters": "Clear filters"
     },
-
     "detailTitle": "Partner",
     "about": "About",
     "programs": "Programs",
     "contact": "Contact",
-
     "verifiedLabel": "Verified Partner",
-
     "fields": {
       "address": "Address",
       "phone": "Phone",
       "email": "Email",
       "website": "Website"
     },
-
     "goldPartner": "GOLD PARTNER"
   },
   "points": {
