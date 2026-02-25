@@ -275,6 +275,7 @@ ion-card {
     padding: 4px 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .discover-grid::-webkit-scrollbar {
@@ -441,9 +442,8 @@ ion-card {
     flex-wrap: nowrap;
     width: 100%;
     scrollbar-width: none;
-    /* Firefox */
     -ms-overflow-style: none;
-    /* IE/Edge */
+    -webkit-overflow-scrolling: touch;
 }
 
 .store-scroll::-webkit-scrollbar {
@@ -532,19 +532,6 @@ ion-card {
 .store-option.readonly::after {
     display: none;
     /* hide checkmark */
-}
-
-/* Disable all pointer events on the card */
-.no-pointer {
-    pointer-events: none;
-}
-
-/* Re-enable pointer events for real interactive elements */
-.no-pointer ion-button,
-.no-pointer .stat-box,
-.no-pointer ion-item,
-.no-pointer .discover-item {
-    pointer-events: auto;
 }
 
 /* =========================

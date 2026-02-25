@@ -44,7 +44,7 @@ import {
 
 import { loadCountriesFromCache } from "@/composables/useCountries"
 import OneSignal from 'onesignal-cordova-plugin';
-import { refreshSubscriptionStatus} from "@/composables/useSubscriptionStatus";
+import { refreshSubscriptionStatus } from "@/composables/useSubscriptionStatus";
 
 defineCustomElements(window)
 
@@ -186,27 +186,19 @@ if (Capacitor.isNativePlatform()) {
     });
 }
 
-// ✅ Restore session once on boot
-supabase.auth.getSession().then(async ({ data }) => {
+// ✅ Restore session once on boot (non-blocking)
+supabase.auth.getSession().then(({ data }) => {
     const session = data.session;
-
     if (session?.user) {
         currentUser.value = session.user;
-
         loadDonorFromCache(session.user.id);
         loadUserRoleFromCache(session.user.id);
         loadPublicLeaderboardFromCache(session.user.id);
-
-        await loadUserProfile(session.user.id);
-
-        if (Capacitor.isNativePlatform()) await refreshSubscriptionStatus({ syncToServer: true });
-
+        // loadUserProfile and refreshSubscriptionStatus are moved to bootstrap
     } else {
         currentUser.value = null;
     }
 });
-
-
 
 // ✅ Auth events (still needed for sign-in/out within app)
 supabase.auth.onAuthStateChange(async (event, session) => {
@@ -273,8 +265,6 @@ document.addEventListener('deviceready', async () => {
             const accepted = await OneSignal.Notifications.requestPermission(false);
             console.log('🔔 User accepted notifications:', accepted);
         }
-
-        // 🧭 Handle incoming push when tapped/opened
 
         // 🧭 Handle incoming push when tapped/opened
         OneSignal.Notifications.addEventListener('click', (event: any) => {
@@ -346,19 +336,47 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
     }
 });
 
-
 async function bootstrap() {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (Capacitor.isNativePlatform()) {
-        await initRevenueCat(session?.user?.id);
-        await refreshSubscriptionStatus({ syncToServer: true });
-    }
-
+    // 1️⃣ Mount the app IMMEDIATELY so the user sees the UI even if plugins are slow
     router.isReady().then(() => {
         app.mount('#app');
         scheduleBannerUpdate();
     });
+
+    // 2️⃣ Background initialization (Native Plugins & Heavy Data)
+    try {
+        // We use a slight timeout on getSession to prevent complete freeze if auth lock hangs
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000));
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+        if (session?.user) {
+            currentUser.value = session.user;
+
+            // Logged in: Load profile data in background
+            loadDonorFromCache(session.user.id);
+            loadUserRoleFromCache(session.user.id);
+            loadPublicLeaderboardFromCache(session.user.id);
+
+            loadUserProfile(session.user.id).catch(e => console.error("Profile load failed", e));
+
+            if (Capacitor.isNativePlatform()) {
+                // Initialize RevenueCat & Subscriptions without blocking the mount
+                initRevenueCat(session.user.id)
+                    .then(() => refreshSubscriptionStatus({ syncToServer: true }))
+                    .catch(e => console.warn('RevenueCat/Sub init failed:', e));
+            }
+        } else {
+            currentUser.value = null;
+            if (Capacitor.isNativePlatform()) {
+                // Anonymous initialization
+                initRevenueCat().catch(e => console.warn('Anon RevenueCat init failed:', e));
+            }
+        }
+    } catch (err) {
+        console.error('Bootstrap error:', err);
+    }
 }
 
 bootstrap();

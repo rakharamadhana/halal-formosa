@@ -154,7 +154,13 @@ const router = createRouter({
 
 // ✅ Cleaner guard
 router.beforeEach(async (to, from, next) => {
-    const { data: { session } } = await supabase.auth.getSession()
+    let session = null;
+    try {
+        const { data } = await supabase.auth.getSession()
+        session = data.session;
+    } catch (e) {
+        console.warn('⚠️ [Router] getSession timeout/error:', e);
+    }
 
     // 🚫 Needs auth but not logged in
     if (to.meta.requiresAuth && !session) {

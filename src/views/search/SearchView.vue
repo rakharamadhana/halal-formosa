@@ -217,9 +217,10 @@
           v-if="!isNative"
           ref="scannerModal"
           :is-open="scanning"
+          @didPresent="onScannerModalPresented"
           @didDismiss="handleDismiss"
       >
-        <ion-content @click="dismissModal">
+        <ion-content>
           <div id="reader">
             <div class="scan-line"></div>
           </div>
@@ -456,16 +457,13 @@ import {
   pricetagsOutline, storefrontOutline, shieldCheckmarkOutline
 } from 'ionicons/icons'
 import {Capacitor} from '@capacitor/core'
-import {
-  CapacitorBarcodeScanner, CapacitorBarcodeScannerAndroidScanningLibrary,
-  CapacitorBarcodeScannerCameraDirection, CapacitorBarcodeScannerScanOrientation,
-  CapacitorBarcodeScannerTypeHintALLOption
-} from '@capacitor/barcode-scanner'
+import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import {Haptics, ImpactStyle} from '@capacitor/haptics'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import AppHeader from '@/components/AppHeader.vue'
 
 import StoreLogoBar from "@/components/StoreLogoBar.vue";
@@ -530,6 +528,7 @@ const currentPage = ref(0)
 const ingredientDictionary = ref<Record<string, string>>({})
 const infiniteScroll = ref<HTMLIonInfiniteScrollElement | null>(null)
 const suppressSortWatcher = ref(false)
+const html5QrCodeInstance = ref<Html5Qrcode | null>(null)
 const isNative = ref(Capacitor.isNativePlatform())
 
 const categoryIcons: Record<string, string> = {
@@ -832,12 +831,25 @@ function handleDismiss() {
   stopScan()
 }
 
-function stopScan() {
-  console.log('Scanner stopped / cleanup here')
+async function stopScan() {
+  if (html5QrCodeInstance.value) {
+    try {
+      if (html5QrCodeInstance.value.isScanning) {
+        await html5QrCodeInstance.value.stop()
+      }
+      const reader = document.getElementById('reader')
+      if (reader) reader.innerHTML = ''
+    } catch (err) {
+      console.warn('Error stopping scanner:', err)
+    } finally {
+      html5QrCodeInstance.value = null
+    }
+  }
 }
 
 function dismissModal() {
-  modalController.dismiss()
+  stopScan() // ✅ ensure cleanup
+  scanning.value = false
 }
 
 async function startScan() {
@@ -846,42 +858,101 @@ async function startScan() {
   if (scanning.value) return
   scanning.value = true
 
+  if (isNative.value) {
+    try {
+      // 📱 Native → ML Kit
+      const { camera } = await BarcodeScanner.checkPermissions();
+      if (camera !== 'granted') {
+        const { camera: newStatus } = await BarcodeScanner.requestPermissions();
+        if (newStatus !== 'granted') {
+           scanning.value = false;
+           return;
+        }
+      }
+
+      const { barcodes } = await BarcodeScanner.scan();
+
+      if (barcodes.length > 0) {
+        const barcode = barcodes[0].rawValue;
+        if (barcode) {
+          await Haptics.impact({ style: ImpactStyle.Medium });
+          activeStores.value = [];
+          activeCategories.value = [];
+          activeStatuses.value = [];
+          searchQuery.value = barcode;
+
+          await ActivityLogService.log("barcode_scan_success", {
+            barcode: barcode
+          });
+        }
+      }
+    } catch (err) {
+      console.error('❌ Native scan failed:', err)
+      await ActivityLogService.log("barcode_scan_error", { error: err || "unknown" });
+    } finally {
+      scanning.value = false
+      if (route.query.scan === 'true') {
+        router.replace({path: '/search'})
+      }
+    }
+  }
+}
+
+async function onScannerModalPresented() {
+  // 🌐 Web init logic here
   try {
-    const result = await CapacitorBarcodeScanner.scanBarcode({
-      hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
-      scanInstructions: t('search.scanInstructions'),
-      cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
-      scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
-      android: {scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT},
-      web: {showCameraSelection: true, scannerFPS: 15}
-    })
-
-    if (result?.ScanResult) {
-      await Haptics.impact({style: ImpactStyle.Medium})
-      
-      // ✅ Clear filters before setting query to ensure product is found
-      activeStores.value = []
-      activeCategories.value = []
-      activeStatuses.value = []
-      
-      searchQuery.value = result.ScanResult
+    let readerEl = null
+    // Retry finding element for up to 2 seconds
+    for (let i = 0; i < 20; i++) {
+      readerEl = document.getElementById('reader')
+      if (readerEl) break
+      await new Promise(r => setTimeout(r, 100))
     }
 
-    await ActivityLogService.log("barcode_scan_success", {
-      barcode: result?.ScanResult
-    });
+    if (!readerEl) {
+      console.error("❌ #reader container not found after modal present")
+      scanning.value = false
+      return
+    }
+
+    const html5QrCode = new Html5Qrcode('reader')
+    html5QrCodeInstance.value = html5QrCode
+
+    const config = {
+      fps: 15,
+      qrbox: { width: 250, height: 250 },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.QR_CODE
+      ]
+    }
+
+    await html5QrCode.start(
+        { facingMode: 'environment' },
+        config,
+        async (decodedText) => {
+          console.log('✅ Web barcode detected:', decodedText)
+          await Haptics.impact({style: ImpactStyle.Medium})
+          
+          activeStores.value = []
+          activeCategories.value = []
+          activeStatuses.value = []
+          searchQuery.value = decodedText
+          
+          await ActivityLogService.log("barcode_scan_success", { barcode: decodedText });
+
+          await stopScan()
+          scanning.value = false
+        },
+        () => { /* Silent failure for each frame */ }
+    )
   } catch (err) {
-    console.error('❌ Barcode scan failed:', err)
-
-    await ActivityLogService.log("barcode_scan_error", {
-      error: err || "unknown",
-    });
-
-  } finally {
+    console.error('❌ Web scanner start failed:', err)
     scanning.value = false
-    if (route.query.scan === 'true') {
-      router.replace({path: '/search'})
-    }
   }
 }
 
@@ -1334,6 +1405,7 @@ ion-card.status-haram {
   padding: 4px 6px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .category-bar::-webkit-scrollbar {

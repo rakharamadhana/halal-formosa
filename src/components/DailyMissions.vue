@@ -1,5 +1,5 @@
 <template>
-  <ion-card class="compact-section no-pointer">
+  <ion-card class="compact-section">
     <ion-card-header>
       <div class="card-header-row">
         <ion-card-title>

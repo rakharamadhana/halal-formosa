@@ -433,12 +433,7 @@ import { nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {supabase} from '@/plugins/supabaseClient'
 
 import { Capacitor } from '@capacitor/core'
-import {
-  CapacitorBarcodeScanner,
-  CapacitorBarcodeScannerAndroidScanningLibrary,
-  CapacitorBarcodeScannerCameraDirection,
-  CapacitorBarcodeScannerScanOrientation, CapacitorBarcodeScannerTypeHintALLOption
-} from '@capacitor/barcode-scanner'
+import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
@@ -935,17 +930,23 @@ async function startBarcodeScan() {
   try {
     if (Capacitor.isNativePlatform()) {
       // 🟢 Native → MLKit
-      const result = await CapacitorBarcodeScanner.scanBarcode({
-        hint: CapacitorBarcodeScannerTypeHintALLOption.ALL,
-        scanInstructions: 'Align the barcode within the frame',
-        cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
-        scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
-        android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.MLKIT },
-      })
+      const { camera } = await BarcodeScanner.checkPermissions();
+      if (camera !== 'granted') {
+        const { camera: newStatus } = await BarcodeScanner.requestPermissions();
+        if (newStatus !== 'granted') {
+           scanning.value = false;
+           return;
+        }
+      }
 
-      if (result?.ScanResult) {
-        await Haptics.impact({ style: ImpactStyle.Medium })
-        form.value.barcode = result.ScanResult
+      const { barcodes } = await BarcodeScanner.scan();
+
+      if (barcodes.length > 0) {
+        const barcode = barcodes[0].rawValue;
+        if (barcode) {
+          await Haptics.impact({ style: ImpactStyle.Medium })
+          form.value.barcode = barcode
+        }
       }
       scanning.value = false
     } else {

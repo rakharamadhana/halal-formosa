@@ -5,9 +5,6 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
-        <ion-refresher-content></ion-refresher-content>
-      </ion-refresher>
 
       <!-- === Prayer Times Horizontal === -->
       <ion-card class="prayer-card">
@@ -105,7 +102,7 @@
 
 
       <!-- === Main Feature: Scan + Stats === -->
-      <ion-card class="featured-card no-pointer">
+      <ion-card class="featured-card">
         <ion-card-header>
           <ion-card-title>{{ $t('home.mainFeature') }}</ion-card-title>
         </ion-card-header>
@@ -126,34 +123,11 @@
             </ion-button>
           </div>
 
-          <!-- Stats -->
-          <div class="stats-row">
-            <div class="stat-box" @click="openProducts">
-            <h2 v-if="!loadingStats">{{ totalProducts }}</h2>
-              <ion-skeleton-text
-                  v-else
-                  animated
-                  style="width: 70px; height: 28px; border-radius: 4px;"
-              />
-              <p>{{ $t('home.productsCount') }}</p>
-            </div>
-
-            <div class="stat-box" @click="openLocations">
-            <h2 v-if="!loadingStats">{{ totalLocations }}</h2>
-              <ion-skeleton-text
-                  v-else
-                  animated
-                  style="width: 70px; height: 28px; border-radius: 4px;"
-              />
-              <p>{{ $t('home.halalLocationsCount') }}</p>
-            </div>
-          </div>
-
         </ion-card-content>
       </ion-card>
 
       <!-- === Our Partner=== -->
-      <ion-card class="compact-section no-pointer">
+      <ion-card class="compact-section">
         <ion-card-header>
           <div class="card-header-row">
             <ion-card-title>
@@ -227,7 +201,7 @@
 
 
       <!-- === Discover Products === -->
-      <ion-card class="no-pointer">
+      <ion-card>
         <ion-card-header>
           <div class="card-header-row">
             <ion-card-title>{{ $t('home.discoverProducts') }}</ion-card-title>
@@ -282,7 +256,7 @@
 
 
       <!-- === Discover Locations === -->
-      <ion-card class="no-pointer">
+      <ion-card>
         <ion-card-header>
           <div class="card-header-row">
             <ion-card-title>{{ $t('home.discoverLocations') }}</ion-card-title>
@@ -329,7 +303,7 @@
       </ion-card>
 
       <!-- === Latest News === -->
-      <ion-card class="no-pointer">
+      <ion-card>
         <ion-card-header>
           <div class="card-header-row">
             <ion-card-title>
@@ -567,8 +541,6 @@ const { fetchProgress } = useDailyMissions()
 const doughnutRef = ref<any>(null)
 const locationChartRef = ref<any>(null)
 const RECENT_DISCOVER_LIMIT = 15
-const totalProducts = ref(0)
-const totalLocations = ref(0)
 const loadingStats = ref(true)
 const loadingProducts = ref(true)
 const loadingLocations = ref(true)
@@ -1037,7 +1009,6 @@ async function fetchStats() {
   loadingStats.value = true
   const { data: products } = await supabase.from('products').select('status, created_at')
   if (products) {
-    totalProducts.value = products.length
     const statusCount = { Halal:0,'Muslim-friendly':0,Syubhah:0,Haram:0 }
     products.forEach((p) => {
       if (statusCount[p.status as keyof typeof statusCount] !== undefined) {
@@ -1046,12 +1017,6 @@ async function fetchStats() {
     })
     updateChartSmoothly(doughnutRef, Object.values(statusCount))
   }
-
-  const { data: locations } = await supabase
-      .from('locations')
-      .select('id')
-      .eq('approved', true)
-  if (locations) totalLocations.value = locations.length
 
   loadingStats.value = false
 }
@@ -1183,11 +1148,6 @@ onBeforeUnmount(() => {
 
 
 /* ---------------- Navigation ---------------- */
-function openProducts() {
-  ActivityLogService.log("home_open_products");
-  router.push('/search');
-}
-
 function goScan() {
   ActivityLogService.log("home_scan_ingredient");
   router.push('/scan');
@@ -1201,11 +1161,6 @@ function goToSearchAndScan() {
 function goQibla() {
   ActivityLogService.log("home_find_qibla_click")
   router.push({ path: '/qibla', query: { from: 'home' } })
-}
-
-function openLocations() {
-  ActivityLogService.log("home_open_locations");
-  router.push('/explore');
 }
 
 function viewMorePartners() {
@@ -1296,57 +1251,22 @@ function openPartner(partner: any) {
   max-height: 400px;
 }
 
-/* === Stats Row === */
-.stats-row {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.stat-box {
-  cursor: pointer;
-  flex: 1 1 45%;
-  min-width: 140px;
-  height: 100px;
-  background: var(--ion-color-light);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  transition: transform 0.2s ease;
-}
-.stat-box:hover {
-  transform: translateY(-2px);
-}
-.stat-box h2 {
-  margin: 0;
-  font-size: 2.5rem;
-  font-weight: 600;
-}
-.stat-box p {
-  margin: 2px 0;
-  font-size: 1rem;
-  color: var(--ion-color-medium);
-}
-
 /* === Scan Buttons === */
 .scan-row {
-  margin-top: 5px;
+  margin-top: 10px;
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  min-height: 60px;
 }
 .scan-row > * {
   flex: 1;
 }
 .scan-row ion-button {
   text-transform: none;
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.4rem;
+  font-weight: 600;
+  height: 80px;
+  --border-radius: 16px;
 }
 
 /* ===============================
