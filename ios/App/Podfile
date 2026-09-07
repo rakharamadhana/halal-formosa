@@ -36,12 +36,11 @@ def capacitor_pods
   pod 'RevenuecatPurchasesCapacitorUi', :path => '../../node_modules/@revenuecat/purchases-capacitor-ui'
   pod 'CapacitorPluginSafeArea', :path => '../../node_modules/capacitor-plugin-safe-area'
   pod 'CordovaPluginsStatic', :path => '../capacitor-cordova-ios-plugins'
-  pod 'RecaptchaEnterprise', '18.9.1'
 end
 
 target 'App' do
   capacitor_pods
-  # Add your Pods here
+  pod 'RecaptchaEnterprise', '18.9.1'
 end
 
 target 'OneSignalNotificationServiceExtension' do
