@@ -94,9 +94,49 @@ export class BarcodeValidator {
         return this.validateEANCheckDigit(code, 12);
     }
 
-    // Simplified UPC-E (full expansion requires more detailed rules)
+    /**
+     * Expands the 6 compressed digits of a UPC-E code (plus its number-system
+     * digit) back into the 11-digit manufacturer+product body of the UPC-A
+     * code it represents, per the standard GS1 UPC-E↔UPC-A conversion table.
+     */
+    private static expandUPCEToUPCABody(numberSystem: string, six: string): string {
+        const d = six.split("");
+        const last = d[5];
+        let mfr: string;
+        let product: string;
+
+        if (last === "0" || last === "1" || last === "2") {
+            mfr = d[0] + d[1] + last + "00";
+            product = "00" + d[2] + d[3] + d[4];
+        } else if (last === "3") {
+            mfr = d[0] + d[1] + d[2] + "00";
+            product = "000" + d[3] + d[4];
+        } else if (last === "4") {
+            mfr = d[0] + d[1] + d[2] + d[3] + "0";
+            product = "0000" + d[4];
+        } else {
+            mfr = d[0] + d[1] + d[2] + d[3] + d[4];
+            product = "0000" + last;
+        }
+
+        return numberSystem + mfr + product; // 11 digits
+    }
+
+    // UPC-E only carries a real checksum in its 8-digit form (number system +
+    // 6 compressed digits + check digit) — a bare 6-digit code has no check
+    // digit to validate against, so it can't be trusted as a genuine barcode.
     static isValidUPCE(code: string): boolean {
-        return /^\d{6,8}$/.test(code); // accepts 6–8 digits
+        if (!/^\d{8}$/.test(code)) return false;
+
+        const numberSystem = code[0];
+        if (numberSystem !== "0" && numberSystem !== "1") return false;
+
+        const six = code.slice(1, 7);
+        const providedCheck = code[7];
+
+        const upcABody = this.expandUPCEToUPCABody(numberSystem, six);
+        const expectedCheck = this.calculateEANCheckDigit(upcABody);
+        return String(expectedCheck) === providedCheck;
     }
 
     static isValidISBN(code: string): boolean {

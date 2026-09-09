@@ -248,16 +248,29 @@
                   {{ $t('addProduct.scanBarcodeDesc') || 'Scan the barcode on the product packaging to get started.' }}
                 </p>
 
-                <ion-button 
-                  expand="block" 
-                  color="carrot" 
-                  class="ion-margin-bottom" 
-                  style="height: 56px; font-weight: 700;" 
+                <ion-button
+                  expand="block"
+                  :color="scanning ? 'medium' : 'carrot'"
+                  class="ion-margin-bottom"
+                  style="height: 56px; font-weight: 700;"
                   @click="startBarcodeScan"
-                  :disabled="scanning"
+                  :disabled="scanningFromGallery"
                 >
                   <ion-icon slot="start" :icon="scanning ? stopCircle : barcodeOutline" />
-                  {{ scanning ? 'Scanning...' : $t('addProduct.camera') }}
+                  {{ scanning ? (($t('addProduct.tapToStop')) || 'Tap to Stop Camera') : $t('addProduct.camera') }}
+                </ion-button>
+
+                <ion-button
+                  expand="block"
+                  fill="outline"
+                  color="carrot"
+                  style="height: 48px;"
+                  @click="scanBarcodeFromGallery"
+                  :disabled="scanning || scanningFromGallery"
+                >
+                  <ion-spinner v-if="scanningFromGallery" name="crescent" slot="start" style="zoom: 0.7;" />
+                  <ion-icon v-else slot="start" :icon="cloudUploadOutline" />
+                  {{ scanningFromGallery ? 'Reading image...' : ($t('addProduct.scanBarcodeFromGallery') || 'Upload from Gallery') }}
                 </ion-button>
               </div>
 
@@ -990,6 +1003,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { extractIonColor, colorMeaning } from '@/utils/ingredientHelpers'
 import { isValidBarcodeFormat } from '@/utils/barcodeValidator'
+import { pickAndDecodeBarcodeFromGallery } from '@/composables/useBarcodeImageScan'
 
 // Import Camera plugin and types
 import {Camera, CameraDirection, CameraResultType, CameraSource} from '@capacitor/camera'
@@ -1148,6 +1162,9 @@ onIonViewWillEnter(async () => {
 const barcodeValid = ref<null | boolean>(null)
 const barcodeMessage = ref<string>('') // feedback below input
 const scanning = ref(false)
+// Once the user deliberately stops the live scanner, don't auto-restart it
+// for them again this session (e.g. if they switch tabs and come back).
+const userStoppedScanner = ref(false)
 const scannedOnce = ref(false);
 const loading = ref(false)
 const showToast = ref(false)
@@ -1563,7 +1580,7 @@ onMounted(async () => {
     // ⚡ Logic for "Contribute to Database" from ScanIngredientsView
     // ⚡ Auto-start barcode scanner for new products ONLY if barcode is empty
     setTimeout(() => {
-        if (currentStep.value === STEP_BARCODE && !scanning.value && !form.value.barcode) {
+        if (currentStep.value === STEP_BARCODE && !scanning.value && !form.value.barcode && !userStoppedScanner.value) {
             startBarcodeScan();
         }
     }, 800);
@@ -2145,7 +2162,10 @@ async function switchCamera(camId: string) {
 
 async function startBarcodeScan() {
   if (scanning.value) {
-    // 🛑 If already scanning → stop
+    // 🛑 If already scanning → stop. Remember this was a deliberate stop so
+    // re-entering the view (e.g. switching tabs and back) doesn't silently
+    // restart the camera on the user again.
+    userStoppedScanner.value = true
     if (html5QrCodeInstance.value) {
       await html5QrCodeInstance.value.stop()
       document.getElementById('reader')!.innerHTML = ''
@@ -2261,6 +2281,32 @@ async function startBarcodeScan() {
   } catch (err: any) {
     console.error('❌ Barcode scan failed:', err)
     scanning.value = false
+  }
+}
+
+const scanningFromGallery = ref(false)
+
+async function scanBarcodeFromGallery() {
+  if (scanningFromGallery.value || scanning.value) return
+  scanningFromGallery.value = true
+
+  try {
+    const scannedBarcode = await pickAndDecodeBarcodeFromGallery()
+
+    if (scannedBarcode) {
+      await Haptics.impact({ style: ImpactStyle.Medium })
+      form.value.barcode = ''
+      await nextTick()
+      form.value.barcode = scannedBarcode
+      scannedOnce.value = true
+    } else {
+      setError(t('addProduct.noBarcodeInImage') || 'No barcode found in that image.')
+    }
+  } catch (err: any) {
+    console.error('❌ Gallery barcode scan failed:', err)
+    setError(err.message || t('addProduct.cameraError') || 'Failed to read the selected image.')
+  } finally {
+    scanningFromGallery.value = false
   }
 }
 
