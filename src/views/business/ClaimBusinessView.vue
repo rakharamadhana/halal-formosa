@@ -217,6 +217,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { supabase } from '@/plugins/supabaseClient'
 import { ClaimService } from '@/services/ClaimService'
+import { ActivityLogService } from '@/services/ActivityLogService'
 import { useNotifier } from '@/composables/useNotifier'
 import type { ClaimantRole } from '@/types/Business'
 
@@ -305,6 +306,10 @@ onIonViewWillEnter(async () => {
   // If the current user already has a pending claim, show a waiting note.
   const existing = await ClaimService.getUserClaimForLocation(locationId)
   existingPending.value = existing?.status === 'pending'
+
+  if (!existingPending.value) {
+    ActivityLogService.log('business_claim_step_view', { location_id: locationId, step: 1 })
+  }
 })
 
 const isStepValid = computed(() => {
@@ -313,7 +318,12 @@ const isStepValid = computed(() => {
   return true
 })
 
-function nextStep() { if (currentStep.value < totalSteps) currentStep.value++ }
+function nextStep() {
+  if (currentStep.value < totalSteps) {
+    currentStep.value++
+    ActivityLogService.log('business_claim_step_view', { location_id: locationId, step: currentStep.value })
+  }
+}
 function prevStep() { if (currentStep.value > 1) currentStep.value-- }
 
 function onProofSelected(e: Event) {
@@ -380,6 +390,7 @@ async function submitClaim() {
 
     isSubmitted.value = true
   } catch (error: any) {
+    ActivityLogService.log('business_claim_submit_error', { location_id: locationId, message: error?.message ?? null })
     const toast = await toastController.create({
       message: error?.message || t('common.error'),
       duration: 3000, color: 'danger', position: 'bottom'

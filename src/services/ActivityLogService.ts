@@ -199,11 +199,12 @@ function resolveEntity(activity: string, rawDetail: any): EntityResult {
                         : null
             }
 
-        // Optional: keep status as non-entity
         case 'search_filter_status':
             return {
-                entity_type: null,
-                entity_id: null
+                entity_type: 'status',
+                entity_id: (detail.statuses && detail.statuses.length > 0)
+                    ? String(detail.statuses[detail.statuses.length - 1])
+                    : null
             }
 
         // ðŸŸ¢ CATEGORY interactions
@@ -352,6 +353,25 @@ function resolveEntity(activity: string, rawDetail: any): EntityResult {
                 entity_id: detail.barcode ? String(detail.barcode) : null
             }
 
+        // BUSINESS CLAIM
+        case 'business_claim_start':
+        case 'business_claim_step_view':
+        case 'business_claim_submit':
+        case 'business_claim_submit_error':
+        case 'business_claim_approve':
+        case 'business_claim_reject':
+            return {
+                entity_type: 'place',
+                entity_id: detail.location_id ? String(detail.location_id) : null
+            }
+
+        // NOTIFICATIONS
+        case 'notification_received':
+        case 'notification_opened':
+            return {
+                entity_type: 'notification',
+                entity_id: detail.notification_id ? String(detail.notification_id) : null
+            }
 
         // âŒ Everything else
         default:
@@ -569,7 +589,9 @@ function resolveActivityGroup(activity: string): string | null {
         case 'business_listing_publish':
         case 'business_promo_create':
         case 'business_claim_start':
+        case 'business_claim_step_view':
         case 'business_claim_submit':
+        case 'business_claim_submit_error':
         case 'business_claim_approve':
         case 'business_claim_reject':
         case 'business_edit_request_approve':
@@ -644,6 +666,15 @@ function resolveActivityGroup(activity: string): string | null {
             return 'admin'
 
         /* -------------------------
+           NOTIFICATIONS
+        -------------------------- */
+        case 'notification_received':
+        case 'notification_opened':
+        case 'notification_category_opened':
+        case 'notification_newitem_opened':
+            return 'notifications'
+
+        /* -------------------------
            FALLBACK
         -------------------------- */
         default:
@@ -666,11 +697,6 @@ export class ActivityLogService {
         const user = (await supabase.auth.getUser()).data.user
         const session_id = SessionService.getSessionId()
 
-        if (!user) {
-            console.warn('[ActivityLogService] No user logged in')
-            return
-        }
-
         const { entity_type, entity_id } = resolveEntity(activity, detail)
 
         const skipWarn = activity === 'add_product_start' || activity === 'add_product_ocr_start'; if (entity_type && !entity_id && !skipWarn) {
@@ -683,7 +709,7 @@ export class ActivityLogService {
         const activity_group = resolveActivityGroup(activity)
 
         const payload = {
-            user_id: user.id,
+            user_id: user?.id ?? null,
             session_id,
             activity_type: activity,
             activity_group,

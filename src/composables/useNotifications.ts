@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/plugins/supabaseClient'
+import { ActivityLogService } from '@/services/ActivityLogService'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export interface AppNotification {
@@ -267,9 +268,11 @@ async function initNotifications() {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` },
       (payload) => {
-        personalNotifications.value.unshift(payload.new as AppNotification)
+        const notif = payload.new as AppNotification
+        personalNotifications.value.unshift(notif)
         unreadPersonalCount.value++
         recomputeHasUnread()
+        ActivityLogService.log('notification_received', { notification_id: notif.id, type: notif.type })
       }
     )
     .subscribe()

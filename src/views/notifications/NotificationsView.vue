@@ -106,6 +106,7 @@ import {
 import AppHeader from '@/components/AppHeader.vue';
 import { useI18n } from 'vue-i18n';
 import { useNotifications, type AppNotification, type CategoryBadge, type BroadcastCategory, type CategoryItem } from '@/composables/useNotifications';
+import { ActivityLogService } from '@/services/ActivityLogService';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -187,16 +188,19 @@ function formatDate(dateStr: string) {
 }
 
 async function openNotification(notif: AppNotification) {
+  ActivityLogService.log('notification_opened', { notification_id: notif.id, type: notif.type });
   if (!notif.is_read) await markRead(notif.id);
   if (notif.action_path) router.push(notif.action_path);
 }
 
 async function openCategory(badge: CategoryBadge) {
+  ActivityLogService.log('notification_category_opened', { category: badge.category });
   await markCategorySeen(badge.category);
   router.push(badge.actionPath);
 }
 
 async function openNewItem(entry: NewItemEntry) {
+  ActivityLogService.log('notification_newitem_opened', { category: entry.category, item_id: entry.item.id });
   // All items in a category are shown at once (count <= threshold), so opening
   // any one of them means the whole category has been seen.
   await markCategorySeen(entry.category);
